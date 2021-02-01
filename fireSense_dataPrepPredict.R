@@ -17,7 +17,9 @@ defineModule(sim, list(
   documentation = deparse(list("README.txt", "fireSense_dataPrepPredict.Rmd")),
   reqdPkgs = list(),
   parameters = rbind(
-    #defineParameter("paramName", "paramClass", value, min, max, "parameter description"),
+    defineParameter(name = "whichModulesToPrepare", class = "character",
+                    default = c("fireSense_SpreadPredict", "fireSense_IgnitionPredict", "fireSense_EscapeFit"),
+                    NA, NA, desc = "Which fireSense fit modules to prep? defaults to all 3")
     defineParameter(".plotInitialTime", "numeric", NA, NA, NA,
                     "Describes the simulation time at which the first plot event should occur."),
     defineParameter(".plotInterval", "numeric", NA, NA, NA,
@@ -33,8 +35,26 @@ defineModule(sim, list(
   ),
   inputObjects = bindrows(
     #expectsInput("objectName", "objectClass", "input object description", sourceURL, ...),
+    expectsInput(objectName = "climateComponentsToUse", objectClass = "character",
+                 desc = "names of the climate components to use in ignition, escape, and spread models"),
+    expectsInput(objectName = "cohortData", objectClass = "data.table",
+                 desc = "table that defines the cohorts by pixelGroup"),
     expectsInput(objectName = "covMinMax", objectClass = "data.table",
-                 desc = "range used to rescale coefficients during spreadFit", sourceURL = NA)
+                 desc = "range used to rescale coefficients during spreadFit"),
+    expectsInput(objectName = "PCAclimate", objectClass = "prcomp",
+                  desc = "PCA model for climate covariates, needed for fireSensePredict"),
+    expectsInput(objectName = "PCAveg", objectClass = "prcomp",
+                  desc = "PCA model for veg and LCC covariates, needed for FS models"),
+    expectsInput(objectName = 'pixelGroupMap', objectClass = "RasterLayer",
+                 'RasterLayer that defines the pixelGroups for cohortData table'),
+    expectsInput(objectName = "projectedClimateRasters", objectClass = "list",
+                 desc = paste("list of projected climate variables in raster stack form",
+                              "named according to variable, with names of individual raster layers",
+                              "following the convention 'year<year>'")),
+    expectsInput(objectName = "terrainDT", objectClass = "data.table",
+                 desc = "data.table with pixelID and relevant terrain variables used by predict models"),
+    expectsInput(objectName = "vegComponentsToUse", objectClass = "character",
+                 desc = "names of the veg components to use in ignition, escape, and spread predict models")
   ),
   outputObjects = bindrows(
     #createsOutput("objectName", "objectClass", "output object description", ...),
@@ -55,63 +75,31 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
       # do stuff for this event
       sim <- Init(sim)
 
+      if ("fireSense_IgnitionPredict" %in% P(sim)$whichModulesToPrepare)
+        sim <- scheduleEvent(sim, start(sim), "fireSense_dataPrepPredict", "prepIgnitionPredictData")
+      if ("fireSense_EscapePredict" %in% P(sim)$whichModulesToPrepare)
+        sim <- scheduleEvent(sim, start(sim), "fireSense_dataPrepPredict", "prepEscapePredictData")
+      if ("fireSense_SpreadPredict" %in% P(sim)$whichModulesToPrepare)
+        sim <- scheduleEvent(sim, start(sim), "fireSense_dataPrepPredict", "prepSpreadPredictData")
       # schedule future event(s)
       sim <- scheduleEvent(sim, P(sim)$.plotInitialTime, "fireSense_dataPrepPredict", "plot")
       sim <- scheduleEvent(sim, P(sim)$.saveInitialTime, "fireSense_dataPrepPredict", "save")
     },
     plot = {
-      # ! ----- EDIT BELOW ----- ! #
-      # do stuff for this event
 
-      #plotFun(sim) # uncomment this, replace with object to plot
-      # schedule future event(s)
-
-      # e.g.,
-      #sim <- scheduleEvent(sim, time(sim) + P(sim)$.plotInterval, "fireSense_dataPrepPredict", "plot")
-
-      # ! ----- STOP EDITING ----- ! #
     },
     save = {
-      # ! ----- EDIT BELOW ----- ! #
-      # do stuff for this event
 
-      # e.g., call your custom functions/methods here
-      # you can define your own methods below this `doEvent` function
-
-      # schedule future event(s)
-
-      # e.g.,
-      # sim <- scheduleEvent(sim, time(sim) + P(sim)$.saveInterval, "fireSense_dataPrepPredict", "save")
-
-      # ! ----- STOP EDITING ----- ! #
     },
-    event1 = {
-      # ! ----- EDIT BELOW ----- ! #
-      # do stuff for this event
-
-      # e.g., call your custom functions/methods here
-      # you can define your own methods below this `doEvent` function
-
-      # schedule future event(s)
-
-      # e.g.,
-      # sim <- scheduleEvent(sim, time(sim) + increment, "fireSense_dataPrepPredict", "templateEvent")
-
-      # ! ----- STOP EDITING ----- ! #
+    prepIgnitionPredictData = {
+      sim <- prepare_IgnitionPredict(sim)
     },
-    event2 = {
-      # ! ----- EDIT BELOW ----- ! #
-      # do stuff for this event
+    prepEscapePredictData = {
+      sim <- prepare_EscapePredict(sim)
+    },
+    prepSpreadPredictData = {
+      sim <- prepare_SpreadPredict(sim)
 
-      # e.g., call your custom functions/methods here
-      # you can define your own methods below this `doEvent` function
-
-      # schedule future event(s)
-
-      # e.g.,
-      # sim <- scheduleEvent(sim, time(sim) + increment, "fireSense_dataPrepPredict", "templateEvent")
-
-      # ! ----- STOP EDITING ----- ! #
     },
     warning(paste("Undefined event type: \'", current(sim)[1, "eventType", with = FALSE],
                   "\' in module \'", current(sim)[1, "moduleName", with = FALSE], "\'", sep = ""))
