@@ -41,6 +41,8 @@ defineModule(sim, list(
                  desc = "table that defines the cohorts by pixelGroup"),
     expectsInput(objectName = "covMinMax", objectClass = "data.table",
                  desc = "range used to rescale coefficients during spreadFit"),
+    expectsInput(objectName = 'nonForest_timeSinceDisturbance', objectClass = 'RasterLayer',
+                 desc = 'time since burn for non-forested pixels')
     expectsInput(objectName = "PCAclimate", objectClass = "prcomp",
                   desc = "PCA model for climate covariates, needed for fireSensePredict"),
     expectsInput(objectName = "PCAveg", objectClass = "prcomp",
@@ -58,7 +60,14 @@ defineModule(sim, list(
   ),
   outputObjects = bindrows(
     #createsOutput("objectName", "objectClass", "output object description", ...),
-    createsOutput(objectName = NA, objectClass = NA, desc = NA)
+    createsOutput(objectName = 'fireSense_EscapePredictCovariates', objectClass = 'data.table',
+                  desc = NA),
+    createsOutput(objectName = 'fireSense_IgnitionPredictCovariates', objectClass = 'data.table',
+                  desc = NA),
+    createsOutput(objectName = 'fireSense_SpreadPredictCovariates', objectClass = 'data.table',
+                  desc = NA),
+    createsOutput(objectName = 'nonForest_timeSinceDisturbance', objectClass = 'RasterLayer',
+                  desc = 'time since burn for non-forest pixels')
   )
 ))
 
@@ -74,7 +83,7 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
 
       # do stuff for this event
       sim <- Init(sim)
-
+      sim <- scheduleEvent(sim, time(sim) + 1, "fireSense_dataPrepPredict", "ageNonForest")
       if ("fireSense_IgnitionPredict" %in% P(sim)$whichModulesToPrepare)
         sim <- scheduleEvent(sim, start(sim), "fireSense_dataPrepPredict", "prepIgnitionPredictData")
       if ("fireSense_EscapePredict" %in% P(sim)$whichModulesToPrepare)
@@ -91,6 +100,10 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
     save = {
 
     },
+    ageNonForest = {
+      sim$ageNonForest <- ageNonForestPixels(sim)
+    }
+
     prepIgnitionPredictData = {
       sim <- prepare_IgnitionPredict(sim)
     },
@@ -141,48 +154,32 @@ plotFun <- function(sim) {
 
 ### template for your event1
 Event1 <- function(sim) {
-  # ! ----- EDIT BELOW ----- ! #
-  # THE NEXT TWO LINES ARE FOR DUMMY UNIT TESTS; CHANGE OR DELETE THEM.
-  # sim$event1Test1 <- " this is test for event 1. " # for dummy unit test
-  # sim$event1Test2 <- 999 # for dummy unit test
 
-  # ! ----- STOP EDITING ----- ! #
+
   return(invisible(sim))
 }
 
 ### template for your event2
 Event2 <- function(sim) {
-  # ! ----- EDIT BELOW ----- ! #
-  # THE NEXT TWO LINES ARE FOR DUMMY UNIT TESTS; CHANGE OR DELETE THEM.
-  # sim$event2Test1 <- " this is test for event 2. " # for dummy unit test
-  # sim$event2Test2 <- 777  # for dummy unit test
 
-  # ! ----- STOP EDITING ----- ! #
+
   return(invisible(sim))
 }
 
 .inputObjects <- function(sim) {
-  # Any code written here will be run during the simInit for the purpose of creating
-  # any objects required by this module and identified in the inputObjects element of defineModule.
-  # This is useful if there is something required before simulation to produce the module
-  # object dependencies, including such things as downloading default datasets, e.g.,
-  # downloadData("LCC2005", modulePath(sim)).
-  # Nothing should be created here that does not create a named object in inputObjects.
-  # Any other initiation procedures should be put in "init" eventType of the doEvent function.
-  # Note: the module developer can check if an object is 'suppliedElsewhere' to
-  # selectively skip unnecessary steps because the user has provided those inputObjects in the
-  # simInit call, or another module will supply or has supplied it. e.g.,
-  # if (!suppliedElsewhere('defaultColor', sim)) {
-  #   sim$map <- Cache(prepInputs, extractURL('map')) # download, extract, load file from url in sourceURL
-  # }
+
 
   #cacheTags <- c(currentModule(sim), "function:.inputObjects") ## uncomment this if Cache is being used
   dPath <- asPath(getOption("reproducible.destinationPath", dataPath(sim)), 1)
   message(currentModule(sim), ": using dataPath '", dPath, "'.")
 
-  # ! ----- EDIT BELOW ----- ! #
 
-  # ! ----- STOP EDITING ----- ! #
+  if (!suppliedElsewhere("nonForest_timeSinceDisturbance", sim)) {
+
+    #this is a complicated object to create from scratch. Requires nonforest lcc, lcc raster, firePolys...
+    sim$nonForest_timeSinceDisturbance <-
+  }
+
   return(invisible(sim))
 }
 
