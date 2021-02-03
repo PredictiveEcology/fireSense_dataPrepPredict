@@ -17,10 +17,11 @@ defineModule(sim, list(
   documentation = deparse(list("README.txt", "fireSense_dataPrepPredict.Rmd")),
   reqdPkgs = list("data.table", "PredictiveEcology/fireSenseUtils@development (>=0.0.4.9007)", "raster"),
   parameters = rbind(
-    defineParameter(name = "fireTimeStep", "numeric", 1, NA, NA, )
+    defineParameter(name = "fireTimeStep", "numeric", 1, NA, NA,
+                    desc = "time step of fire model"),
     defineParameter(name = "whichModulesToPrepare", class = "character",
                     default = c("fireSense_SpreadPredict", "fireSense_IgnitionPredict", "fireSense_EscapeFit"),
-                    NA, NA, desc = "Which fireSense fit modules to prep? defaults to all 3")
+                    NA, NA, desc = "Which fireSense fit modules to prep? defaults to all 3"),
     defineParameter(".plotInitialTime", "numeric", NA, NA, NA,
                     "Describes the simulation time at which the first plot event should occur."),
     defineParameter(".plotInterval", "numeric", NA, NA, NA,
@@ -43,7 +44,7 @@ defineModule(sim, list(
     expectsInput(objectName = "covMinMax", objectClass = "data.table",
                  desc = "range used to rescale coefficients during spreadFit"),
     expectsInput(objectName = 'nonForest_timeSinceDisturbance', objectClass = 'RasterLayer',
-                 desc = 'time since burn for non-forested pixels')
+                 desc = 'time since burn for non-forested pixels'),
     expectsInput(objectName = "PCAclimate", objectClass = "prcomp",
                   desc = "PCA model for climate covariates, needed for fireSensePredict"),
     expectsInput(objectName = "PCAveg", objectClass = "prcomp",
@@ -55,7 +56,9 @@ defineModule(sim, list(
                               "named according to variable, with names of individual raster layers",
                               "following the convention 'year<year>'")),
     expectsInput(objectName = "landcoverDT", objectClass = "data.table",
-                 desc = "data.table with pixelID and relevant landcover classes")
+                 desc = "data.table with pixelID and relevant landcover classes"),
+    expectsInput(objectName = "rstCurrentBurn", objectClass = "RasterLayer",
+                 desc = "binary raster with 1 representing annual burn"),
     expectsInput(objectName = "terrainDT", objectClass = "data.table",
                  desc = "data.table with pixelID and relevant terrain variables"),
     expectsInput(objectName = "vegComponentsToUse", objectClass = "character",
@@ -104,9 +107,12 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
 
     },
     ageNonForest = {
-      sim$ageNonForest <- ageNonForestPixels(sim)
-    }
-
+      sim$nonForest_timeSinceDisturbance <- ageNonForest(TSD = sim$nonForest_timeSinceDisturbance,
+                                                         rstCurrentBurn = sim$rstCurrentBurn,
+                                                         timeStep = P(sim)$fireTimeStep)
+      sim <- scheduleEvent(sim, time(sim) + P(sim)$fireTimeStep,
+                           "fireSense_dataPrepPredict", "ageNonForest")
+    },
     prepIgnitionPredictData = {
       sim <- prepare_IgnitionPredict(sim)
       sim <- scheduleEvent(sim, time(sim) + P(sim)$fireTimeStep,
@@ -161,8 +167,18 @@ plotFun <- function(sim) {
   return(invisible(sim))
 }
 
+ageNonForest <- function(TSD, rstCurrentBurn, timeStep) {
+
+  TSD <- setValues(TSD, getValues(TSD) + timeStep)
+  if (!is.null(rstCurrentBurn)){
+    unburned <- is.na(rstCurrentBurn[]) | rstCurrentBurn[] == 0
+    TSD[!unburned] <- 0
+  }
+  return(TSD)
+}
+
 ### template for your event1
-prepare_spreadPredict <- function(sim) {
+prepare_SpreadPredict <- function(sim) {
   browser()
   #cohortData, pixelGroupMap, nonforest_standAge, terrainDT, landcoverDT, PCA....
   #1) build fireSense vegData from cohortData + landcoverDT
@@ -173,12 +189,6 @@ prepare_spreadPredict <- function(sim) {
   return(invisible(sim))
 }
 
-### template for your event2
-Event2 <- function(sim) {
-
-
-  return(invisible(sim))
-}
 
 .inputObjects <- function(sim) {
 
