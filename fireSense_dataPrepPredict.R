@@ -17,8 +17,10 @@ defineModule(sim, list(
   documentation = deparse(list("README.txt", "fireSense_dataPrepPredict.Rmd")),
   reqdPkgs = list("data.table", "PredictiveEcology/fireSenseUtils@development (>=0.0.4.9007)", "raster"),
   parameters = rbind(
-    defineParameter(name = "fireTimeStep", "numeric", 1, NA, NA,
-                    desc = "time step of fire model"),
+    defineParameter(name = "fireTimeStep", "numeric", 1, NA, NA, desc = "time step of fire model"),
+    defineParameter(name = 'missingLCCgroup', class = 'character', 'nonForest_highFlam', NA, NA,
+                    desc = paste("if a pixel is forested but is absent from cohortData, it will be grouped in this class.",
+                                 "Must be one of the names in sim$nonForestedLCCGroups")),
     defineParameter(name = "whichModulesToPrepare", class = "character",
                     default = c("fireSense_SpreadPredict", "fireSense_IgnitionPredict", "fireSense_EscapeFit"),
                     NA, NA, desc = "Which fireSense fit modules to prep? defaults to all 3"),
@@ -182,8 +184,11 @@ prepare_SpreadPredict <- function(sim) {
   browser()
   #cohortData, pixelGroupMap, nonforest_standAge, terrainDT, landcoverDT, PCA....
   #1) build fireSense vegData from cohortData + landcoverDT
-  terrainAndLCC <- sim$landcoverDT[sim$terrainDT, on = "pixelIndex"]
-
+  vegData <- castCohortData(cohortData = sim$cohortData,
+                            pixelGroupMap = sim$pixelGroupMap,
+                            terrainDT = sim$terrainDT,
+                            lcc = sim$landcoverDT,
+                            missingLCC = P(sim)$missingLCCgroup)
 
 
   return(invisible(sim))
