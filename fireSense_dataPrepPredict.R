@@ -181,14 +181,38 @@ ageNonForest <- function(TSD, rstCurrentBurn, timeStep) {
 
 ### template for your event1
 prepare_SpreadPredict <- function(sim) {
-  browser()
+
   #cohortData, pixelGroupMap, nonforest_standAge, terrainDT, landcoverDT, PCA....
   #1) build fireSense vegData from cohortData + landcoverDT
-  vegData <- castCohortData(cohortData = sim$cohortData,
+  vegPCAdat <- castCohortData(cohortData = sim$cohortData,
                             pixelGroupMap = sim$pixelGroupMap,
+                            ageMap = sim$nonForest_timeSinceDisturbance,
                             terrainDT = sim$terrainDT,
                             lcc = sim$landcoverDT,
                             missingLCC = P(sim)$missingLCCgroup)
+
+  #redo PCA -
+  vegList <- makeVegTerrainPCA(dataForPCA = vegPCAdat, PCA = sim$PCAveg,
+                               dontWant = c("pixelGroup", "pixelID", "youngAge"))
+
+  #returns a list with only one usable object (PCA is null due to predict)
+  vegData <- vegList$vegComponents
+  rm(vegList)
+
+  #rename vegcolumns
+  colsToRename <- colnames(vegData[, -c("pixelID", "youngAge"),])
+  setnames(vegData, colsToRename, paste0("veg", colsToRename))
+  #subset by columns used in model
+  keep <- c("pixelID", "youngAge", sim$vegComponentsToUse)
+  remove <- setdiff(colnames(vegData), keep)
+  set(vegData, NULL, remove, NULL)
+
+
+  #deal with youngAge - if young, vegPCA = 0
+  #this will be a function ion fireSenseUtils
+
+
+  #prepare climate data
 
 
   return(invisible(sim))
@@ -200,6 +224,14 @@ prepare_SpreadPredict <- function(sim) {
   cacheTags <- c(currentModule(sim), "function:.inputObjects")
   dPath <- asPath(getOption("reproducible.destinationPath", dataPath(sim)), 1)
   message(currentModule(sim), ": using dataPath '", dPath, "'.")
+
+  if (!suppliedElsewhere("PCAclimate", sim)) {
+    stop("Please supply this object by running fireSense_dataPrepFit")
+  }
+
+  if (!suppliedElsewhere("PCAveg", sim)) {
+    stop("Please supply this object by running fireSense_dataPrepFit")
+  }
 
   if (!suppliedElsewhere("landcoverDT", sim)) {
     stop("Please supply this object by running fireSense_dataPrepFit")
