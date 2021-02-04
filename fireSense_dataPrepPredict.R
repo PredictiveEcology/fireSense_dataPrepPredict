@@ -205,13 +205,25 @@ prepare_SpreadPredict <- function(sim) {
   remove <- setdiff(colnames(vegData), keep)
   set(vegData, NULL, remove, NULL)
 
+  #the index is the cells in vegData - these are already the flammable cells only
+  #because landcoverDT is flammable cells only
+  thisYearsClimate <- lapply(sim$projectedClimateLayers,
+                             FUN = function(x){x[[paste0("year", time(sim))]]})
+  climData <- climateRasterToDataTable(historicalClimateRasters = thisYearsClimate, Index = vegData$pixelID)
+  if (length(climData) > 1){
+    #this is untested, but we need to merge arbitrary lists of data.tables
+    climData <- Reduce(x = climateData, function(x, y, ...) merge(x, y , ...))
+  } else {
+    climData <- climData[[1]]
+  }
+  set(climData, NULL, 'year', NULL)
+  spreadData <- vegData[climData, on = c("pixelID")]
+  setcolorder(spreadData, neworder = c("pixelID", "youngAge"))
 
-  #deal with youngAge - if young, vegPCA = 0
+  browser()
+  #deal with youngAge - if young, vegPCA = 0.
   #this will be a function ion fireSenseUtils
-
-
-  #prepare climate data
-
+  sim$fireSense_SpreadPredictCovariates <- spreadData
 
   return(invisible(sim))
 }
