@@ -47,8 +47,6 @@ defineModule(sim, list(
                  desc = "range used to rescale coefficients during spreadFit"),
     expectsInput(objectName = 'nonForest_timeSinceDisturbance', objectClass = 'RasterLayer',
                  desc = 'time since burn for non-forested pixels'),
-    expectsInput(objectName = "PCAclimate", objectClass = "prcomp",
-                  desc = "PCA model for climate covariates, needed for fireSensePredict"),
     expectsInput(objectName = "PCAveg", objectClass = "prcomp",
                   desc = "PCA model for veg and LCC covariates, needed for FS models"),
     expectsInput(objectName = 'pixelGroupMap', objectClass = "RasterLayer",
@@ -224,10 +222,6 @@ prepare_SpreadPredict <- function(sim) {
   cacheTags <- c(currentModule(sim), "function:.inputObjects")
   dPath <- asPath(getOption("reproducible.destinationPath", dataPath(sim)), 1)
   message(currentModule(sim), ": using dataPath '", dPath, "'.")
-
-  if (!suppliedElsewhere("PCAclimate", sim)) {
-    stop("Please supply this object by running fireSense_dataPrepFit")
-  }
 
   if (!suppliedElsewhere("PCAveg", sim)) {
     stop("Please supply this object by running fireSense_dataPrepFit")
