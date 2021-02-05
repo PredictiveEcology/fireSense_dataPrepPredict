@@ -5,7 +5,7 @@ defineModule(sim, list(
   authors = c(
     person("Ian", "Eddy", role = c("aut", "cre"), email = "ian.eddy@#canada.ca"),
     person("Eliot", "McIntire", role = "aut", email = "eliot.mcintire@#canada.ca"),
-    person("Alex M", "Chubaty", role = "ctb"), email = "achubaty@for-cast.ca")
+    person("Alex M", "Chubaty", role = "ctb", email = "achubaty@for-cast.ca")
   ),
   childModules = character(0),
   version = list(SpaDES.core = "1.0.4.9003", fireSense_dataPrepPredict = "0.0.0.9000"),
