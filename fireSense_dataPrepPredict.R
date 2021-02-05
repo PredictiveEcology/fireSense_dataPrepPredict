@@ -13,8 +13,10 @@ defineModule(sim, list(
   timeunit = "year",
   citation = list("citation.bib"),
   documentation = deparse(list("README.txt", "fireSense_dataPrepPredict.Rmd")),
-  reqdPkgs = list("data.table", "PredictiveEcology/fireSenseUtils@development (>=0.0.4.9017)", "raster"),
+  reqdPkgs = list("data.table", "PredictiveEcology/fireSenseUtils@development (>=0.0.4.9018)", "raster"),
   parameters = rbind(
+    defineParameter("cutoffForYoungAge", class = "numeric", 15, NA, NA,
+                    desc = paste("Age at and below which pixels are considered 'young' --> young <- age <= cutoffForYoungAge")),
     defineParameter(name = "fireTimeStep", "numeric", 1, NA, NA, desc = "time step of fire model"),
     defineParameter(name = "missingLCCgroup", class = "character", "nonForest_highFlam", NA, NA,
                     desc = paste("if a pixel is forested but is absent from cohortData, it will be grouped in this class.",
@@ -190,7 +192,10 @@ prepare_IgnitionPredict <- function(sim){
                                       sppEquiv = sim$sppEquiv,
                                       sppEquivCol = P(sim)$sppEquivCol,
                                       pixelGroupMap = sim$pixelGroupMap,
-                                      flammabelMap = sim$flammableRTM)
+                                      flammableMap = sim$flammableRTM,
+                                      youngAgeCutoff = P(sim)$cutoffForYoungAge)
+  raster::plot(fuelClasses)
+  cohortsToFuelClasses
 
 
 
