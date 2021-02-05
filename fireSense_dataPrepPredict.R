@@ -1,14 +1,12 @@
-## Everything in this file gets sourced during `simInit()`,
-## and all functions and objects are put into the `simList`.
-## To use objects, use `sim$xxx` (they are globally available to all modules).
-## Functions can be used without `sim$` as they are namespaced to the module,
-## just like functions in R packages.
-## If exact location is required, functions will be: `sim$<moduleName>$FunctionName`.
 defineModule(sim, list(
   name = "fireSense_dataPrepPredict",
   description = "",
   keywords = "",
-  authors = structure(list(list(given = c("First", "Middle"), family = "Last", role = c("aut", "cre"), email = "email@example.com", comment = NULL)), class = "person"),
+  authors = c(
+    person("Ian", "Eddy", role = c("aut", "cre"), email = "ian.eddy@#canada.ca"),
+    person("Eliot", "McIntire", role = "aut", email = "eliot.mcintire@#canada.ca"),
+    person("Alex M", "Chubaty", role = "ctb"), email = "achubaty@for-cast.ca")
+  ),
   childModules = character(0),
   version = list(SpaDES.core = "1.0.4.9003", fireSense_dataPrepPredict = "0.0.0.9000"),
   timeframe = as.POSIXlt(c(NA, NA)),
@@ -17,11 +15,11 @@ defineModule(sim, list(
   documentation = deparse(list("README.txt", "fireSense_dataPrepPredict.Rmd")),
   reqdPkgs = list("data.table", "PredictiveEcology/fireSenseUtils@development (>=0.0.4.9007)", "raster"),
   parameters = rbind(
-    defineParameter(name = "fireTimeStep", "numeric", 1, NA, NA, desc = "time step of fire model"),
-    defineParameter(name = 'missingLCCgroup', class = 'character', 'nonForest_highFlam', NA, NA,
-                    desc = paste("if a pixel is forested but is absent from cohortData, it will be grouped in this class.",
-                                 "Must be one of the names in sim$nonForestedLCCGroups")),
-    defineParameter(name = "whichModulesToPrepare", class = "character",
+    defineParameter("fireTimeStep", "numeric", 1, NA, NA, desc = "time step of fire model"),
+    defineParameter("missingLCCgroup", "character", "nonForest_highFlam", NA, NA,
+                    paste("if a pixel is forested but is absent from cohortData, it will be grouped in this class.",
+                          "Must be one of the names in sim$nonForestedLCCGroups")),
+    defineParameter("whichModulesToPrepare", "character",
                     default = c("fireSense_SpreadPredict", "fireSense_IgnitionPredict", "fireSense_EscapeFit"),
                     NA, NA, desc = "Which fireSense fit modules to prep? defaults to all 3"),
     defineParameter(".plotInitialTime", "numeric", NA, NA, NA,
