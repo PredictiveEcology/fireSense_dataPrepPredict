@@ -13,7 +13,7 @@ defineModule(sim, list(
   timeunit = "year",
   citation = list("citation.bib"),
   documentation = deparse(list("README.txt", "fireSense_dataPrepPredict.Rmd")),
-  reqdPkgs = list("data.table", "PredictiveEcology/fireSenseUtils@development (>=0.0.4.9015)", "raster"), #change fireSenseUtils to 4.9015 when convenient
+  reqdPkgs = list("data.table", "PredictiveEcology/fireSenseUtils@development (>=0.0.4.9017)", "raster"),
   parameters = rbind(
     defineParameter(name = "fireTimeStep", "numeric", 1, NA, NA, desc = "time step of fire model"),
     defineParameter(name = "missingLCCgroup", class = "character", "nonForest_highFlam", NA, NA,
@@ -186,11 +186,11 @@ prepare_IgnitionPredict <- function(sim){
 
   browser()
   #get fuel classes
-  fuelClasses <- classifyCohortsFireSenseSpread(cohortData = sim$cohortData,
-                                                sppEquiv = sim$sppEquiv,
-                                                sppEquivCol = P(sim)$sppEquivCol,
-                                                pixelGroupMap = sim$pixelGroupMap,
-                                                flammabelMap = sim$flammableRTM)
+  fuelClasses <- cohortsToFuelClasses(cohortData = sim$cohortData,
+                                      sppEquiv = sim$sppEquiv,
+                                      sppEquivCol = P(sim)$sppEquivCol,
+                                      pixelGroupMap = sim$pixelGroupMap,
+                                      flammabelMap = sim$flammableRTM)
 
 
 
