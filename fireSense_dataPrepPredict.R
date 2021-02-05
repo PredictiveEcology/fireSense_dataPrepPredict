@@ -17,9 +17,9 @@ defineModule(sim, list(
   documentation = deparse(list("README.txt", "fireSense_dataPrepPredict.Rmd")),
   reqdPkgs = list(),
   parameters = rbind(
-    defineParameter(name = "whichModulesToPrepare", class = "character",
+    defineParameter("whichModulesToPrepare", "character",
                     default = c("fireSense_SpreadPredict", "fireSense_IgnitionPredict", "fireSense_EscapeFit"),
-                    NA, NA, desc = "Which fireSense fit modules to prep? defaults to all 3")
+                    NA, NA, desc = "Which fireSense fit modules to prep? defaults to all 3"),
     defineParameter(".plotInitialTime", "numeric", NA, NA, NA,
                     "Describes the simulation time at which the first plot event should occur."),
     defineParameter(".plotInterval", "numeric", NA, NA, NA,
