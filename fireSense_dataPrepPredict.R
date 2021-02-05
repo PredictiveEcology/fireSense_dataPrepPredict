@@ -13,13 +13,15 @@ defineModule(sim, list(
   timeunit = "year",
   citation = list("citation.bib"),
   documentation = deparse(list("README.txt", "fireSense_dataPrepPredict.Rmd")),
-  reqdPkgs = list("data.table", "PredictiveEcology/fireSenseUtils@development (>=0.0.4.9007)", "raster"),
+  reqdPkgs = list("data.table", "PredictiveEcology/fireSenseUtils@development (>=0.0.4.9015)", "raster"), #change fireSenseUtils to 4.9015 when convenient
   parameters = rbind(
-    defineParameter("fireTimeStep", "numeric", 1, NA, NA, desc = "time step of fire model"),
-    defineParameter("missingLCCgroup", "character", "nonForest_highFlam", NA, NA,
-                    paste("if a pixel is forested but is absent from cohortData, it will be grouped in this class.",
-                          "Must be one of the names in sim$nonForestedLCCGroups")),
-    defineParameter("whichModulesToPrepare", "character",
+    defineParameter(name = "fireTimeStep", "numeric", 1, NA, NA, desc = "time step of fire model"),
+    defineParameter(name = "missingLCCgroup", class = "character", "nonForest_highFlam", NA, NA,
+                    desc = paste("if a pixel is forested but is absent from cohortData, it will be grouped in this class.",
+                                 "Must be one of the names in sim$nonForestedLCCGroups")),
+    defineParameter(name = "sppEquivCol", class = "character", default = "LandR", NA, NA,
+                    desc = "column name in sppEquiv object that defines unique species in cohortData"),
+    defineParameter(name = "whichModulesToPrepare", class = "character",
                     default = c("fireSense_SpreadPredict", "fireSense_IgnitionPredict", "fireSense_EscapeFit"),
                     NA, NA, desc = "Which fireSense fit modules to prep? defaults to all 3"),
     defineParameter(".plotInitialTime", "numeric", NA, NA, NA,
@@ -36,13 +38,14 @@ defineModule(sim, list(
                           "and time are not relevant"))
   ),
   inputObjects = bindrows(
-    #expectsInput("objectName", "objectClass", "input object description", sourceURL, ...),
     expectsInput(objectName = "climateComponentsToUse", objectClass = "character",
                  desc = "names of the climate components to use in ignition, escape, and spread models"),
     expectsInput(objectName = "cohortData", objectClass = "data.table",
                  desc = "table that defines the cohorts by pixelGroup"),
     expectsInput(objectName = "covMinMax", objectClass = "data.table",
                  desc = "range used to rescale coefficients during spreadFit"),
+    expectsInput(objectName = "flammableRTM", objectClass = "RasterLayer", sourceURL = NA,
+                 desc = "RTM without ice/rocks/urban/water. Flammable map with 0 and 1."),
     expectsInput(objectName = 'nonForest_timeSinceDisturbance', objectClass = 'RasterLayer',
                  desc = 'time since burn for non-forested pixels'),
     expectsInput(objectName = "PCAveg", objectClass = "prcomp",
@@ -57,6 +60,8 @@ defineModule(sim, list(
                  desc = "data.table with pixelID and relevant landcover classes"),
     expectsInput(objectName = "rstCurrentBurn", objectClass = "RasterLayer",
                  desc = "binary raster with 1 representing annual burn"),
+    expectsInput(objectName = "sppEquiv", objectClass = "data.table", sourceURL = NA,
+                 desc = "table of LandR species equivalencies"),
     expectsInput(objectName = "terrainDT", objectClass = "data.table",
                  desc = "data.table with pixelID and relevant terrain variables"),
     expectsInput(objectName = "vegComponentsToUse", objectClass = "character",
@@ -175,7 +180,25 @@ ageNonForest <- function(TSD, rstCurrentBurn, timeStep) {
   return(TSD)
 }
 
-### template for your event1
+
+
+prepare_IgnitionPredict <- function(sim){
+
+  browser()
+  #get fuel classes
+  fuelClasses <- classifyCohortsFireSenseSpread(cohortData = sim$cohortData,
+                                                sppEquiv = sim$sppEquiv,
+                                                sppEquivCol = P(sim)$sppEquivCol,
+                                                pixelGroupMap = sim$pixelGroupMap,
+                                                flammabelMap = sim$flammableRTM)
+
+
+
+
+  return(invisible(sim))
+}
+
+
 prepare_SpreadPredict <- function(sim) {
 
   #cohortData, pixelGroupMap, nonforest_standAge, terrainDT, landcoverDT, PCA....
@@ -218,9 +241,9 @@ prepare_SpreadPredict <- function(sim) {
   spreadData <- vegData[climData, on = c("pixelID")]
   setcolorder(spreadData, neworder = c("pixelID", "youngAge"))
 
-  browser()
-  #deal with youngAge - if young, vegPCA = 0.
-  #this will be a function ion fireSenseUtils
+  #TODO: this vegPC will have to become a param if we plan on running with biomass instead of PCA
+  spreadData <- makeMutuallyExclusive(dt = spreadData,
+                                      mutuallyExclusive = list("youngAge" = "vegPC"))
   sim$fireSense_SpreadPredictCovariates <- spreadData
 
   return(invisible(sim))
