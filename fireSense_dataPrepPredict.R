@@ -193,12 +193,20 @@ prepare_IgnitionPredict <- function(sim){
                                       sppEquivCol = P(sim)$sppEquivCol,
                                       pixelGroupMap = sim$pixelGroupMap,
                                       flammableMap = sim$flammableRTM,
-                                      youngAgeCutoff = P(sim)$cutoffForYoungAge)
-  raster::plot(fuelClasses)
-  cohortsToFuelClasses
+                                      cutoffForYoungAge = P(sim)$cutoffForYoungAge)
+  #make columns for each fuel class
+  fcs <- names(fuelClasses)
+  getPix <- function(fc, type, index) { fc[[type]][index]}
+  fuelDT <- data.table(pixelID = sim$landcoverDT$pixelID)
+  fuelDT[, c(fcs) := nafill(lapply(fcs, getPix, fc = fuelClasses, index = fuelDT$pixelID), fill = 0)]
 
-
-
+  #
+  temp <- fuelDT[sim$landcoverDT, on = c("pixelID")]
+  temp[, rowcheck := rowSums(.SD), .SD = setdiff(names(temp), 'pixelID')]
+  #if all rows are 0, it must be a forested LCC absent from cohortData
+  temp[rowcheck == 0, eval(P(sim)$missingLCC) := 1]
+  set(temp, NULL, rowcheck, NULL) #still have to ensure mutual exclusivity - maybe upstream in fuelClases?
+  #Then join with MDC. Done
 
   return(invisible(sim))
 }
