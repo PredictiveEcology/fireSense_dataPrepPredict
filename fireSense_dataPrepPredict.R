@@ -70,7 +70,8 @@ defineModule(sim, list(
                  desc = "names of the veg components to use in ignition, escape, and spread predict models")
   ),
   outputObjects = bindrows(
-    #createsOutput("objectName", "objectClass", "output object description", ...),
+    createsOutput(objectName = "currentClimateLayers", objectClass = "list",
+                  desc = "list of project climate rasters at current time of sim"),
     createsOutput(objectName = 'fireSense_EscapePredictCovariates', objectClass = 'data.table',
                   desc = NA),
     createsOutput(objectName = 'fireSense_IgnitionPredictCovariates', objectClass = 'data.table',
@@ -95,6 +96,7 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
       # do stuff for this event
       sim <- Init(sim)
       sim <- scheduleEvent(sim, time(sim) + 1, "fireSense_dataPrepPredict", "ageNonForest")
+      sim <- scheduleEvent(sim, start(sim), "fireSense_dataPrepPredict", "getClimateLayers")
       if ("fireSense_IgnitionPredict" %in% P(sim)$whichModulesToPrepare)
         sim <- scheduleEvent(sim, start(sim), "fireSense_dataPrepPredict", "prepIgnitionPredictData")
       if ("fireSense_EscapePredict" %in% P(sim)$whichModulesToPrepare)
@@ -117,6 +119,12 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
                                                          timeStep = P(sim)$fireTimeStep)
       sim <- scheduleEvent(sim, time(sim) + P(sim)$fireTimeStep,
                            "fireSense_dataPrepPredict", "ageNonForest")
+    },
+    getClimateLayers = {
+      sim$currentClimateLayers <- getCurrentClimate(sim$projectedClimateLayers, time(sim))
+      sim <- scheduleEvent(sim, time(sim) + P(sim)$fireTimeStep,
+                           "fireSense_dataPrepPredict", "getClimateLayers")
+
     },
     prepIgnitionPredictData = {
       sim <- prepare_IgnitionPredict(sim)
@@ -145,7 +153,6 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
 ### template initialization
 Init <- function(sim) {
   # # ! ----- EDIT BELOW ----- ! #
- #what has to happen in the init? everthing should be dynamic, so... likeyl nothing
 
   # ! ----- STOP EDITING ----- ! #
 
@@ -166,10 +173,16 @@ Save <- function(sim) {
 plotFun <- function(sim) {
   # ! ----- EDIT BELOW ----- ! #
   # do stuff for this event
-  #Plot(sim$object)
 
   # ! ----- STOP EDITING ----- ! #
   return(invisible(sim))
+}
+
+getCurrentClimate <- function(projectedClimateLayers, time) {
+ #this will work with a list of raster stacks
+  thisYearsClimate <- lapply(projectedClimateLayers,
+                             FUN = function(x){x[[paste0("year", time)]]})
+  return(thisYearsClimate)
 }
 
 ageNonForest <- function(TSD, rstCurrentBurn, timeStep) {
@@ -186,7 +199,6 @@ ageNonForest <- function(TSD, rstCurrentBurn, timeStep) {
 
 prepare_IgnitionPredict <- function(sim){
 
-  browser()
   #get fuel classes
   fuelClasses <- cohortsToFuelClasses(cohortData = sim$cohortData,
                                       sppEquiv = sim$sppEquiv,
@@ -205,8 +217,21 @@ prepare_IgnitionPredict <- function(sim){
   temp[, rowcheck := rowSums(.SD), .SD = setdiff(names(temp), 'pixelID')]
   #if all rows are 0, it must be a forested LCC absent from cohortData
   temp[rowcheck == 0, eval(P(sim)$missingLCC) := 1]
-  set(temp, NULL, rowcheck, NULL) #still have to ensure mutual exclusivity - maybe upstream in fuelClases?
-  #Then join with MDC. Done
+  set(temp, NULL, 'rowcheck', NULL)
+
+  #Only predict ignition on pixels that are flammable
+  climData <- climateRasterToDataTable(historicalClimateRasters = sim$currentClimateLayers,
+                                       Index = temp$pixelID)
+  if (length(climData) > 1) {
+    stop("ignition is not working with > 1 climate layers") #
+  } else {
+    climData <- climData[[1]]
+  }
+
+  set(climData, NULL, "year", NULL)
+  ignitionCovariates <- climData[temp, on = c("pixelID")]
+
+  sim$fireSense_IgnitionPredictCovariates <- ignitionCovariates
 
   return(invisible(sim))
 }
@@ -241,16 +266,17 @@ prepare_SpreadPredict <- function(sim) {
 
   #the index is the cells in vegData - these are already the flammable cells only
   #because landcoverDT is flammable cells only
-  thisYearsClimate <- lapply(sim$projectedClimateLayers,
-                             FUN = function(x){x[[paste0("year", time(sim))]]})
-  climData <- climateRasterToDataTable(historicalClimateRasters = thisYearsClimate, Index = vegData$pixelID)
+
+  climData <- climateRasterToDataTable(historicalClimateRasters = sim$currentClimateLayers,
+                                       Index = vegData$pixelID)
   if (length(climData) > 1){
-    #this is untested, but we need to merge arbitrary lists of data.tables
+    #this is untested, but we need to merge arbitrary length lists of data.tables
     climData <- Reduce(x = climateData, function(x, y, ...) merge(x, y , ...))
   } else {
     climData <- climData[[1]]
   }
   set(climData, NULL, 'year', NULL)
+
   spreadData <- vegData[climData, on = c("pixelID")]
   setcolorder(spreadData, neworder = c("pixelID", "youngAge"))
 
