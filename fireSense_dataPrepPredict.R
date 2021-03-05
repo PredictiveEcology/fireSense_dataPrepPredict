@@ -197,7 +197,7 @@ ageNonForest <- function(TSD, rstCurrentBurn, timeStep) {
 
 
 
-prepare_IgnitionPredict <- function(sim){
+prepare_IgnitionPredict <- function(sim) {
 
   #get fuel classes
   fuelClasses <- cohortsToFuelClasses(cohortData = sim$cohortData,
@@ -213,23 +213,17 @@ prepare_IgnitionPredict <- function(sim){
   fuelDT[, c(fcs) := nafill(lapply(fcs, getPix, fc = fuelClasses, index = fuelDT$pixelID), fill = 0)]
 
   #
-  temp <- fuelDT[sim$landcoverDT, on = c("pixelID")]
-  temp[, rowcheck := rowSums(.SD), .SD = setdiff(names(temp), 'pixelID')]
+  ignitionCovariates <- fuelDT[sim$landcoverDT, on = c("pixelID")]
+  ignitionCovariates[, rowcheck := rowSums(.SD), .SD = setdiff(names(ignitionCovariates), 'pixelID')]
   #if all rows are 0, it must be a forested LCC absent from cohortData
-  temp[rowcheck == 0, eval(P(sim)$missingLCC) := 1]
-  set(temp, NULL, 'rowcheck', NULL)
+  ignitionCovariates[rowcheck == 0, eval(P(sim)$missingLCC) := 1]
+  set(ignitionCovariates, NULL, 'rowcheck', NULL)
 
-  #Only predict ignition on pixels that are flammable
-  climData <- climateRasterToDataTable(historicalClimateRasters = sim$currentClimateLayers,
-                                       Index = temp$pixelID)
-  if (length(climData) > 1) {
-    stop("ignition is not working with > 1 climate layers") #
-  } else {
-    climData <- climData[[1]]
-  }
-
-  set(climData, NULL, "year", NULL)
-  ignitionCovariates <- climData[temp, on = c("pixelID")]
+  # this was using fireSenseUtils::climateRasterToDataTable - but it was very slow for this simple case of 1 raster
+  #climData <- climateRasterToDataTable(historicalClimateRasters = sim$currentClimateLayers,
+                                       # Index = ignitionCovariates$pixelID)
+  ignitionCovariates[, clim := getValues(sim$currentClimateLayers[[1]])[ignitionCovariates$pixelID]]
+  setnames(ignitionCovariates, 'clim', new = names(sim$currentClimateLayers))
 
   sim$fireSense_IgnitionPredictCovariates <- ignitionCovariates
 
@@ -264,25 +258,17 @@ prepare_SpreadPredict <- function(sim) {
   remove <- setdiff(colnames(vegData), keep)
   set(vegData, NULL, remove, NULL)
 
-  #the index is the cells in vegData - these are already the flammable cells only
-  #because landcoverDT is flammable cells only
-
-  climData <- climateRasterToDataTable(historicalClimateRasters = sim$currentClimateLayers,
-                                       Index = vegData$pixelID)
-  if (length(climData) > 1){
-    #this is untested, but we need to merge arbitrary length lists of data.tables
-    climData <- Reduce(x = climateData, function(x, y, ...) merge(x, y , ...))
-  } else {
-    climData <- climData[[1]]
-  }
-  set(climData, NULL, 'year', NULL)
-
-  spreadData <- vegData[climData, on = c("pixelID")]
-  setcolorder(spreadData, neworder = c("pixelID", "youngAge"))
+  #the index is the cells in vegData - these are flammable cells only
+  #because landcoverDT contains only flammable cells
+  climVar <- names(sim$currentClimateLayers)
+  vegData[, clim := getValues(sim$currentClimateLayers[[1]])[vegData$pixelID]]
+  setnames(vegData, "clim", new = climVar)
 
   #TODO: this vegPC will have to become a param if we plan on running with biomass instead of PCA
-  spreadData <- makeMutuallyExclusive(dt = spreadData,
+  spreadData <- makeMutuallyExclusive(dt = vegData,
                                       mutuallyExclusive = list("youngAge" = "vegPC"))
+
+  setcolorder(spreadData, neworder = c("pixelID", climVar, 'youngAge'))
   sim$fireSense_SpreadPredictCovariates <- spreadData
 
   return(invisible(sim))
@@ -305,7 +291,7 @@ prepare_SpreadPredict <- function(sim) {
 
   if (!suppliedElsewhere("nonForest_timeSinceDisturbance", sim)) {
     stop("Please supply this object by running fireSense_dataPrepFit")
-    #It is a lot of work to supply some of these, fraught with assumptions
+    #It is a lot of work to supply a meaningful version of this object
     #initial TSD will be derived from 1995-2010 fires
     # firePolys <- Cache(fireSenseUtils::getFirePolygons,
     #                    fireSenseUtils, years = 1995:2010,
