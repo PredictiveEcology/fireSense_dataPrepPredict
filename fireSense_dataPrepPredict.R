@@ -129,17 +129,20 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
     prepIgnitionPredictData = {
       sim <- prepare_IgnitionPredict(sim)
       sim <- scheduleEvent(sim, time(sim) + P(sim)$fireTimeStep,
-                           "fireSense_dataPrepPredict", "prepIgnitionPredictData")
+                           "fireSense_dataPrepPredict", "prepIgnitionPredictData",
+                           eventPriority = 5.1)
     },
     prepEscapePredictData = {
       sim <- prepare_EscapePredict(sim)
       sim <- scheduleEvent(sim, time(sim) + P(sim)$fireTimeStep,
-                           "fireSense_dataPrepPredict", "prepEscapePredictData")
+                           "fireSense_dataPrepPredict", "prepEscapePredictData",
+                           eventPriority = 5.1)
     },
     prepSpreadPredictData = {
-      sim <- prepare_SpreadPredict(sim) #see what is specific, maybe don't pass sim
+      sim <- prepare_SpreadPredict(sim)
       sim <- scheduleEvent(sim, time(sim) + P(sim)$fireTimeStep,
-                           "fireSense_dataPrepPredict", "prepSpreadPredictData")
+                           "fireSense_dataPrepPredict", "prepSpreadPredictData",
+                           eventPriority = 5.1)
     },
     warning(paste("Undefined event type: \'", current(sim)[1, "eventType", with = FALSE],
                   "\' in module \'", current(sim)[1, "moduleName", with = FALSE], "\'", sep = ""))
