@@ -98,11 +98,14 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
       sim <- scheduleEvent(sim, time(sim) + 1, "fireSense_dataPrepPredict", "ageNonForest")
       sim <- scheduleEvent(sim, start(sim), "fireSense_dataPrepPredict", "getClimateLayers")
       if ("fireSense_IgnitionPredict" %in% P(sim)$whichModulesToPrepare)
-        sim <- scheduleEvent(sim, start(sim), "fireSense_dataPrepPredict", "prepIgnitionPredictData")
+        sim <- scheduleEvent(sim, start(sim), "fireSense_dataPrepPredict", "prepIgnitionPredictData",
+                             eventPriority = 5.11)
       if ("fireSense_EscapePredict" %in% P(sim)$whichModulesToPrepare)
-        sim <- scheduleEvent(sim, start(sim), "fireSense_dataPrepPredict", "prepEscapePredictData")
+        sim <- scheduleEvent(sim, start(sim), "fireSense_dataPrepPredict", "prepEscapePredictData",
+                             eventPriority = 5.11)
       if ("fireSense_SpreadPredict" %in% P(sim)$whichModulesToPrepare)
-        sim <- scheduleEvent(sim, start(sim), "fireSense_dataPrepPredict", "prepSpreadPredictData")
+        sim <- scheduleEvent(sim, start(sim), "fireSense_dataPrepPredict", "prepSpreadPredictData",
+                             eventPriority = 5.11)
       # schedule future event(s)
       sim <- scheduleEvent(sim, P(sim)$.plotInitialTime, "fireSense_dataPrepPredict", "plot")
       sim <- scheduleEvent(sim, P(sim)$.saveInitialTime, "fireSense_dataPrepPredict", "save")
