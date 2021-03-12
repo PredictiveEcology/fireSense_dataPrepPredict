@@ -72,12 +72,12 @@ defineModule(sim, list(
   outputObjects = bindrows(
     createsOutput(objectName = "currentClimateLayers", objectClass = "list",
                   desc = "list of project climate rasters at current time of sim"),
-    createsOutput(objectName = 'fireSense_EscapePredictCovariates', objectClass = 'data.table',
-                  desc = NA),
-    createsOutput(objectName = 'fireSense_IgnitionPredictCovariates', objectClass = 'data.table',
-                  desc = NA),
+    createsOutput(objectName = 'fireSense_IgnitionAndEscapeCovariates', objectClass = 'data.table',
+                  desc = paste("data.table of covariates for ignition prediction, with pixelID column",
+                                "corresponding to flammableRTM pixel index")),
     createsOutput(objectName = 'fireSense_SpreadPredictCovariates', objectClass = 'data.table',
-                  desc = NA),
+                  desc = paste("data.table of covariates for spread prediction, with pixelID column",
+                                "corresponding to flammableRTM pixel index")),
     createsOutput(objectName = 'nonForest_timeSinceDisturbance', objectClass = 'RasterLayer',
                   desc = 'time since burn for non-forest pixels')
   )
@@ -98,11 +98,16 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
       sim <- scheduleEvent(sim, time(sim) + 1, "fireSense_dataPrepPredict", "ageNonForest")
       sim <- scheduleEvent(sim, start(sim), "fireSense_dataPrepPredict", "getClimateLayers")
       if ("fireSense_IgnitionPredict" %in% P(sim)$whichModulesToPrepare)
-        sim <- scheduleEvent(sim, start(sim), "fireSense_dataPrepPredict", "prepIgnitionPredictData",
+        sim <- scheduleEvent(sim, start(sim), "fireSense_dataPrepPredict", "prepIgnitionAndEscapePredictData",
                              eventPriority = 5.11)
-      if ("fireSense_EscapePredict" %in% P(sim)$whichModulesToPrepare)
-        sim <- scheduleEvent(sim, start(sim), "fireSense_dataPrepPredict", "prepEscapePredictData",
-                             eventPriority = 5.11)
+      if ("fireSense_EscapePredict" %in% P(sim)$whichModulesToPrepare) {
+        if (!"fireSense_IgnitionPredict" %in% P(sim)$whichModulesToPrepare) {
+          sim <- scheduleEvent(sim, start(sim, "fireSense_dataPrepPredict", "prepIgnitionAndEscapePredictData"),
+                               eventPriority = 5.11)
+        } #else there is no need - it is scheduled - though I don't know why we would run one withotu the other
+
+      }
+
       if ("fireSense_SpreadPredict" %in% P(sim)$whichModulesToPrepare)
         sim <- scheduleEvent(sim, start(sim), "fireSense_dataPrepPredict", "prepSpreadPredictData",
                              eventPriority = 5.11)
@@ -129,18 +134,13 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
                            "fireSense_dataPrepPredict", "getClimateLayers")
 
     },
-    prepIgnitionPredictData = {
-      sim <- prepare_IgnitionPredict(sim)
+    prepIgnitionAndEscapePredictData = {
+      sim <- prepare_IgnitionAndEscapePredict(sim)
       sim <- scheduleEvent(sim, time(sim) + P(sim)$fireTimeStep,
-                           "fireSense_dataPrepPredict", "prepIgnitionPredictData",
+                           "fireSense_dataPrepPredict", "prepIgnitionAndEscapePredictData",
                            eventPriority = 5.1)
     },
-    prepEscapePredictData = {
-      sim <- prepare_EscapePredict(sim)
-      sim <- scheduleEvent(sim, time(sim) + P(sim)$fireTimeStep,
-                           "fireSense_dataPrepPredict", "prepEscapePredictData",
-                           eventPriority = 5.1)
-    },
+
     prepSpreadPredictData = {
       sim <- prepare_SpreadPredict(sim)
       sim <- scheduleEvent(sim, time(sim) + P(sim)$fireTimeStep,
@@ -203,7 +203,7 @@ ageNonForest <- function(TSD, rstCurrentBurn, timeStep) {
 
 
 
-prepare_IgnitionPredict <- function(sim) {
+prepare_IgnitionAndEscapePredict <- function(sim) {
 
   #get fuel classes
   fuelClasses <- cohortsToFuelClasses(cohortData = sim$cohortData,
@@ -231,7 +231,7 @@ prepare_IgnitionPredict <- function(sim) {
   ignitionCovariates[, clim := getValues(sim$currentClimateLayers[[1]])[ignitionCovariates$pixelID]]
   setnames(ignitionCovariates, 'clim', new = names(sim$currentClimateLayers))
 
-  sim$fireSense_IgnitionPredictCovariates <- ignitionCovariates
+  sim$fireSense_IgnitionAndEscapeCovariates <- ignitionCovariates
 
   return(invisible(sim))
 }
