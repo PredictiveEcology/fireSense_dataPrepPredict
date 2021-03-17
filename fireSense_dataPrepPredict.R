@@ -44,8 +44,6 @@ defineModule(sim, list(
                  desc = "names of the climate components to use in ignition, escape, and spread models"),
     expectsInput(objectName = "cohortData", objectClass = "data.table",
                  desc = "table that defines the cohorts by pixelGroup"),
-    expectsInput(objectName = "covMinMax", objectClass = "data.table",
-                 desc = "range used to rescale coefficients during spreadFit"),
     expectsInput(objectName = "flammableRTM", objectClass = "RasterLayer", sourceURL = NA,
                  desc = "RTM without ice/rocks/urban/water. Flammable map with 0 and 1."),
     expectsInput(objectName = 'nonForest_timeSinceDisturbance', objectClass = 'RasterLayer',
