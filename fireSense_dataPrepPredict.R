@@ -73,7 +73,7 @@ defineModule(sim, list(
     createsOutput(objectName = 'fireSense_IgnitionAndEscapeCovariates', objectClass = 'data.table',
                   desc = paste("data.table of covariates for ignition prediction, with pixelID column",
                                 "corresponding to flammableRTM pixel index")),
-    createsOutput(objectName = 'fireSense_SpreadPredictCovariates', objectClass = 'data.table',
+    createsOutput(objectName = 'fireSense_SpreadCovariates', objectClass = 'data.table',
                   desc = paste("data.table of covariates for spread prediction, with pixelID column",
                                 "corresponding to flammableRTM pixel index")),
     createsOutput(objectName = 'nonForest_timeSinceDisturbance', objectClass = 'RasterLayer',
@@ -273,7 +273,7 @@ prepare_SpreadPredict <- function(sim) {
                                       mutuallyExclusive = list("youngAge" = "vegPC"))
 
   setcolorder(spreadData, neworder = c("pixelID", climVar, 'youngAge'))
-  sim$fireSense_SpreadPredictCovariates <- spreadData
+  sim$fireSense_SpreadCovariates <- spreadData
 
   return(invisible(sim))
 }
