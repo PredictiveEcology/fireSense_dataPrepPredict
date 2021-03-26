@@ -13,7 +13,7 @@ defineModule(sim, list(
   timeunit = "year",
   citation = list("citation.bib"),
   documentation = deparse(list("README.txt", "fireSense_dataPrepPredict.Rmd")),
-  reqdPkgs = list("data.table", "PredictiveEcology/fireSenseUtils@development (>=0.0.4.9018)", "raster"),
+  reqdPkgs = list("data.table", "PredictiveEcology/fireSenseUtils@development (>=0.0.4.9052)", "raster"),
   parameters = rbind(
     defineParameter("cutoffForYoungAge", class = "numeric", 15, NA, NA,
                     desc = paste("Age at and below which pixels are considered 'young' --> young <- age <= cutoffForYoungAge")),
