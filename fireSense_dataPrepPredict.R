@@ -227,6 +227,7 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
   #climData <- climateRasterToDataTable(historicalClimateRasters = sim$currentClimateLayers,
                                        # Index = ignitionCovariates$pixelID)
   ignitionCovariates[, clim := getValues(sim$currentClimateLayers[[1]])[ignitionCovariates$pixelID]]
+  ignitionCovariates <- ignitionCovariates[!is.na(clim)] #don't predict with no climate data
   setnames(ignitionCovariates, 'clim', new = names(sim$currentClimateLayers))
 
   sim$fireSense_IgnitionAndEscapeCovariates <- ignitionCovariates
@@ -266,6 +267,7 @@ prepare_SpreadPredict <- function(sim) {
   #because landcoverDT contains only flammable cells
   climVar <- names(sim$currentClimateLayers)
   vegData[, clim := getValues(sim$currentClimateLayers[[1]])[vegData$pixelID]]
+  vegData <- vegData[!is.na(clim)] #don't predict with no climate data
   setnames(vegData, "clim", new = climVar)
 
   #TODO: this vegPC will have to become a param if we plan on running with biomass instead of PCA
