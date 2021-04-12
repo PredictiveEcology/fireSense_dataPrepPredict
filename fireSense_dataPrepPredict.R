@@ -95,24 +95,22 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
       sim <- Init(sim)
       sim <- scheduleEvent(sim, time(sim) + 1, "fireSense_dataPrepPredict", "ageNonForest")
       sim <- scheduleEvent(sim, start(sim), "fireSense_dataPrepPredict", "getClimateLayers")
-      if ("fireSense_IgnitionPredict" %in% P(sim)$whichModulesToPrepare)
-        sim <- scheduleEvent(sim, start(sim), "fireSense_dataPrepPredict", "prepIgnitionAndEscapePredictData",
-                             eventPriority = 5.11)
-      if ("fireSense_EscapePredict" %in% P(sim)$whichModulesToPrepare) {
-        if (!"fireSense_IgnitionPredict" %in% P(sim)$whichModulesToPrepare) {
-          sim <- scheduleEvent(sim, start(sim, "fireSense_dataPrepPredict", "prepIgnitionAndEscapePredictData"),
-                               eventPriority = 5.11)
-        } #else there is no need - it is scheduled - though I don't know why we would run one withotu the other
 
+      if ("fireSense_IgnitionPredict" %in% P(sim)$whichModulesToPrepare |
+          "fireSense_EscapePredict" %in% P(sim)$whichModulesToPrepare) {
+        sim <- scheduleEvent(sim, start(sim), "fireSense_dataPrepPredict", "prepIgnitionAndEscapePredictData",
+                             eventPriority = 5.10)
       }
 
-      if ("fireSense_SpreadPredict" %in% P(sim)$whichModulesToPrepare)
+      if ("fireSense_SpreadPredict" %in% P(sim)$whichModulesToPrepare) {
         sim <- scheduleEvent(sim, start(sim), "fireSense_dataPrepPredict", "prepSpreadPredictData",
-                             eventPriority = 5.11)
+                             eventPriority = 5.10)
+      }
       # schedule future event(s)
       sim <- scheduleEvent(sim, P(sim)$.plotInitialTime, "fireSense_dataPrepPredict", "plot", eventPriority = 5.12)
       sim <- scheduleEvent(sim, P(sim)$.saveInitialTime, "fireSense_dataPrepPredict", "save", eventPriority = 5.12)
     },
+
     plot = {
       if ("fireSense_IgnitionPredict" %in% P(sim)$whichModulesToPrepare) {
         sim <- plotIgnitionCovariates(sim)
