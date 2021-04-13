@@ -183,26 +183,23 @@ plotFun <- function(sim) {
 }
 
 getCurrentClimate <- function(projectedClimateLayers, time) {
- #this will work with a list of raster stacks
-  thisYearsClimate <- lapply(projectedClimateLayers,
-                             FUN = function(x){x[[paste0("year", time)]]})
+  ## this will work with a list of raster stacks
+  thisYearsClimate <- lapply(projectedClimateLayers, FUN = function(x) {
+    x[[paste0("year", time)]]
+  })
   return(thisYearsClimate)
 }
 
 ageNonForest <- function(TSD, rstCurrentBurn, timeStep) {
-
   TSD <- setValues(TSD, getValues(TSD) + timeStep)
-  if (!is.null(rstCurrentBurn)){
+  if (!is.null(rstCurrentBurn)) {
     unburned <- is.na(rstCurrentBurn[]) | rstCurrentBurn[] == 0
     TSD[!unburned] <- 0
   }
   return(TSD)
 }
 
-
-
 prepare_IgnitionAndEscapePredict <- function(sim) {
-
   #get fuel classes
   fuelClasses <- cohortsToFuelClasses(cohortData = sim$cohortData,
                                       sppEquiv = sim$sppEquiv,
