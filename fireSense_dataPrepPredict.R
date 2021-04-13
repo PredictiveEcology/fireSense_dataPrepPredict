@@ -95,25 +95,29 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
       sim <- Init(sim)
       sim <- scheduleEvent(sim, time(sim) + 1, "fireSense_dataPrepPredict", "ageNonForest")
       sim <- scheduleEvent(sim, start(sim), "fireSense_dataPrepPredict", "getClimateLayers")
-      if ("fireSense_IgnitionPredict" %in% P(sim)$whichModulesToPrepare)
-        sim <- scheduleEvent(sim, start(sim), "fireSense_dataPrepPredict", "prepIgnitionAndEscapePredictData",
-                             eventPriority = 5.11)
-      if ("fireSense_EscapePredict" %in% P(sim)$whichModulesToPrepare) {
-        if (!"fireSense_IgnitionPredict" %in% P(sim)$whichModulesToPrepare) {
-          sim <- scheduleEvent(sim, start(sim, "fireSense_dataPrepPredict", "prepIgnitionAndEscapePredictData"),
-                               eventPriority = 5.11)
-        } #else there is no need - it is scheduled - though I don't know why we would run one withotu the other
 
+      if ("fireSense_IgnitionPredict" %in% P(sim)$whichModulesToPrepare |
+          "fireSense_EscapePredict" %in% P(sim)$whichModulesToPrepare) {
+        sim <- scheduleEvent(sim, start(sim), "fireSense_dataPrepPredict", "prepIgnitionAndEscapePredictData",
+                             eventPriority = 5.10)
       }
 
-      if ("fireSense_SpreadPredict" %in% P(sim)$whichModulesToPrepare)
+      if ("fireSense_SpreadPredict" %in% P(sim)$whichModulesToPrepare) {
         sim <- scheduleEvent(sim, start(sim), "fireSense_dataPrepPredict", "prepSpreadPredictData",
-                             eventPriority = 5.11)
+                             eventPriority = 5.10)
+      }
       # schedule future event(s)
-      sim <- scheduleEvent(sim, P(sim)$.plotInitialTime, "fireSense_dataPrepPredict", "plot")
-      sim <- scheduleEvent(sim, P(sim)$.saveInitialTime, "fireSense_dataPrepPredict", "save")
+      sim <- scheduleEvent(sim, P(sim)$.plotInitialTime, "fireSense_dataPrepPredict", "plot", eventPriority = 5.12)
+      sim <- scheduleEvent(sim, P(sim)$.saveInitialTime, "fireSense_dataPrepPredict", "save", eventPriority = 5.12)
     },
+
     plot = {
+      if ("fireSense_IgnitionPredict" %in% P(sim)$whichModulesToPrepare) {
+        sim <- plotIgnitionCovariates(sim)
+      }
+      if ("fireSense_SpreadPredict" %in% P(sim)$whichModulesToPrepare) {
+        sim <- plotSpreadCovariates(sim)
+      }
 
     },
     save = {
@@ -174,11 +178,88 @@ Save <- function(sim) {
 }
 
 ### template for plot events
-plotFun <- function(sim) {
-  # ! ----- EDIT BELOW ----- ! #
-  # do stuff for this event
+plotIgnitionCovariates <- function(sim) {
 
-  # ! ----- STOP EDITING ----- ! #
+  fuelClasses <- setdiff(names(sim$fireSense_IgnitionAndEscapeCovariates),
+                         c("pixelID", names(sim$currentClimateLayers)))
+  fuelRas <- raster(sim$flammableRTM)
+  fuelRas[!is.na(sim$flammableRTM[]) & sim$flammableRTM[] == 0] <- 0
+  #melting is faster than as.numeric(factor(paste0(<fuelClasses))) and reliably tested
+  fuels <- melt.data.table(data = sim$fireSense_IgnitionAndEscapeCovariates,
+                           id.vars = "pixelID", measure.vars = fuelClasses,
+                           variable.name = "fuel", variable.factor = TRUE)
+
+  fuels <- fuels[value == 1]
+  fuelRas[fuels$pixelID] <- fuels$fuel
+  fuelClasses <- c("nonflammable", fuelClasses)
+
+  fuelRas <- as.data.frame(as(fuelRas, "SpatialPixelsDataFrame"))
+  names(fuelRas) <- c("value", "x", "y")
+  fuelRas$value <- as.factor(fuelRas$value)
+  levels(fuelRas$value) <- fuelClasses
+
+  g <- ggplot() +
+    geom_raster(data = fuelRas,
+                aes(x = x, y = y, fill = value),
+                show.legend = TRUE) +
+    theme_minimal() +
+    labs(title = paste0("ignition fuel classes in ", time(sim)))
+
+  #assign a default scale if using 'default'
+  if (all(c("class2", "class3", "youngAge", "nonForest_lowFlam", "nonForest_highFlam") %in% fuelClasses)){
+    pal <- c("#C5C6D0", "#74B72E", "#234F1E", "#68ff5f", "#E3B104", "#8E762C")
+    names(pal) <- fuelClasses
+    g <- g  +  scale_fill_manual(name = "fuel class",
+                           values = pal,
+                           labels = names(pal))
+  }
+
+  ggsave(filename = paste0("ignitionFuelClasses_", time(sim), ".png"), plot = g,
+        device = "png", path = filePath(outputPath(sim), "figures"))
+ #consider making Utils functino
+  return(invisible(sim))
+}
+
+
+plotSpreadCovariates <- function(sim) {
+  #This would not be easy to construct in a function, unless you save spreadCovariates
+  #if you dont save spreadCovariates, then the entire dataPrep event must be made into functions
+
+  spreadPlot <- lapply(sim$vegComponentsToUse, FUN = function(pc, ras = raster(sim$flammableRTM),
+                                                              dt = sim$fireSense_SpreadCovariates) {
+    ras[dt$pixelID] <- dt[,get(pc)]
+    return(ras)
+  })
+  names(spreadPlot) <- sim$vegComponentsToUse
+  spreadPlot <- stack(spreadPlot)
+
+  spreadPlot <- as.data.frame(as(spreadPlot, "SpatialPixelsDataFrame"))
+
+  #making it a single plot will not work unless each PC uses separate colour scale
+  spreadPlot <- lapply(sim$vegComponentsToUse, FUN = function(pc, df = spreadPlot){
+    g <- ggplot() +
+      geom_raster(data = df,
+                  aes_string(x = "x", y = "y", fill = eval(pc)),
+                  show.legend = TRUE) +
+      scale_colour_gradient2(aesthetics = c("fill"),
+                             low = "#4575b4",
+                             mid = "#ffffbf",
+                             high = "#d73027",
+                             midpoint = 0,
+                             na.value = "black") +
+      theme_minimal()
+    return(g)
+  })
+
+  names(spreadPlot) <- paste0(sim$vegComponentsToUse, "plot_", time(sim))
+
+  lapply(names(spreadPlot), FUN = function(name, thePath = filePath(outputPath(sim), "figures"),
+                                           sp = spreadPlot){
+    ggsave(plot = sp[[name]], filename = paste0(name, ".png"),
+           path = thePath,
+           device = "png", )
+  })
+
   return(invisible(sim))
 }
 
