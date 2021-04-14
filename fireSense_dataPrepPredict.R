@@ -369,15 +369,15 @@ prepare_SpreadPredict <- function(sim) {
   message(currentModule(sim), ": using dataPath '", dPath, "'.")
 
   if (!suppliedElsewhere("PCAveg", sim)) {
-    stop("Please supply this object by running fireSense_dataPrepFit")
+    stop("Please supply PCAveg by running fireSense_dataPrepFit")
   }
 
   if (!suppliedElsewhere("landcoverDT", sim)) {
-    stop("Please supply this object by running fireSense_dataPrepFit")
+    stop("Please supply landcoverDT by running fireSense_dataPrepFit")
   }
 
   if (!suppliedElsewhere("nonForest_timeSinceDisturbance", sim)) {
-    stop("Please supply this object by running fireSense_dataPrepFit")
+    stop("Please supply nonForest_timeSinceDisturbance by running fireSense_dataPrepFit")
     #It is a lot of work to supply a meaningful version of this object
     #initial TSD will be derived from 1995-2010 fires
     # firePolys <- Cache(fireSenseUtils::getFirePolygons,
