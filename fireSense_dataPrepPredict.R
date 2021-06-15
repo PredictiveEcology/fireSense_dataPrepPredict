@@ -160,9 +160,11 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
 
 ### template initialization
 Init <- function(sim) {
-  # # ! ----- EDIT BELOW ----- ! #
 
-  # ! ----- STOP EDITING ----- ! #
+  if (!compareRaster(sim$pixelGroupMap, sim$projectedClimateRasters[[1]])) {
+    stop("mismatch in resolution detected - please review the resolution of sim$projectedClimateRasters")
+  }
+
 
   return(invisible(sim))
 }
@@ -281,6 +283,7 @@ ageNonForest <- function(TSD, rstCurrentBurn, timeStep) {
 }
 
 prepare_IgnitionAndEscapePredict <- function(sim) {
+
   #get fuel classes
   fuelClasses <- cohortsToFuelClasses(cohortData = sim$cohortData,
                                       sppEquiv = sim$sppEquiv,
