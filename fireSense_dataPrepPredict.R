@@ -52,7 +52,7 @@ defineModule(sim, list(
                   desc = "PCA model for veg and LCC covariates, needed for FS models"),
     expectsInput(objectName = 'pixelGroupMap', objectClass = "RasterLayer",
                  'RasterLayer that defines the pixelGroups for cohortData table'),
-    expectsInput(objectName = "projectedClimateRasters", objectClass = "list",
+    expectsInput(objectName = "projectedClimateLayers", objectClass = "list",
                  desc = paste("list of projected climate variables in raster stack form",
                               "named according to variable, with names of individual raster layers",
                               "following the convention 'year<year>'")),
@@ -161,8 +161,8 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
 ### template initialization
 Init <- function(sim) {
 
-  if (!compareRaster(sim$pixelGroupMap, sim$projectedClimateRasters[[1]])) {
-    stop("mismatch in resolution detected - please review the resolution of sim$projectedClimateRasters")
+  if (!compareRaster(sim$pixelGroupMap, sim$projectedClimateLayers[[1]])) {
+    stop("mismatch in resolution detected - please review the resolution of sim$projectedClimateLayers")
   }
 
 
