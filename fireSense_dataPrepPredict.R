@@ -131,7 +131,9 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
                            "fireSense_dataPrepPredict", "ageNonForest")
     },
     getClimateLayers = {
-      sim$currentClimateLayers <- getCurrentClimate(sim$projectedClimateLayers, time(sim))
+      sim$currentClimateLayers <- getCurrentClimate(sim$projectedClimateLayers,
+                                                    time(sim),
+                                                    rasterToMatch = sim$rasterToMatch)
       sim <- scheduleEvent(sim, time(sim) + P(sim)$fireTimeStep,
                            "fireSense_dataPrepPredict", "getClimateLayers")
 
@@ -265,11 +267,26 @@ plotSpreadCovariates <- function(sim) {
   return(invisible(sim))
 }
 
-getCurrentClimate <- function(projectedClimateLayers, time) {
+getCurrentClimate <- function(projectedClimateLayers, time, rasterToMatch) {
+
+  availableYears <- as.numeric(gsub(pattern = "year",
+                               x = names(projectedClimateLayers[[1]]),
+                               replacement = ""))
+  if (time > max(availableYears)) {
+    cutoff <- quantile(availableYears, probs = 0.9)
+    time <- sample(availableYears[availableYears >= cutoff], size = 1)
+    message(paste0("re-using projected climate layers from ", time))
+  }
   ## this will work with a list of raster stacks
-  thisYearsClimate <- lapply(projectedClimateLayers, FUN = function(x) {
-    x[[paste0("year", time)]]
+  thisYearsClimate <- lapply(projectedClimateLayers, FUN = function(x, rtm = rasterToMatch) {
+    ras <- x[[paste0("year", time)]]
+    if (!compareRaster(ras, rtm)){
+      message("reprojecting fireSense climate layers")
+      ras <- postProcess(ras, rasterToMatch = rtm)
+    }
+    return(ras)
   })
+
   return(thisYearsClimate)
 }
 
