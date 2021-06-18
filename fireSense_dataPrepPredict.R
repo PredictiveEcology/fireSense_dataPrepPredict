@@ -163,9 +163,9 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
 ### template initialization
 Init <- function(sim) {
 
-  if (!compareRaster(sim$pixelGroupMap, sim$projectedClimateLayers[[1]])) {
-    stop("mismatch in resolution detected - please review the resolution of sim$projectedClimateLayers")
-  }
+  # if (!compareRaster(sim$pixelGroupMap, sim$projectedClimateLayers[[1]])) {
+  #   stop("mismatch in resolution detected - please review the resolution of sim$projectedClimateLayers")
+  # }
 
 
   return(invisible(sim))
@@ -280,7 +280,7 @@ getCurrentClimate <- function(projectedClimateLayers, time, rasterToMatch) {
   ## this will work with a list of raster stacks
   thisYearsClimate <- lapply(projectedClimateLayers, FUN = function(x, rtm = rasterToMatch) {
     ras <- x[[paste0("year", time)]]
-    if (!compareRaster(ras, rtm)){
+    if (!compareRaster(ras, rtm, stopiffalse = FALSE)){
       message("reprojecting fireSense climate layers")
       ras <- postProcess(ras, rasterToMatch = rtm)
     }
