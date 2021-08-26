@@ -13,11 +13,13 @@ defineModule(sim, list(
   timeunit = "year",
   citation = list("citation.bib"),
   documentation = deparse(list("README.txt", "fireSense_dataPrepPredict.Rmd")),
-  reqdPkgs = list("data.table", "PredictiveEcology/fireSenseUtils@development (>=0.0.4.9052)", "raster"),
+  reqdPkgs = list("data.table", "PredictiveEcology/fireSenseUtils@development (>=0.0.4.9082)", "raster"),
   parameters = rbind(
     defineParameter("cutoffForYoungAge", class = "numeric", 15, NA, NA,
                     desc = paste("Age at and below which pixels are considered 'young' --> young <- age <= cutoffForYoungAge")),
     defineParameter(name = "fireTimeStep", "numeric", 1, NA, NA, desc = "time step of fire model"),
+    defineParameter(name = "forestedLCC", "numeric", 1:6, NA, NA, 
+                    desc = "forested landcover classes in rstLCC - only relevant if landcoverDT is not supplied"),
     defineParameter(name = "missingLCCgroup", class = "character", "nonForest_highFlam", NA, NA,
                     desc = paste("if a pixel is forested but is absent from cohortData, it will be grouped in this class.",
                                  "Must be one of the names in sim$nonForestedLCCGroups")),
@@ -46,6 +48,9 @@ defineModule(sim, list(
                  desc = "table that defines the cohorts by pixelGroup"),
     expectsInput(objectName = "flammableRTM", objectClass = "RasterLayer", sourceURL = NA,
                  desc = "RTM without ice/rocks/urban/water. Flammable map with 0 and 1."),
+    expectsInput(objectName = "nonForestedLCCGroups", objectClass = "list",
+                 desc = paste("a named list of non-forested landcover groups ,e.g. list('wetland' = c(19, 23, 32)).",
+                              "This is only relevant if landcoverDT is not supplied")),
     expectsInput(objectName = 'nonForest_timeSinceDisturbance', objectClass = 'RasterLayer',
                  desc = 'time since burn for non-forested pixels'),
     expectsInput(objectName = "PCAveg", objectClass = "prcomp",
@@ -60,6 +65,8 @@ defineModule(sim, list(
                  desc = "data.table with pixelID and relevant landcover classes"),
     expectsInput(objectName = "rstCurrentBurn", objectClass = "RasterLayer",
                  desc = "binary raster with 1 representing annual burn"),
+    expectsInput(objectName = "rstLCC", objectClass = "RasterLayer", sourceURL = NA, 
+                 desc = "a landcover raster - only used if landcoverDT is unsupplied"),
     expectsInput(objectName = "sppEquiv", objectClass = "data.table", sourceURL = NA,
                  desc = "table of LandR species equivalencies"),
     expectsInput(objectName = "terrainDT", objectClass = "data.table",
@@ -392,22 +399,55 @@ prepare_SpreadPredict <- function(sim) {
   if (!suppliedElsewhere("landcoverDT", sim)) {
     stop("Please supply landcoverDT by running fireSense_dataPrepFit")
   }
+  
+  if (!suppliedElsewhere("terrainDT", sim)) {
+    
+    terrainCovariates <- prepTerrainCovariates(rasterToMatch = sim$flammableRTM, 
+                                               studyArea = sim$studyArea,
+                                               destinationPath = dPath)
+    layers <- seq(nlayers(terrainCovariates))
+    names(layers) <- names(terrainCovariates)
+    
+    terrainDT <- setDT(lapply(layers, FUN = function(x)
+      getValues(terrainCovariates[[x]])
+    ))
+    
+    set(terrainDT, j = "pixelID", value = 1:ncell(sim$pixelGroupMap2001))
+    set(terrainDT, j = "flammable", value = getValues(sim$flammableRTM))
+    terrainDT <- terrainDT[flammable == 1,] %>%
+      set(., NULL, "flammable", NULL) %>%
+      na.omit(.)
+    sim$terrainDT <- terrainDT
+  }
 
+  if (!suppliedElsewhere("landcoverDT", sim)) {
+    
+    if (!suppliedElsewhere("rstLCC", sim)){
+      sim$rstLCC <- LandR::prepInputsLCC(year = 2010, 
+                                         destinationPath = dPath,
+                                         rasterToMatch = sim$flammableRTM)
+    }
+    
+    if (!suppliedElsewhere("nonForestedLCCGroups", sim)) {
+      #there is potential for problems if rstLCC is supplied and nonForestedLCCGroups is not, and vice versa
+      sim$nonForestedLCCGroups <- list(
+        "nonForest_highFlam" = c(8, 10, 14),#shrubland, grassland, wetland
+        "nonForest_lowFlam" = c(11, 12, 15) #shrub-lichen-moss + cropland. 2 barren classes are nonflam
+      )
+    }
+    
+    sim$landcoverDT <- makeLandcoverDT(rstLCC = sim$rstLCC, 
+                                       flammableRTM = sim$flammableRTM, 
+                                       forestedLCC = P(sim)$forestedLCC, 
+                                       nonForestedLCCGroups = sim$nonForestedLCCGroups)
+  }
+  
   if (!suppliedElsewhere("nonForest_timeSinceDisturbance", sim)) {
-    stop("Please supply nonForest_timeSinceDisturbance by running fireSense_dataPrepFit")
-    #It is a lot of work to supply a meaningful version of this object
-    #initial TSD will be derived from 1995-2010 fires
-    # firePolys <- Cache(fireSenseUtils::getFirePolygons,
-    #                    fireSenseUtils, years = 1995:2010,
-    #                    studyArea = sim$studyArea,
-    #                    destinationPath = dPath,
-    #                    useInnerCache = FALSE,
-    #                    usertags = c("firePolys", cacheTags))
-    # standAgeMap <- setValues(sim$rasterToMatch, 16) #defaults to not young
-    # #this is a complicated object to create from scratch. Requires nonforest lcc, lcc raster, firePolys...
-    # sim$nonForest_timeSinceDisturbance <- makeTSD(year = 2011, firePolys = firePolys,
-    #                                               standAgeMap = standAgeMap,
-    #                                               lcc = sim$landcoverDT)
+    message("nonForest_timeSinceDisturbance not supplied - generating simulated map")
+    #this is untested
+    sim$nonForest_timeSinceDisturbance <- setValues(sim$flammmableRTM, 
+                                                    round(P(sim)$cutoffForoungAge/2))
+    #users can crop the object generated by dataPrepFit
   }
 
   return(invisible(sim))
