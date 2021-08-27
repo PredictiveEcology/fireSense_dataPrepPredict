@@ -396,9 +396,6 @@ prepare_SpreadPredict <- function(sim) {
     stop("Please supply PCAveg by running fireSense_dataPrepFit")
   }
 
-  if (!suppliedElsewhere("landcoverDT", sim)) {
-    stop("Please supply landcoverDT by running fireSense_dataPrepFit")
-  }
   
   if (!suppliedElsewhere("terrainDT", sim)) {
     
