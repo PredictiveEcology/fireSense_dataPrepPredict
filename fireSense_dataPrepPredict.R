@@ -313,7 +313,7 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
                                       sppEquiv = sim$sppEquiv,
                                       sppEquivCol = P(sim)$sppEquivCol,
                                       pixelGroupMap = sim$pixelGroupMap,
-                                      flammableMap = sim$flammableRTM,
+                                      flammableRTM = sim$flammableRTM,
                                       cutoffForYoungAge = P(sim)$cutoffForYoungAge)
   #make columns for each fuel class
   fcs <- names(fuelClasses)
