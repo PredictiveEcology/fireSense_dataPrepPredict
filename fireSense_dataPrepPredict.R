@@ -409,7 +409,7 @@ prepare_SpreadPredict <- function(sim) {
       getValues(terrainCovariates[[x]])
     ))
     
-    set(terrainDT, j = "pixelID", value = 1:ncell(sim$pixelGroupMap2001))
+    set(terrainDT, j = "pixelID", value = 1:ncell(sim$flammableRTM))
     set(terrainDT, j = "flammable", value = getValues(sim$flammableRTM))
     terrainDT <- terrainDT[flammable == 1,] %>%
       set(., NULL, "flammable", NULL) %>%
