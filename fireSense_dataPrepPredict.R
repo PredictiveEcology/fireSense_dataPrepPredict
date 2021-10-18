@@ -342,10 +342,7 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
 
 
 prepare_SpreadPredict <- function(sim) {
-  browser()
-  #cohortData, pixelGroupMap, nonforest_standAge, terrainDT, landcoverDT, PCA....
-  #1) build fireSense vegData from cohortData + landcoverDT
-  #redo PCA -
+
   if (!is.null(sim$PCAveg)) {
 
     vegData <- castCohortData(cohortData = sim$cohortData,
@@ -354,10 +351,8 @@ prepare_SpreadPredict <- function(sim) {
                               terrainDT = sim$terrainDT,
                               lcc = sim$landcoverDT,
                               missingLCC = P(sim)$missingLCCgroup)
-
     vegList <- makeVegTerrainPCA(dataForPCA = vegData, PCA = sim$PCAveg,
                                  dontWant = c("pixelGroup", "pixelID", "youngAge"))
-
     #returns a list with only one usable object (PCA is null due to predict)
     vegData <- vegList$vegComponents
     #rename vegcolumns
@@ -369,12 +364,22 @@ prepare_SpreadPredict <- function(sim) {
     set(vegData, NULL, remove, NULL)
     rm(vegList)
   } else {
+    #much of this chunk can now be combined into a function, called for both ig and spread prep
     vegData <- cohortsToFuelClasses(cohortData = sim$cohortData,
                                     pixelGroupMap = sim$pixelGroupMap,
                                     flammableRTM = sim$flammableRTM,
                                     sppEquiv = sim$sppEquiv,
-                                    sppEquivCol = P(sim)$sppEquivCol)
-
+                                    sppEquivCol = P(sim)$sppEquivCol,
+                                    cutoffForYoungAge = P(sim)$cutoffForYoungAge)
+    fcs <- names(vegData)
+    getPix <- function(fc, type, index) { fc[[type]][index]}
+    fuelDT <- data.table(pixelID = sim$landcoverDT$pixelID)
+    fuelDT[, c(fcs) := nafill(lapply(fcs, getPix, fc = vegData, index = fuelDT$pixelID), fill = 0)]
+    vegData <- fuelDT[sim$landcoverDT, on = c("pixelID")]
+    vegData[, rowcheck := rowSums(.SD), .SD = setdiff(names(vegData), 'pixelID')]
+    #if all rows are 0, it must be a forested LCC absent from cohortData
+    vegData[rowcheck == 0, eval(P(sim)$missingLCC) := 1]
+    set(vegData, NULL, 'rowcheck', NULL)
   }
 
   #the index is the cells in vegData - these are flammable cells only
@@ -385,7 +390,8 @@ prepare_SpreadPredict <- function(sim) {
   setnames(vegData, "clim", new = climVar)
 
  if (is.null(P(sim)$PCAveg)) {
-   exclusiveCols <- c("fuel", "nonForest")
+   exclusiveCols <- c("fuel", names(sim$landcoverDT))
+   exclusiveCols <- setdiff(exclusiveCols, "pixelID")
  } else {
    exclusiveCols <- "vegPC"}
 
