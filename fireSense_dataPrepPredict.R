@@ -18,7 +18,7 @@ defineModule(sim, list(
     defineParameter("cutoffForYoungAge", class = "numeric", 15, NA, NA,
                     desc = paste("Age at and below which pixels are considered 'young' --> young <- age <= cutoffForYoungAge")),
     defineParameter(name = "fireTimeStep", "numeric", 1, NA, NA, desc = "time step of fire model"),
-    defineParameter(name = "forestedLCC", "numeric", 1:6, NA, NA, 
+    defineParameter(name = "forestedLCC", "numeric", 1:6, NA, NA,
                     desc = "forested landcover classes in rstLCC - only relevant if landcoverDT is not supplied"),
     defineParameter(name = "missingLCCgroup", class = "character", "nonForest_highFlam", NA, NA,
                     desc = paste("if a pixel is forested but is absent from cohortData, it will be grouped in this class.",
@@ -65,7 +65,7 @@ defineModule(sim, list(
                  desc = "data.table with pixelID and relevant landcover classes"),
     expectsInput(objectName = "rstCurrentBurn", objectClass = "RasterLayer",
                  desc = "binary raster with 1 representing annual burn"),
-    expectsInput(objectName = "rstLCC", objectClass = "RasterLayer", sourceURL = NA, 
+    expectsInput(objectName = "rstLCC", objectClass = "RasterLayer", sourceURL = NA,
                  desc = "a landcover raster - only used if landcoverDT is unsupplied"),
     expectsInput(objectName = "sppEquiv", objectClass = "data.table", sourceURL = NA,
                  desc = "table of LandR species equivalencies"),
@@ -342,31 +342,40 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
 
 
 prepare_SpreadPredict <- function(sim) {
-
+  browser()
   #cohortData, pixelGroupMap, nonforest_standAge, terrainDT, landcoverDT, PCA....
   #1) build fireSense vegData from cohortData + landcoverDT
-  vegPCAdat <- castCohortData(cohortData = sim$cohortData,
-                            pixelGroupMap = sim$pixelGroupMap,
-                            ageMap = sim$nonForest_timeSinceDisturbance,
-                            terrainDT = sim$terrainDT,
-                            lcc = sim$landcoverDT,
-                            missingLCC = P(sim)$missingLCCgroup)
-
   #redo PCA -
-  vegList <- makeVegTerrainPCA(dataForPCA = vegPCAdat, PCA = sim$PCAveg,
-                               dontWant = c("pixelGroup", "pixelID", "youngAge"))
+  if (!is.null(sim$PCAveg)) {
 
-  #returns a list with only one usable object (PCA is null due to predict)
-  vegData <- vegList$vegComponents
-  rm(vegList)
+    vegData <- castCohortData(cohortData = sim$cohortData,
+                              pixelGroupMap = sim$pixelGroupMap,
+                              ageMap = sim$nonForest_timeSinceDisturbance,
+                              terrainDT = sim$terrainDT,
+                              lcc = sim$landcoverDT,
+                              missingLCC = P(sim)$missingLCCgroup)
 
-  #rename vegcolumns
-  colsToRename <- colnames(vegData[, -c("pixelID", "youngAge"),])
-  setnames(vegData, colsToRename, paste0("veg", colsToRename))
-  #subset by columns used in model
-  keep <- c("pixelID", "youngAge", sim$vegComponentsToUse)
-  remove <- setdiff(colnames(vegData), keep)
-  set(vegData, NULL, remove, NULL)
+    vegList <- makeVegTerrainPCA(dataForPCA = vegData, PCA = sim$PCAveg,
+                                 dontWant = c("pixelGroup", "pixelID", "youngAge"))
+
+    #returns a list with only one usable object (PCA is null due to predict)
+    vegData <- vegList$vegComponents
+    #rename vegcolumns
+    colsToRename <- colnames(vegData[, -c("pixelID", "youngAge"),])
+    setnames(vegData, colsToRename, paste0("veg", colsToRename))
+    #subset by columns used in model
+    keep <- c("pixelID", "youngAge", sim$vegComponentsToUse)
+    remove <- setdiff(colnames(vegData), keep)
+    set(vegData, NULL, remove, NULL)
+    rm(vegList)
+  } else {
+    vegData <- cohortsToFuelClasses(cohortData = sim$cohortData,
+                                    pixelGroupMap = sim$pixelGroupMap,
+                                    flammableRTM = sim$flammableRTM,
+                                    sppEquiv = sim$sppEquiv,
+                                    sppEquivCol = P(sim)$sppEquivCol)
+
+  }
 
   #the index is the cells in vegData - these are flammable cells only
   #because landcoverDT contains only flammable cells
@@ -375,9 +384,13 @@ prepare_SpreadPredict <- function(sim) {
   vegData <- vegData[!is.na(clim)] #don't predict with no climate data
   setnames(vegData, "clim", new = climVar)
 
-  #TODO: this vegPC will have to become a param if we plan on running with biomass instead of PCA
+ if (is.null(P(sim)$PCAveg)) {
+   exclusiveCols <- c("fuel", "nonForest")
+ } else {
+   exclusiveCols <- "vegPC"}
+
   spreadData <- makeMutuallyExclusive(dt = vegData,
-                                      mutuallyExclusive = list("youngAge" = "vegPC"))
+                                      mutuallyExclusive = list("youngAge" = exclusiveCols))
 
   setcolorder(spreadData, neworder = c("pixelID", climVar, 'youngAge'))
   sim$fireSense_SpreadCovariates <- spreadData
@@ -392,23 +405,18 @@ prepare_SpreadPredict <- function(sim) {
   dPath <- asPath(getOption("reproducible.destinationPath", dataPath(sim)), 1)
   message(currentModule(sim), ": using dataPath '", dPath, "'.")
 
-  if (!suppliedElsewhere("PCAveg", sim)) {
-    stop("Please supply PCAveg by running fireSense_dataPrepFit")
-  }
-
-  
   if (!suppliedElsewhere("terrainDT", sim)) {
-    
-    terrainCovariates <- prepTerrainCovariates(rasterToMatch = sim$flammableRTM, 
+
+    terrainCovariates <- prepTerrainCovariates(rasterToMatch = sim$flammableRTM,
                                                studyArea = sim$studyArea,
                                                destinationPath = dPath)
     layers <- seq(nlayers(terrainCovariates))
     names(layers) <- names(terrainCovariates)
-    
+
     terrainDT <- setDT(lapply(layers, FUN = function(x)
       getValues(terrainCovariates[[x]])
     ))
-    
+
     set(terrainDT, j = "pixelID", value = 1:ncell(sim$pixelGroupMap2001))
     set(terrainDT, j = "flammable", value = getValues(sim$flammableRTM))
     terrainDT <- terrainDT[flammable == 1,] %>%
@@ -418,13 +426,13 @@ prepare_SpreadPredict <- function(sim) {
   }
 
   if (!suppliedElsewhere("landcoverDT", sim)) {
-    
-    if (!suppliedElsewhere("rstLCC", sim)){
-      sim$rstLCC <- LandR::prepInputsLCC(year = 2010, 
+
+    if (!suppliedElsewhere("rstLCC", sim)) {
+      sim$rstLCC <- LandR::prepInputsLCC(year = 2010,
                                          destinationPath = dPath,
                                          rasterToMatch = sim$flammableRTM)
     }
-    
+
     if (!suppliedElsewhere("nonForestedLCCGroups", sim)) {
       #there is potential for problems if rstLCC is supplied and nonForestedLCCGroups is not, and vice versa
       sim$nonForestedLCCGroups <- list(
@@ -432,17 +440,17 @@ prepare_SpreadPredict <- function(sim) {
         "nonForest_lowFlam" = c(11, 12, 15) #shrub-lichen-moss + cropland. 2 barren classes are nonflam
       )
     }
-    
-    sim$landcoverDT <- makeLandcoverDT(rstLCC = sim$rstLCC, 
-                                       flammableRTM = sim$flammableRTM, 
-                                       forestedLCC = P(sim)$forestedLCC, 
+
+    sim$landcoverDT <- makeLandcoverDT(rstLCC = sim$rstLCC,
+                                       flammableRTM = sim$flammableRTM,
+                                       forestedLCC = P(sim)$forestedLCC,
                                        nonForestedLCCGroups = sim$nonForestedLCCGroups)
   }
-  
+
   if (!suppliedElsewhere("nonForest_timeSinceDisturbance", sim)) {
     message("nonForest_timeSinceDisturbance not supplied - generating simulated map")
     #this is untested
-    sim$nonForest_timeSinceDisturbance <- setValues(sim$flammmableRTM, 
+    sim$nonForest_timeSinceDisturbance <- setValues(sim$flammmableRTM,
                                                     round(P(sim)$cutoffForoungAge/2))
     #users can crop the object generated by dataPrepFit
   }
