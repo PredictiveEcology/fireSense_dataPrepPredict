@@ -20,11 +20,15 @@ defineModule(sim, list(
     defineParameter(name = "fireTimeStep", "numeric", 1, NA, NA, desc = "time step of fire model"),
     defineParameter(name = "forestedLCC", "numeric", 1:6, NA, NA,
                     desc = "forested landcover classes in rstLCC - only relevant if landcoverDT is not supplied"),
+    defineParameter(name = "ignitionFuelClassCol", class = "character", default = "FuelClass",
+                    desc = "the column in sppEquiv that defines unique fuel classes for ignition"),
     defineParameter(name = "missingLCCgroup", class = "character", "nonForest_highFlam", NA, NA,
                     desc = paste("if a pixel is forested but is absent from cohortData, it will be grouped in this class.",
                                  "Must be one of the names in sim$nonForestedLCCGroups")),
     defineParameter(name = "sppEquivCol", class = "character", default = "LandR", NA, NA,
                     desc = "column name in sppEquiv object that defines unique species in cohortData"),
+    defineParameter(name = "spreadFuelClassCol", class = "character", default = "FuelClass",
+                    desc = "if using fuel classes for spread, the column in sppEquiv that defines unique fuel classes"),
     defineParameter(name = "whichModulesToPrepare", class = "character",
                     default = c("fireSense_SpreadPredict", "fireSense_IgnitionPredict", "fireSense_EscapeFit"),
                     NA, NA, desc = "Which fireSense fit modules to prep? defaults to all 3"),
@@ -314,6 +318,7 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
                                       sppEquivCol = P(sim)$sppEquivCol,
                                       pixelGroupMap = sim$pixelGroupMap,
                                       flammableRTM = sim$flammableRTM,
+                                      fuelClassCol = P(sim)$ignitionFuelClassCol,
                                       cutoffForYoungAge = P(sim)$cutoffForYoungAge)
   #make columns for each fuel class
   fcs <- names(fuelClasses)
@@ -369,6 +374,7 @@ prepare_SpreadPredict <- function(sim) {
                                     pixelGroupMap = sim$pixelGroupMap,
                                     flammableRTM = sim$flammableRTM,
                                     sppEquiv = sim$sppEquiv,
+                                    fuelClassCol = P(sim)$spreadClassCol,
                                     sppEquivCol = P(sim)$sppEquivCol,
                                     cutoffForYoungAge = P(sim)$cutoffForYoungAge)
     fcs <- names(vegData)
@@ -422,7 +428,7 @@ prepare_SpreadPredict <- function(sim) {
     terrainDT <- setDT(lapply(layers, FUN = function(x)
       getValues(terrainCovariates[[x]])
     ))
-    
+
     set(terrainDT, j = "pixelID", value = 1:ncell(sim$flammableRTM))
     set(terrainDT, j = "flammable", value = getValues(sim$flammableRTM))
     terrainDT <- terrainDT[flammable == 1,] %>%
