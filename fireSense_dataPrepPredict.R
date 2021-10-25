@@ -374,7 +374,7 @@ prepare_SpreadPredict <- function(sim) {
                                     pixelGroupMap = sim$pixelGroupMap,
                                     flammableRTM = sim$flammableRTM,
                                     sppEquiv = sim$sppEquiv,
-                                    fuelClassCol = P(sim)$spreadClassCol,
+                                    fuelClassCol = P(sim)$spreadFuelClassCol,
                                     sppEquivCol = P(sim)$sppEquivCol,
                                     cutoffForYoungAge = P(sim)$cutoffForYoungAge)
     fcs <- names(vegData)
