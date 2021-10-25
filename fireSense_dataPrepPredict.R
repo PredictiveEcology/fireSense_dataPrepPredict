@@ -396,7 +396,7 @@ prepare_SpreadPredict <- function(sim) {
   setnames(vegData, "clim", new = climVar)
 
  if (is.null(P(sim)$PCAveg)) {
-   exclusiveCols <- c("fuel", names(sim$landcoverDT))
+   exclusiveCols <- c("class", names(sim$landcoverDT))
    exclusiveCols <- setdiff(exclusiveCols, "pixelID")
  } else {
    exclusiveCols <- "vegPC"}
