@@ -174,11 +174,9 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
 
 ### template initialization
 Init <- function(sim) {
-
   # if (!compareRaster(sim$pixelGroupMap, sim$projectedClimateLayers[[1]])) {
   #   stop("mismatch in resolution detected - please review the resolution of sim$projectedClimateLayers")
   # }
-
 
   return(invisible(sim))
 }
@@ -236,7 +234,6 @@ plotIgnitionCovariates <- function(sim) {
   return(invisible(sim))
 }
 
-
 plotSpreadCovariates <- function(sim) {
   #This would not be easy to construct in a function, unless you save spreadCovariates
   #if you dont save spreadCovariates, then the entire dataPrep event must be made into functions
@@ -292,7 +289,7 @@ getCurrentClimate <- function(projectedClimateLayers, time, rasterToMatch) {
   ## this will work with a list of raster stacks
   thisYearsClimate <- lapply(projectedClimateLayers, FUN = function(x, rtm = rasterToMatch) {
     ras <- x[[paste0("year", time)]]
-    if (!compareRaster(ras, rtm, stopiffalse = FALSE)){
+    if (!compareRaster(ras, rtm, stopiffalse = FALSE)) {
       message("reprojecting fireSense climate layers")
       ras <- postProcess(ras, rasterToMatch = rtm)
     }
@@ -312,8 +309,7 @@ ageNonForest <- function(TSD, rstCurrentBurn, timeStep) {
 }
 
 prepare_IgnitionAndEscapePredict <- function(sim) {
-
-  #get fuel classes
+  ## get fuel classes
   fuelClasses <- cohortsToFuelClasses(cohortData = sim$cohortData,
                                       sppEquiv = sim$sppEquiv,
                                       sppEquivCol = P(sim)$sppEquivCol,
@@ -321,16 +317,15 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
                                       flammableRTM = sim$flammableRTM,
                                       fuelClassCol = P(sim)$ignitionFuelClassCol,
                                       cutoffForYoungAge = P(sim)$cutoffForYoungAge)
-  #make columns for each fuel class
+  ## make columns for each fuel class
   fcs <- names(fuelClasses)
   getPix <- function(fc, type, index) { fc[[type]][index]}
   fuelDT <- data.table(pixelID = sim$landcoverDT$pixelID)
   fuelDT[, c(fcs) := nafill(lapply(fcs, getPix, fc = fuelClasses, index = fuelDT$pixelID), fill = 0)]
 
-  #
   ignitionCovariates <- fuelDT[sim$landcoverDT, on = c("pixelID")]
   ignitionCovariates[, rowcheck := rowSums(.SD), .SD = setdiff(names(ignitionCovariates), "pixelID")]
-  #if all rows are 0, it must be a forested LCC absent from cohortData
+  ## if all rows are 0, it must be a forested LCC absent from cohortData
   ignitionCovariates[rowcheck == 0, eval(P(sim)$missingLCC) := 1]
   set(ignitionCovariates, NULL, "rowcheck", NULL)
 
@@ -346,9 +341,7 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
   return(invisible(sim))
 }
 
-
 prepare_SpreadPredict <- function(sim) {
-
   if (!is.null(sim$PCAveg)) {
 
     vegData <- castCohortData(cohortData = sim$cohortData,
@@ -411,15 +404,12 @@ prepare_SpreadPredict <- function(sim) {
   return(invisible(sim))
 }
 
-
 .inputObjects <- function(sim) {
-
   cacheTags <- c(currentModule(sim), "function:.inputObjects")
   dPath <- asPath(getOption("reproducible.destinationPath", dataPath(sim)), 1)
   message(currentModule(sim), ": using dataPath '", dPath, "'.")
 
   if (!suppliedElsewhere("terrainDT", sim)) {
-
     terrainCovariates <- prepTerrainCovariates(rasterToMatch = sim$flammableRTM,
                                                studyArea = sim$studyArea,
                                                destinationPath = dPath)
@@ -470,5 +460,3 @@ prepare_SpreadPredict <- function(sim) {
 
   return(invisible(sim))
 }
-
-### add additional events as needed by copy/pasting from above
