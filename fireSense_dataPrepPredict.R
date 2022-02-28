@@ -13,7 +13,7 @@ defineModule(sim, list(
   timeunit = "year",
   citation = list("citation.bib"),
   documentation = deparse(list("README.txt", "fireSense_dataPrepPredict.Rmd")),
-  reqdPkgs = list("data.table", "PredictiveEcology/fireSenseUtils@development (>=0.0.4.9082)", "raster"),
+  reqdPkgs = list("data.table", "PredictiveEcology/fireSenseUtils@development (>= 0.0.5.9013)", "raster"),
   parameters = rbind(
     defineParameter("cutoffForYoungAge", class = "numeric", 15, NA, NA,
                     desc = paste("Age at and below which pixels are considered 'young' --> young <- age <= cutoffForYoungAge")),
@@ -314,6 +314,7 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
                                       sppEquiv = sim$sppEquiv,
                                       sppEquivCol = P(sim)$sppEquivCol,
                                       pixelGroupMap = sim$pixelGroupMap,
+                                      landcoverDT = sim$landcoverDT,
                                       flammableRTM = sim$flammableRTM,
                                       fuelClassCol = P(sim)$ignitionFuelClassCol,
                                       cutoffForYoungAge = P(sim)$cutoffForYoungAge)
@@ -368,6 +369,7 @@ prepare_SpreadPredict <- function(sim) {
                                     pixelGroupMap = sim$pixelGroupMap,
                                     flammableRTM = sim$flammableRTM,
                                     sppEquiv = sim$sppEquiv,
+                                    landcoverDT = sim$landcoverDT,
                                     fuelClassCol = P(sim)$spreadFuelClassCol,
                                     sppEquivCol = P(sim)$sppEquivCol,
                                     cutoffForYoungAge = P(sim)$cutoffForYoungAge)
