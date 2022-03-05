@@ -25,6 +25,8 @@ defineModule(sim, list(
     defineParameter(name = "missingLCCgroup", class = "character", "nonForest_highFlam", NA, NA,
                     desc = paste("if a pixel is forested but is absent from cohortData, it will be grouped in this class.",
                                  "Must be one of the names in sim$nonForestedLCCGroups")),
+    defineParameter(name = "nonForestCanBeYoungAge", class = "logical", TRUE, NA, NA,
+                    desc = "update non-forest when burned, to become youngAge"),
     defineParameter(name = "sppEquivCol", class = "character", default = "LandR", NA, NA,
                     desc = "column name in sppEquiv object that defines unique species in cohortData"),
     defineParameter(name = "spreadFuelClassCol", class = "character", default = "FuelClass",
@@ -330,16 +332,24 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
   ignitionCovariates[rowcheck == 0, eval(P(sim)$missingLCC) := 1]
   set(ignitionCovariates, NULL, "rowcheck", NULL)
 
-  # this was using fireSenseUtils::climateRasterToDataTable - but it was very slow for this simple case of 1 raster
-  #climData <- climateRasterToDataTable(historicalClimateRasters = sim$currentClimateLayers,
-                                       # Index = ignitionCovariates$pixelID)
+  if (P(sim)$nonForestCanBeYoungAge) {
+    ignitionCovariates[, YA_NF := sim$nonForest_timeSinceDisturbance[ignitionCovariates$pixelID] <= P(sim)$cutoffForYoungAge]
+    ignitionCovariates[YA_NF == TRUE, youngAge := 1]
+    ignitionCovariates[, YA_NF := NULL]
+  }
+
+  exclusiveCols <- c("class", names(sim$landcoverDT))
+  exclusiveCols <- setdiff(exclusiveCols, "pixelID")
+  ignitionCovariates <- makeMutuallyExclusive(dt = ignitionCovariates,
+                                              mutuallyExclusive = list("youngAge" = exclusiveCols))
+
   ignitionCovariates[, clim := getValues(sim$currentClimateLayers[[1]])[ignitionCovariates$pixelID]]
   ignitionCovariates <- ignitionCovariates[!is.na(clim)] # don't predict with no climate data
   setnames(ignitionCovariates, "clim", new = names(sim$currentClimateLayers))
 
   sim$fireSense_IgnitionAndEscapeCovariates <- ignitionCovariates
-
   return(invisible(sim))
+
 }
 
 prepare_SpreadPredict <- function(sim) {
@@ -363,6 +373,8 @@ prepare_SpreadPredict <- function(sim) {
     remove <- setdiff(colnames(vegData), keep)
     set(vegData, NULL, remove, NULL)
     rm(vegList)
+    exclusiveCols <- "vegPC"
+
   } else {
     #much of this chunk can now be combined into a function, called for both ig and spread prep
     vegData <- cohortsToFuelClasses(cohortData = sim$cohortData,
@@ -382,20 +394,21 @@ prepare_SpreadPredict <- function(sim) {
     #if all rows are 0, it must be a forested LCC absent from cohortData
     vegData[rowcheck == 0, eval(P(sim)$missingLCC) := 1]
     set(vegData, NULL, 'rowcheck', NULL)
+
+    if (P(sim)$nonForestCanBeYoungAge) {
+      vegData[, YA_NF := sim$nonForest_timeSinceDisturbance[vegData$pixelID] <= P(sim)$cutoffForYoungAge]
+      vegData[YA_NF == TRUE, youngAge := 1]
+      vegData[, YA_NF := NULL]
+    }
+    exclusiveCols <- c("class", names(sim$landcoverDT))
+    exclusiveCols <- setdiff(exclusiveCols, "pixelID")
   }
 
-  #the index is the cells in vegData - these are flammable cells only
-  #because landcoverDT contains only flammable cells
+
   climVar <- names(sim$currentClimateLayers)
   vegData[, clim := getValues(sim$currentClimateLayers[[1]])[vegData$pixelID]]
   vegData <- vegData[!is.na(clim)] #don't predict with no climate data
   setnames(vegData, "clim", new = climVar)
-
- if (is.null(P(sim)$PCAveg)) {
-   exclusiveCols <- c("class", names(sim$landcoverDT))
-   exclusiveCols <- setdiff(exclusiveCols, "pixelID")
- } else {
-   exclusiveCols <- "vegPC"}
 
   spreadData <- makeMutuallyExclusive(dt = vegData,
                                       mutuallyExclusive = list("youngAge" = exclusiveCols))
