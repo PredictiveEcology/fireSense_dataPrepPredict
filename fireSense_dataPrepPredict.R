@@ -8,30 +8,32 @@ defineModule(sim, list(
     person("Alex M", "Chubaty", role = "ctb", email = "achubaty@for-cast.ca")
   ),
   childModules = character(0),
-  version = list(SpaDES.core = "1.0.4.9003", fireSense_dataPrepPredict = "0.0.0.9000"),
+  version = list(fireSense_dataPrepPredict = "0.0.0.9000"),
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = "year",
   citation = list("citation.bib"),
   documentation = deparse(list("README.txt", "fireSense_dataPrepPredict.Rmd")),
   reqdPkgs = list("data.table", "PredictiveEcology/fireSenseUtils@development (>= 0.0.5.9013)", "raster"),
   parameters = rbind(
-    defineParameter("cutoffForYoungAge", class = "numeric", 15, NA, NA,
-                    desc = paste("Age at and below which pixels are considered 'young' --> young <- age <= cutoffForYoungAge")),
-    defineParameter(name = "fireTimeStep", "numeric", 1, NA, NA, desc = "time step of fire model"),
-    defineParameter(name = "forestedLCC", "numeric", 1:6, NA, NA,
+    defineParameter("cutoffForYoungAge", "numeric", 15, NA, NA,
+                    desc = paste("Age at and below which pixels are considered 'young'",
+                                 "(i.e., `age <= cutoffForYoungAge`).")),
+    defineParameter("fireTimeStep", "numeric", 1, NA, NA, desc = "time step of fire model"),
+    defineParameter("forestedLCC", "numeric", 1:6, NA, NA,
                     desc = "forested landcover classes in rstLCC - only relevant if landcoverDT is not supplied"),
-    defineParameter(name = "ignitionFuelClassCol", class = "character", default = "FuelClass",
+    defineParameter("ignitionFuelClassCol", "character", "FuelClass", NA, NA,
                     desc = "the column in sppEquiv that defines unique fuel classes for ignition"),
-    defineParameter(name = "missingLCCgroup", class = "character", "nonForest_highFlam", NA, NA,
-                    desc = paste("if a pixel is forested but is absent from cohortData, it will be grouped in this class.",
+    defineParameter("missingLCCgroup", "character", "nonForest_highFlam", NA, NA,
+                    desc = paste("if a pixel is forested but is absent from cohortData,",
+                                 "it will be grouped in this class.",
                                  "Must be one of the names in sim$nonForestedLCCGroups")),
-    defineParameter(name = "nonForestCanBeYoungAge", class = "logical", TRUE, NA, NA,
+    defineParameter("nonForestCanBeYoungAge", "logical", TRUE, NA, NA,
                     desc = "update non-forest when burned, to become youngAge"),
-    defineParameter(name = "sppEquivCol", class = "character", default = "LandR", NA, NA,
+    defineParameter("sppEquivCol", "character", "LandR", NA, NA,
                     desc = "column name in sppEquiv object that defines unique species in cohortData"),
-    defineParameter(name = "spreadFuelClassCol", class = "character", default = "FuelClass",
+    defineParameter("spreadFuelClassCol", "character", "FuelClass", NA, NA,
                     desc = "if using fuel classes for spread, the column in sppEquiv that defines unique fuel classes"),
-    defineParameter(name = "whichModulesToPrepare", class = "character",
+    defineParameter("whichModulesToPrepare", "character",
                     default = c("fireSense_SpreadPredict", "fireSense_IgnitionPredict", "fireSense_EscapeFit"),
                     NA, NA, desc = "Which fireSense fit modules to prep? defaults to all 3"),
     defineParameter(".plotInitialTime", "numeric", NA, NA, NA,
@@ -48,49 +50,49 @@ defineModule(sim, list(
                           "and time are not relevant"))
   ),
   inputObjects = bindrows(
-    expectsInput(objectName = "climateComponentsToUse", objectClass = "character",
+    expectsInput("climateComponentsToUse", "character", sourceURL = NA,
                  desc = "names of the climate components to use in ignition, escape, and spread models"),
-    expectsInput(objectName = "cohortData", objectClass = "data.table",
+    expectsInput("cohortData", "data.table", sourceURL = NA,
                  desc = "table that defines the cohorts by pixelGroup"),
-    expectsInput(objectName = "flammableRTM", objectClass = "RasterLayer", sourceURL = NA,
+    expectsInput("flammableRTM", "RasterLayer", sourceURL = NA,
                  desc = "RTM without ice/rocks/urban/water. Flammable map with 0 and 1."),
-    expectsInput(objectName = "nonForestedLCCGroups", objectClass = "list",
+    expectsInput("nonForestedLCCGroups", "list", sourceURL = NA,
                  desc = paste("a named list of non-forested landcover groups,",
                               "e.g. list('wetland' = c(19, 23, 32)).",
                               "This is only relevant if landcoverDT is not supplied")),
-    expectsInput(objectName = "nonForest_timeSinceDisturbance", objectClass = "RasterLayer",
+    expectsInput("nonForest_timeSinceDisturbance", "RasterLayer", sourceURL = NA,
                  desc = "time since burn for non-forested pixels"),
-    expectsInput(objectName = "PCAveg", objectClass = "prcomp",
+    expectsInput("PCAveg", "prcomp", sourceURL = NA,
                   desc = "PCA model for veg and LCC covariates, needed for FS models"),
-    expectsInput(objectName = "pixelGroupMap", objectClass = "RasterLayer",
-                 "RasterLayer that defines the pixelGroups for cohortData table"),
-    expectsInput(objectName = "projectedClimateLayers", objectClass = "list",
+    expectsInput("pixelGroupMap", "RasterLayer", sourceURL = NA,
+                 desc = "RasterLayer that defines the pixelGroups for cohortData table"),
+    expectsInput("projectedClimateLayers", "list", sourceURL = NA,
                  desc = paste("list of projected climate variables in raster stack form",
                               "named according to variable, with names of individual raster layers",
                               "following the convention 'year<year>'")),
-    expectsInput(objectName = "landcoverDT", objectClass = "data.table",
+    expectsInput("landcoverDT", "data.table", sourceURL = NA,
                  desc = "data.table with pixelID and relevant landcover classes"),
-    expectsInput(objectName = "rstCurrentBurn", objectClass = "RasterLayer",
+    expectsInput("rstCurrentBurn", "RasterLayer", sourceURL = NA,
                  desc = "binary raster with 1 representing annual burn"),
-    expectsInput(objectName = "rstLCC", objectClass = "RasterLayer", sourceURL = NA,
+    expectsInput("rstLCC", "RasterLayer", sourceURL = NA,
                  desc = "a landcover raster - only used if landcoverDT is unsupplied"),
-    expectsInput(objectName = "sppEquiv", objectClass = "data.table", sourceURL = NA,
+    expectsInput("sppEquiv", "data.table", sourceURL = NA,
                  desc = "table of LandR species equivalencies"),
-    expectsInput(objectName = "terrainDT", objectClass = "data.table",
+    expectsInput("terrainDT", "data.table", sourceURL = NA,
                  desc = "data.table with pixelID and relevant terrain variables"),
-    expectsInput(objectName = "vegComponentsToUse", objectClass = "character",
+    expectsInput("vegComponentsToUse", "character", sourceURL = NA,
                  desc = "names of the veg components to use in ignition, escape, and spread predict models")
   ),
   outputObjects = bindrows(
-    createsOutput(objectName = "currentClimateLayers", objectClass = "list",
+    createsOutput("currentClimateLayers", "list",
                   desc = "list of project climate rasters at current time of sim"),
-    createsOutput(objectName = "fireSense_IgnitionAndEscapeCovariates", objectClass = "data.table",
+    createsOutput("fireSense_IgnitionAndEscapeCovariates", "data.table",
                   desc = paste("data.table of covariates for ignition prediction, with pixelID column",
                                 "corresponding to flammableRTM pixel index")),
-    createsOutput(objectName = "fireSense_SpreadCovariates", objectClass = "data.table",
+    createsOutput("fireSense_SpreadCovariates", "data.table",
                   desc = paste("data.table of covariates for spread prediction, with pixelID column",
                                 "corresponding to flammableRTM pixel index")),
-    createsOutput(objectName = "nonForest_timeSinceDisturbance", objectClass = "RasterLayer",
+    createsOutput("nonForest_timeSinceDisturbance", "RasterLayer",
                   desc = "time since burn for non-forest pixels")
   )
 ))
@@ -145,7 +147,6 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
                            "fireSense_dataPrepPredict", "ageNonForest")
     },
     getClimateLayers = {
-
       sim$currentClimateLayers <- getCurrentClimate(sim$projectedClimateLayers,
                                                     time(sim),
                                                     rasterToMatch = sim$rasterToMatch)
@@ -159,7 +160,6 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
                            "fireSense_dataPrepPredict", "prepIgnitionAndEscapePredictData",
                            eventPriority = 5.1)
     },
-
     prepSpreadPredictData = {
       sim <- prepare_SpreadPredict(sim)
       sim <- scheduleEvent(sim, time(sim) + P(sim)$fireTimeStep,
@@ -196,7 +196,6 @@ Save <- function(sim) {
 
 ### template for plot events
 plotIgnitionCovariates <- function(sim) {
-
   fuelClasses <- setdiff(names(sim$fireSense_IgnitionAndEscapeCovariates),
                          c("pixelID", names(sim$currentClimateLayers)))
   fuelRas <- raster(sim$flammableRTM)
