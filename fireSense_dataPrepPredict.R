@@ -35,11 +35,14 @@ defineModule(sim, list(
                     desc = "if using fuel classes for spread, the column in sppEquiv that defines unique fuel classes"),
     defineParameter("whichModulesToPrepare", "character",
                     default = c("fireSense_SpreadPredict", "fireSense_IgnitionPredict", "fireSense_EscapeFit"),
-                    NA, NA, desc = "Which fireSense fit modules to prep? defaults to all 3"),
+                    NA, NA,
+                    desc = "Which fireSense fit modules to prep? defaults to all 3"),
     defineParameter(".plotInitialTime", "numeric", NA, NA, NA,
                     "Describes the simulation time at which the first plot event should occur."),
     defineParameter(".plotInterval", "numeric", NA, NA, NA,
                     "Describes the simulation time interval between plot events."),
+    defineParameter(".runInitialTime", "numeric", start(sim), NA, NA,
+                    "time to simulate initial fire"),
     defineParameter(".saveInitialTime", "numeric", NA, NA, NA,
                     "Describes the simulation time at which the first save event should occur."),
     defineParameter(".saveInterval", "numeric", NA, NA, NA,
@@ -110,23 +113,21 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
       # do stuff for this event
       sim <- Init(sim)
       sim <- scheduleEvent(sim, time(sim) + 1, "fireSense_dataPrepPredict", "ageNonForest")
-      sim <- scheduleEvent(sim, start(sim), "fireSense_dataPrepPredict", "getClimateLayers")
+      sim <- scheduleEvent(sim, P(sim)$.runInitialTime, "fireSense_dataPrepPredict", "getClimateLayers")
 
       if ("fireSense_IgnitionPredict" %in% P(sim)$whichModulesToPrepare |
           "fireSense_EscapePredict" %in% P(sim)$whichModulesToPrepare) {
-        sim <- scheduleEvent(sim, start(sim), "fireSense_dataPrepPredict", "prepIgnitionAndEscapePredictData",
+        sim <- scheduleEvent(sim, P(sim)$.runInitialTime, "fireSense_dataPrepPredict", "prepIgnitionAndEscapePredictData",
                              eventPriority = 5.10)
       }
 
       if ("fireSense_SpreadPredict" %in% P(sim)$whichModulesToPrepare) {
-        sim <- scheduleEvent(sim, start(sim), "fireSense_dataPrepPredict", "prepSpreadPredictData",
+        sim <- scheduleEvent(sim, P(sim)$.runInitialTime, "fireSense_dataPrepPredict", "prepSpreadPredictData",
                              eventPriority = 5.10)
       }
       # schedule future event(s)
       sim <- scheduleEvent(sim, P(sim)$.plotInitialTime, "fireSense_dataPrepPredict", "plot", eventPriority = 5.12)
-      sim <- scheduleEvent(sim, P(sim)$.saveInitialTime, "fireSense_dataPrepPredict", "save", eventPriority = 5.12)
     },
-
     plot = {
       if ("fireSense_IgnitionPredict" %in% P(sim)$whichModulesToPrepare) {
         sim <- plotIgnitionCovariates(sim)
@@ -134,9 +135,6 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
       if ("fireSense_SpreadPredict" %in% P(sim)$whichModulesToPrepare) {
         sim <- plotSpreadCovariates(sim)
       }
-
-    },
-    save = {
 
     },
     ageNonForest = {
@@ -181,16 +179,6 @@ Init <- function(sim) {
   #   stop("mismatch in resolution detected - please review the resolution of sim$projectedClimateLayers")
   # }
 
-  return(invisible(sim))
-}
-
-### template for save events
-Save <- function(sim) {
-  # ! ----- EDIT BELOW ----- ! #
-  # do stuff for this event
-  sim <- saveFiles(sim)
-
-  # ! ----- STOP EDITING ----- ! #
   return(invisible(sim))
 }
 
@@ -279,7 +267,6 @@ plotSpreadCovariates <- function(sim) {
 }
 
 getCurrentClimate <- function(projectedClimateLayers, time, rasterToMatch) {
-
   availableYears <- as.numeric(gsub(pattern = "year",
                                x = names(projectedClimateLayers[[1]]),
                                replacement = ""))
@@ -292,7 +279,7 @@ getCurrentClimate <- function(projectedClimateLayers, time, rasterToMatch) {
   thisYearsClimate <- lapply(projectedClimateLayers, FUN = function(x, rtm = rasterToMatch, TIME = time) {
 
     ras <- x[[paste0("year", TIME)]]
-    if (!compareRaster(ras, rtm, stopiffalse = FALSE)){
+    if (!compareRaster(ras, rtm, stopiffalse = FALSE)) {
       message("reprojecting fireSense climate layers")
       ras <- postProcess(ras, rasterToMatch = rtm)
     }
@@ -336,7 +323,8 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
   set(ignitionCovariates, NULL, "rowcheck", NULL)
 
   if (P(sim)$nonForestCanBeYoungAge) {
-    ignitionCovariates[, YA_NF := sim$nonForest_timeSinceDisturbance[ignitionCovariates$pixelID] <= P(sim)$cutoffForYoungAge]
+    ignitionCovariates[, YA_NF := sim$nonForest_timeSinceDisturbance[ignitionCovariates$pixelID] <=
+                         P(sim)$cutoffForYoungAge]
     ignitionCovariates[YA_NF == TRUE, youngAge := 1]
     ignitionCovariates[, YA_NF := NULL]
   }
@@ -352,12 +340,10 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
 
   sim$fireSense_IgnitionAndEscapeCovariates <- ignitionCovariates
   return(invisible(sim))
-
 }
 
 prepare_SpreadPredict <- function(sim) {
   if (!is.null(sim$PCAveg)) {
-
     vegData <- castCohortData(cohortData = sim$cohortData,
                               pixelGroupMap = sim$pixelGroupMap,
                               ageMap = sim$nonForest_timeSinceDisturbance,
@@ -377,7 +363,6 @@ prepare_SpreadPredict <- function(sim) {
     set(vegData, NULL, remove, NULL)
     rm(vegList)
     exclusiveCols <- "vegPC"
-
   } else {
     #much of this chunk can now be combined into a function, called for both ig and spread prep
     vegData <- cohortsToFuelClasses(cohortData = sim$cohortData,
@@ -447,7 +432,6 @@ prepare_SpreadPredict <- function(sim) {
   }
 
   if (!suppliedElsewhere("landcoverDT", sim)) {
-
     if (!suppliedElsewhere("rstLCC", sim)) {
       sim$rstLCC <- LandR::prepInputsLCC(year = 2010,
                                          destinationPath = dPath,
