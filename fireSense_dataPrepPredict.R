@@ -53,8 +53,6 @@ defineModule(sim, list(
                           "and time are not relevant"))
   ),
   inputObjects = bindrows(
-    expectsInput("climateComponentsToUse", "character", sourceURL = NA,
-                 desc = "names of the climate components to use in ignition, escape, and spread models"),
     expectsInput("cohortData", "data.table", sourceURL = NA,
                  desc = "table that defines the cohorts by pixelGroup"),
     expectsInput("flammableRTM", "RasterLayer", sourceURL = NA,
@@ -65,8 +63,6 @@ defineModule(sim, list(
                               "This is only relevant if landcoverDT is not supplied")),
     expectsInput("nonForest_timeSinceDisturbance", "RasterLayer", sourceURL = NA,
                  desc = "time since burn for non-forested pixels"),
-    expectsInput("PCAveg", "prcomp", sourceURL = NA,
-                  desc = "PCA model for veg and LCC covariates, needed for FS models"),
     expectsInput("pixelGroupMap", "RasterLayer", sourceURL = NA,
                  desc = "RasterLayer that defines the pixelGroups for cohortData table"),
     expectsInput("projectedClimateLayers", "list", sourceURL = NA,
@@ -80,11 +76,7 @@ defineModule(sim, list(
     expectsInput("rstLCC", "RasterLayer", sourceURL = NA,
                  desc = "a landcover raster - only used if landcoverDT is unsupplied"),
     expectsInput("sppEquiv", "data.table", sourceURL = NA,
-                 desc = "table of LandR species equivalencies"),
-    expectsInput("terrainDT", "data.table", sourceURL = NA,
-                 desc = "data.table with pixelID and relevant terrain variables"),
-    expectsInput("vegComponentsToUse", "character", sourceURL = NA,
-                 desc = "names of the veg components to use in ignition, escape, and spread predict models")
+                 desc = "table of LandR species equivalencies")
   ),
   outputObjects = bindrows(
     createsOutput("currentClimateLayers", "list",
@@ -117,7 +109,8 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
 
       if ("fireSense_IgnitionPredict" %in% P(sim)$whichModulesToPrepare |
           "fireSense_EscapePredict" %in% P(sim)$whichModulesToPrepare) {
-        sim <- scheduleEvent(sim, P(sim)$.runInitialTime, "fireSense_dataPrepPredict", "prepIgnitionAndEscapePredictData",
+        sim <- scheduleEvent(sim, P(sim)$.runInitialTime, "fireSense_dataPrepPredict",
+                             "prepIgnitionAndEscapePredictData",
                              eventPriority = 5.10)
       }
 
@@ -126,16 +119,7 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
                              eventPriority = 5.10)
       }
       # schedule future event(s)
-      sim <- scheduleEvent(sim, P(sim)$.plotInitialTime, "fireSense_dataPrepPredict", "plot", eventPriority = 5.12)
-    },
-    plot = {
-      if ("fireSense_IgnitionPredict" %in% P(sim)$whichModulesToPrepare) {
-        sim <- plotIgnitionCovariates(sim)
-      }
-      if ("fireSense_SpreadPredict" %in% P(sim)$whichModulesToPrepare) {
-        sim <- plotSpreadCovariates(sim)
-      }
-
+      # sim <- scheduleEvent(sim, P(sim)$.plotInitialTime, "fireSense_dataPrepPredict", "plot", eventPriority = 5.12)
     },
     ageNonForest = {
       sim$nonForest_timeSinceDisturbance <- ageNonForest(TSD = sim$nonForest_timeSinceDisturbance,
@@ -183,88 +167,6 @@ Init <- function(sim) {
 }
 
 ### template for plot events
-plotIgnitionCovariates <- function(sim) {
-  fuelClasses <- setdiff(names(sim$fireSense_IgnitionAndEscapeCovariates),
-                         c("pixelID", names(sim$currentClimateLayers)))
-  fuelRas <- raster(sim$flammableRTM)
-  fuelRas[!is.na(sim$flammableRTM[]) & sim$flammableRTM[] == 0] <- 0
-  #melting is faster than as.numeric(factor(paste0(<fuelClasses))) and reliably tested
-  fuels <- melt.data.table(data = sim$fireSense_IgnitionAndEscapeCovariates,
-                           id.vars = "pixelID", measure.vars = fuelClasses,
-                           variable.name = "fuel", variable.factor = TRUE)
-
-  fuels <- fuels[value == 1]
-  fuelRas[fuels$pixelID] <- fuels$fuel
-  fuelClasses <- c("nonflammable", fuelClasses)
-
-  fuelRas <- as.data.frame(as(fuelRas, "SpatialPixelsDataFrame"))
-  names(fuelRas) <- c("value", "x", "y")
-  fuelRas$value <- as.factor(fuelRas$value)
-  levels(fuelRas$value) <- fuelClasses
-
-  g <- ggplot() +
-    geom_raster(data = fuelRas,
-                aes(x = x, y = y, fill = value),
-                show.legend = TRUE) +
-    theme_minimal() +
-    labs(title = paste0("ignition fuel classes in ", time(sim)))
-
-  #assign a default scale if using 'default'
-  if (all(c("class2", "class3", "youngAge", "nonForest_lowFlam", "nonForest_highFlam") %in% fuelClasses)) {
-    pal <- c("#C5C6D0", "#74B72E", "#234F1E", "#68ff5f", "#E3B104", "#8E762C")
-    names(pal) <- fuelClasses
-    g <- g  +  scale_fill_manual(name = "fuel class",
-                           values = pal,
-                           labels = names(pal))
-  }
-
-  ggsave(filename = paste0("ignitionFuelClasses_", time(sim), ".png"), plot = g,
-        device = "png", path = filePath(outputPath(sim), "figures"))
- #consider making Utils functino
-  return(invisible(sim))
-}
-
-plotSpreadCovariates <- function(sim) {
-  #This would not be easy to construct in a function, unless you save spreadCovariates
-  #if you dont save spreadCovariates, then the entire dataPrep event must be made into functions
-
-  spreadPlot <- lapply(sim$vegComponentsToUse, FUN = function(pc, ras = raster(sim$flammableRTM),
-                                                              dt = sim$fireSense_SpreadCovariates) {
-    ras[dt$pixelID] <- dt[,get(pc)]
-    return(ras)
-  })
-  names(spreadPlot) <- sim$vegComponentsToUse
-  spreadPlot <- stack(spreadPlot)
-
-  spreadPlot <- as.data.frame(as(spreadPlot, "SpatialPixelsDataFrame"))
-
-  #making it a single plot will not work unless each PC uses separate colour scale
-  spreadPlot <- lapply(sim$vegComponentsToUse, FUN = function(pc, df = spreadPlot){
-    g <- ggplot() +
-      geom_raster(data = df,
-                  aes_string(x = "x", y = "y", fill = eval(pc)),
-                  show.legend = TRUE) +
-      scale_colour_gradient2(aesthetics = c("fill"),
-                             low = "#4575b4",
-                             mid = "#ffffbf",
-                             high = "#d73027",
-                             midpoint = 0,
-                             na.value = "black") +
-      theme_minimal()
-    return(g)
-  })
-
-  names(spreadPlot) <- paste0(sim$vegComponentsToUse, "plot_", time(sim))
-
-  lapply(names(spreadPlot), FUN = function(name, thePath = filePath(outputPath(sim), "figures"),
-                                           sp = spreadPlot){
-    ggsave(plot = sp[[name]], filename = paste0(name, ".png"),
-           path = thePath,
-           device = "png", )
-  })
-
-  return(invisible(sim))
-}
 
 getCurrentClimate <- function(projectedClimateLayers, time, rasterToMatch) {
   availableYears <- as.numeric(gsub(pattern = "year",
@@ -343,54 +245,34 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
 }
 
 prepare_SpreadPredict <- function(sim) {
-  if (!is.null(sim$PCAveg)) {
-    vegData <- castCohortData(cohortData = sim$cohortData,
-                              pixelGroupMap = sim$pixelGroupMap,
-                              ageMap = sim$nonForest_timeSinceDisturbance,
-                              terrainDT = sim$terrainDT,
-                              lcc = sim$landcoverDT,
-                              missingLCC = P(sim)$missingLCCgroup)
-    vegList <- makeVegTerrainPCA(dataForPCA = vegData, PCA = sim$PCAveg,
-                                 dontWant = c("pixelGroup", "pixelID", "youngAge"))
-    #returns a list with only one usable object (PCA is null due to predict)
-    vegData <- vegList$vegComponents
-    #rename vegcolumns
-    colsToRename <- colnames(vegData[, -c("pixelID", "youngAge"),])
-    setnames(vegData, colsToRename, paste0("veg", colsToRename))
-    #subset by columns used in model
-    keep <- c("pixelID", "youngAge", sim$vegComponentsToUse)
-    remove <- setdiff(colnames(vegData), keep)
-    set(vegData, NULL, remove, NULL)
-    rm(vegList)
-    exclusiveCols <- "vegPC"
-  } else {
-    #much of this chunk can now be combined into a function, called for both ig and spread prep
-    vegData <- cohortsToFuelClasses(cohortData = sim$cohortData,
-                                    pixelGroupMap = sim$pixelGroupMap,
-                                    flammableRTM = sim$flammableRTM,
-                                    sppEquiv = sim$sppEquiv,
-                                    landcoverDT = sim$landcoverDT,
-                                    fuelClassCol = P(sim)$spreadFuelClassCol,
-                                    sppEquivCol = P(sim)$sppEquivCol,
-                                    cutoffForYoungAge = P(sim)$cutoffForYoungAge)
-    fcs <- names(vegData)
-    getPix <- function(fc, type, index) { fc[[type]][index]}
-    fuelDT <- data.table(pixelID = sim$landcoverDT$pixelID)
-    fuelDT[, c(fcs) := nafill(lapply(fcs, getPix, fc = vegData, index = fuelDT$pixelID), fill = 0)]
-    vegData <- fuelDT[sim$landcoverDT, on = c("pixelID")]
-    vegData[, rowcheck := rowSums(.SD), .SD = setdiff(names(vegData), 'pixelID')]
-    #if all rows are 0, it must be a forested LCC absent from cohortData
-    vegData[rowcheck == 0, eval(P(sim)$missingLCC) := 1]
-    set(vegData, NULL, 'rowcheck', NULL)
 
-    if (P(sim)$nonForestCanBeYoungAge) {
-      vegData[, YA_NF := sim$nonForest_timeSinceDisturbance[vegData$pixelID] <= P(sim)$cutoffForYoungAge]
-      vegData[YA_NF == TRUE, youngAge := 1]
-      vegData[, YA_NF := NULL]
-    }
-    exclusiveCols <- c("class", names(sim$landcoverDT))
-    exclusiveCols <- setdiff(exclusiveCols, "pixelID")
+  #much of this chunk can now be combined into a function, called for both ig and spread prep
+  vegData <- cohortsToFuelClasses(cohortData = sim$cohortData,
+                                  pixelGroupMap = sim$pixelGroupMap,
+                                  flammableRTM = sim$flammableRTM,
+                                  sppEquiv = sim$sppEquiv,
+                                  landcoverDT = sim$landcoverDT,
+                                  fuelClassCol = P(sim)$spreadFuelClassCol,
+                                  sppEquivCol = P(sim)$sppEquivCol,
+                                  cutoffForYoungAge = P(sim)$cutoffForYoungAge)
+  fcs <- names(vegData)
+  getPix <- function(fc, type, index) { fc[[type]][index]}
+  fuelDT <- data.table(pixelID = sim$landcoverDT$pixelID)
+  fuelDT[, c(fcs) := nafill(lapply(fcs, getPix, fc = vegData, index = fuelDT$pixelID), fill = 0)]
+  vegData <- fuelDT[sim$landcoverDT, on = c("pixelID")]
+  vegData[, rowcheck := rowSums(.SD), .SD = setdiff(names(vegData), 'pixelID')]
+  #if all rows are 0, it must be a forested LCC absent from cohortData
+  vegData[rowcheck == 0, eval(P(sim)$missingLCC) := 1]
+  set(vegData, NULL, 'rowcheck', NULL)
+
+  if (P(sim)$nonForestCanBeYoungAge) {
+    vegData[, YA_NF := sim$nonForest_timeSinceDisturbance[vegData$pixelID] <= P(sim)$cutoffForYoungAge]
+    vegData[YA_NF == TRUE, youngAge := 1]
+    vegData[, YA_NF := NULL]
   }
+  exclusiveCols <- c("class", names(sim$landcoverDT))
+  exclusiveCols <- setdiff(exclusiveCols, "pixelID")
+
 
 
   climVar <- names(sim$currentClimateLayers)
@@ -411,25 +293,6 @@ prepare_SpreadPredict <- function(sim) {
   cacheTags <- c(currentModule(sim), "function:.inputObjects")
   dPath <- asPath(getOption("reproducible.destinationPath", dataPath(sim)), 1)
   message(currentModule(sim), ": using dataPath '", dPath, "'.")
-
-  if (!suppliedElsewhere("terrainDT", sim)) {
-    terrainCovariates <- prepTerrainCovariates(rasterToMatch = sim$flammableRTM,
-                                               studyArea = sim$studyArea,
-                                               destinationPath = dPath)
-    layers <- seq(nlayers(terrainCovariates))
-    names(layers) <- names(terrainCovariates)
-
-    terrainDT <- setDT(lapply(layers, FUN = function(x)
-      getValues(terrainCovariates[[x]])
-    ))
-
-    set(terrainDT, j = "pixelID", value = 1:ncell(sim$flammableRTM))
-    set(terrainDT, j = "flammable", value = getValues(sim$flammableRTM))
-    terrainDT <- terrainDT[flammable == 1,] %>%
-      set(., NULL, "flammable", NULL) %>%
-      na.omit(.)
-    sim$terrainDT <- terrainDT
-  }
 
   if (!suppliedElsewhere("landcoverDT", sim)) {
     if (!suppliedElsewhere("rstLCC", sim)) {
