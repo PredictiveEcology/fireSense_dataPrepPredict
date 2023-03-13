@@ -230,13 +230,13 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
   fuelDT <- data.table(pixelID = sim$landcoverDT$pixelID)
   fuelDT[, c(fcs) := nafill(x = lapply(fcs, FUN = getPix, fc = fuelClasses, index = fuelDT$pixelID), fill = 0)]
 
-  ignitionCovariates <- joinCDandLandcoverDT(vegData = fuelDT, landcoverDT = sim$landcoverDT,
-                                             missingLCC = P(sim)$missingLCCgroup)
-  # ignitionCovariates <- fuelDT[sim$landcoverDT, on = c("pixelID")]
-  # ignitionCovariates[, rowcheck := rowSums(.SD), .SD = setdiff(names(ignitionCovariates), "pixelID")]
-  # ## if all rows are 0, it must be a forested LCC absent from cohortData
-  # ignitionCovariates[rowcheck == 0, eval(P(sim)$missingLCC) := 1]
-  # set(ignitionCovariates, NULL, "rowcheck", NULL)
+
+
+  ignitionCovariates <- fuelDT[sim$landcoverDT, on = c("pixelID")]
+  ignitionCovariates[, rowcheck := rowSums(.SD), .SD = setdiff(names(ignitionCovariates), "pixelID")]
+  ## if all rows are 0, it must be a forested LCC absent from cohortData
+  ignitionCovariates[rowcheck == 0, eval(P(sim)$missingLCC) := 1]
+  set(ignitionCovariates, NULL, "rowcheck", NULL)
 
   if (P(sim)$nonForestCanBeYoungAge) {
     ignitionCovariates[, YA_NF := sim$nonForest_timeSinceDisturbance[ignitionCovariates$pixelID] <=
