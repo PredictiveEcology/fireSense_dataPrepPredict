@@ -222,10 +222,13 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
                                       cutoffForYoungAge = P(sim)$cutoffForYoungAge)
   ## make columns for each fuel class
   fcs <- names(fuelClasses)
-  getPix <- function(fc, type, index) { fc[[type]][index]}
-  fuelDT <- data.table(pixelID = sim$landcoverDT$pixelID)
-  fuelDT[, c(fcs) := nafill(lapply(fcs, getPix, fc = fuelClasses, index = fuelDT$pixelID), fill = 0)]
 
+  getPix <- function(fc, type, index) {
+    fuelVals <- values(fc[[type]], mat = FALSE)
+    return(fuelVals[index])
+  }
+  fuelDT <- data.table(pixelID = sim$landcoverDT$pixelID)
+  fuelDT[, c(fcs) := nafill(x = lapply(fcs, FUN = getPix, fc = fuelClasses, index = fuelDT$pixelID), fill = 0)]
 
   ignitionCovariates <- joinCDandLandcoverDT(vegData = fuelDT, landcoverDT = sim$landcoverDT,
                                              missingLCC = P(sim)$missingLCCgroup)
