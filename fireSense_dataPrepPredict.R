@@ -13,9 +13,7 @@ defineModule(sim, list(
   timeunit = "year",
   citation = list("citation.bib"),
   documentation = deparse(list("README.txt", "fireSense_dataPrepPredict.Rmd")),
-  reqdPkgs = list("data.table",
-                  "PredictiveEcology/fireSenseUtils@development (>= 0.0.5.9013)",
-                  "raster"),
+  reqdPkgs = list("data.table", "PredictiveEcology/fireSenseUtils@terra-migration (>= 0.0.5.9045)", "terra"),
   parameters = rbind(
     defineParameter("cutoffForYoungAge", "numeric", 15, NA, NA,
                     desc = paste("Age at and below which pixels are considered 'young'",
@@ -57,25 +55,25 @@ defineModule(sim, list(
   inputObjects = bindrows(
     expectsInput("cohortData", "data.table", sourceURL = NA,
                  desc = "table that defines the cohorts by pixelGroup"),
-    expectsInput("flammableRTM", "RasterLayer", sourceURL = NA,
+    expectsInput("flammableRTM", "SpatRaster", sourceURL = NA,
                  desc = "RTM without ice/rocks/urban/water. Flammable map with 0 and 1."),
     expectsInput("nonForestedLCCGroups", "list", sourceURL = NA,
                  desc = paste("a named list of non-forested landcover groups,",
                               "e.g. list('wetland' = c(19, 23, 32)).",
                               "This is only relevant if landcoverDT is not supplied")),
-    expectsInput("nonForest_timeSinceDisturbance", "RasterLayer", sourceURL = NA,
+    expectsInput("nonForest_timeSinceDisturbance", "SpatRaster", sourceURL = NA,
                  desc = "time since burn for non-forested pixels"),
-    expectsInput("pixelGroupMap", "RasterLayer", sourceURL = NA,
-                 desc = "RasterLayer that defines the pixelGroups for cohortData table"),
+    expectsInput("pixelGroupMap", "SpatRaster", sourceURL = NA,
+                 desc = "SpatRaster that defines the pixelGroups for cohortData table"),
     expectsInput("projectedClimateLayers", "list", sourceURL = NA,
                  desc = paste("list of projected climate variables in raster stack form",
                               "named according to variable, with names of individual raster layers",
                               "following the convention 'year<year>'")),
     expectsInput("landcoverDT", "data.table", sourceURL = NA,
                  desc = "data.table with pixelID and relevant landcover classes"),
-    expectsInput("rstCurrentBurn", "RasterLayer", sourceURL = NA,
+    expectsInput("rstCurrentBurn", "SpatRaster", sourceURL = NA,
                  desc = "binary raster with 1 representing annual burn"),
-    expectsInput("rstLCC", "RasterLayer", sourceURL = NA,
+    expectsInput("rstLCC", "SpatRaster", sourceURL = NA,
                  desc = "a landcover raster - only used if landcoverDT is unsupplied"),
     expectsInput("sppEquiv", "data.table", sourceURL = NA,
                  desc = "table of LandR species equivalencies")
@@ -89,7 +87,7 @@ defineModule(sim, list(
     createsOutput("fireSense_SpreadCovariates", "data.table",
                   desc = paste("data.table of covariates for spread prediction, with pixelID column",
                                 "corresponding to flammableRTM pixel index")),
-    createsOutput("nonForest_timeSinceDisturbance", "RasterLayer",
+    createsOutput("nonForest_timeSinceDisturbance", "SpatRaster",
                   desc = "time since burn for non-forest pixels")
   )
 ))
@@ -133,12 +131,13 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
     getClimateLayers = {
       sim$currentClimateLayers <- getCurrentClimate(sim$projectedClimateLayers,
                                                     time(sim),
-                                                    rasterToMatch = sim$rasterToMatch)
+                                                    rasterToMatch = sim$flammableRTM)
       sim <- scheduleEvent(sim, time(sim) + P(sim)$fireTimeStep,
                            "fireSense_dataPrepPredict", "getClimateLayers")
 
     },
     prepIgnitionAndEscapePredictData = {
+      browser()
       sim <- prepare_IgnitionAndEscapePredict(sim)
       sim <- scheduleEvent(sim, time(sim) + P(sim)$fireTimeStep,
                            "fireSense_dataPrepPredict", "prepIgnitionAndEscapePredictData",
@@ -161,9 +160,9 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
 
 ### template initialization
 Init <- function(sim) {
-  # if (!compareRaster(sim$pixelGroupMap, sim$projectedClimateLayers[[1]])) {
-  #   stop("mismatch in resolution detected - please review the resolution of sim$projectedClimateLayers")
-  # }
+   if (!compareGeom(sim$pixelGroupMap, sim$projectedClimateLayers[[1]])) {
+     stop("mismatch in resolution detected - please review the resolution of sim$projectedClimateLayers")
+   }
 
   return(invisible(sim))
 }
@@ -183,11 +182,10 @@ getCurrentClimate <- function(projectedClimateLayers, time, rasterToMatch) {
   thisYearsClimate <- lapply(projectedClimateLayers, FUN = function(x, rtm = rasterToMatch, TIME = time) {
 
     ras <- x[[paste0("year", TIME)]]
-    if (!compareRaster(ras, rtm, stopiffalse = FALSE)) {
+    if (!compareGeom(ras, rtm, stopiffalse = FALSE)) {
       message("reprojecting fireSense climate layers")
       ras <- postProcess(ras, rasterToMatch = rtm)
     }
-    ras[] <- ras[]
     return(ras)
   })
 
@@ -196,15 +194,22 @@ getCurrentClimate <- function(projectedClimateLayers, time, rasterToMatch) {
 }
 
 ageNonForest <- function(TSD, rstCurrentBurn, timeStep) {
-  TSD <- setValues(TSD, getValues(TSD) + timeStep)
+  TSDvals <- values(TSD, mat = FALSE)
+  TSDvals <- TSDvals + 1
   if (!is.null(rstCurrentBurn)) {
-    unburned <- is.na(rstCurrentBurn[]) | rstCurrentBurn[] == 0
-    TSD[!unburned] <- 0
+    burnVals <- values(rstCurrentBurn, mat = FALSE)
+    unburned <- is.na(burnVals) | burnVals == 0
+
+    TSDvals[!unburned] <- 0
   }
+  TSD <- setValues(TSD, TSDvals)
+  rm(TSDvals, burnVals, unburned)
+  gc()
   return(TSD)
 }
 
 prepare_IgnitionAndEscapePredict <- function(sim) {
+  browser()
   ## get fuel classes
   fuelClasses <- cohortsToFuelClasses(cohortData = sim$cohortData,
                                       sppEquiv = sim$sppEquiv,
@@ -220,11 +225,14 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
   fuelDT <- data.table(pixelID = sim$landcoverDT$pixelID)
   fuelDT[, c(fcs) := nafill(lapply(fcs, getPix, fc = fuelClasses, index = fuelDT$pixelID), fill = 0)]
 
-  ignitionCovariates <- fuelDT[sim$landcoverDT, on = c("pixelID")]
-  ignitionCovariates[, rowcheck := rowSums(.SD), .SD = setdiff(names(ignitionCovariates), "pixelID")]
-  ## if all rows are 0, it must be a forested LCC absent from cohortData
-  ignitionCovariates[rowcheck == 0, eval(P(sim)$missingLCC) := 1]
-  set(ignitionCovariates, NULL, "rowcheck", NULL)
+
+  ignitionCovariates <- joinCDandLandcoverDT(vegData = fuelDT, landcoverDT = sim$landcoverDT,
+                                             missingLCC = P(sim)$missingLCCgroup)
+  # ignitionCovariates <- fuelDT[sim$landcoverDT, on = c("pixelID")]
+  # ignitionCovariates[, rowcheck := rowSums(.SD), .SD = setdiff(names(ignitionCovariates), "pixelID")]
+  # ## if all rows are 0, it must be a forested LCC absent from cohortData
+  # ignitionCovariates[rowcheck == 0, eval(P(sim)$missingLCC) := 1]
+  # set(ignitionCovariates, NULL, "rowcheck", NULL)
 
   if (P(sim)$nonForestCanBeYoungAge) {
     ignitionCovariates[, YA_NF := sim$nonForest_timeSinceDisturbance[ignitionCovariates$pixelID] <=
@@ -278,9 +286,10 @@ prepare_SpreadPredict <- function(sim) {
 
 
   climVar <- names(sim$currentClimateLayers)
-  vegData[, clim := getValues(sim$currentClimateLayers[[1]])[vegData$pixelID]]
+  vegData[, clim := values(sim$currentClimateLayers[[1]], mat = FALSE)[vegData$pixelID]]
   vegData <- vegData[!is.na(clim)] #don't predict with no climate data
   setnames(vegData, "clim", new = climVar)
+  gc()
 
   spreadData <- makeMutuallyExclusive(dt = vegData,
                                       mutuallyExclusive = list("youngAge" = exclusiveCols))
@@ -292,15 +301,22 @@ prepare_SpreadPredict <- function(sim) {
 }
 
 .inputObjects <- function(sim) {
+  browser()
   cacheTags <- c(currentModule(sim), "function:.inputObjects")
   dPath <- asPath(getOption("reproducible.destinationPath", dataPath(sim)), 1)
   message(currentModule(sim), ": using dataPath '", dPath, "'.")
 
+  if (!suppliedElsewhere("flammmableRTM", sim)){
+    stop("please supply flammableRTM")
+    #this is used in place of rtm.
+  }
+
+
   if (!suppliedElsewhere("landcoverDT", sim)) {
     if (!suppliedElsewhere("rstLCC", sim)) {
-      sim$rstLCC <- LandR::prepInputsLCC(year = 2010,
-                                         destinationPath = dPath,
-                                         rasterToMatch = sim$flammableRTM)
+      sim$rstLCC <- prepInputsLCC(year = 2010,
+                                  destinationPath = dPath,
+                                  rasterToMatch = sim$flammableRTM)
     }
 
     if (!suppliedElsewhere("nonForestedLCCGroups", sim)) {
@@ -310,6 +326,8 @@ prepare_SpreadPredict <- function(sim) {
         "nonForest_lowFlam" = c(11, 12, 15) #shrub-lichen-moss + cropland. 2 barren classes are nonflam
       )
     }
+
+    if (!suppliedElsewhere("flammableRTM", ))
 
     sim$landcoverDT <- makeLandcoverDT(rstLCC = sim$rstLCC,
                                        flammableRTM = sim$flammableRTM,
