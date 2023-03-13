@@ -13,7 +13,8 @@ defineModule(sim, list(
   timeunit = "year",
   citation = list("citation.bib"),
   documentation = deparse(list("README.txt", "fireSense_dataPrepPredict.Rmd")),
-  reqdPkgs = list("data.table", "PredictiveEcology/fireSenseUtils@terra-migration (>= 0.0.5.9045)", "terra"),
+  reqdPkgs = list("data.table", "PredictiveEcology/fireSenseUtils@terra-migration (>= 0.0.5.9045)",
+                  "terra"),
   parameters = rbind(
     defineParameter("cutoffForYoungAge", "numeric", 15, NA, NA,
                     desc = paste("Age at and below which pixels are considered 'young'",
@@ -306,9 +307,8 @@ prepare_SpreadPredict <- function(sim) {
   dPath <- asPath(getOption("reproducible.destinationPath", dataPath(sim)), 1)
   message(currentModule(sim), ": using dataPath '", dPath, "'.")
 
-  if (!suppliedElsewhere("flammmableRTM", sim)){
+  if (!suppliedElsewhere("flammableRTM", sim)){
     stop("please supply flammableRTM")
-    #this is used in place of rtm.
   }
 
 
