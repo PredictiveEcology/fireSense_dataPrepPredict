@@ -8,12 +8,13 @@ defineModule(sim, list(
     person("Alex M", "Chubaty", role = "ctb", email = "achubaty@for-cast.ca")
   ),
   childModules = character(0),
-  version = list(fireSense_dataPrepPredict = "0.0.0.9000"),
+  version = list(fireSense_dataPrepPredict = "1.0.0"),
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = "year",
   citation = list("citation.bib"),
   documentation = deparse(list("README.txt", "fireSense_dataPrepPredict.Rmd")),
-  reqdPkgs = list("data.table", "PredictiveEcology/fireSenseUtils@terra-migration (>= 0.0.5.9045)",
+  reqdPkgs = list("data.table",
+                  "PredictiveEcology/fireSenseUtils@development (>= 0.0.5.9050)",
                   "terra"),
   parameters = rbind(
     defineParameter("cutoffForYoungAge", "numeric", 15, NA, NA,
