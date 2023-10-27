@@ -231,7 +231,6 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
   fuelDT[, c(fcs) := nafill(x = lapply(fcs, FUN = getPix, fc = fuelClasses, index = fuelDT$pixelID), fill = 0)]
 
 
-
   ignitionCovariates <- fuelDT[sim$landcoverDT, on = c("pixelID")]
   ignitionCovariates[, rowcheck := rowSums(.SD), .SD = setdiff(names(ignitionCovariates), "pixelID")]
   ## if all rows are 0, it must be a forested LCC absent from cohortData
@@ -249,12 +248,12 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
   exclusiveCols <- setdiff(exclusiveCols, "pixelID")
   ignitionCovariates <- makeMutuallyExclusive(dt = ignitionCovariates,
                                               mutuallyExclusive = list("youngAge" = exclusiveCols))
-
-  ignitionCovariates[, clim := getValues(sim$currentClimateRasters[[1]])[ignitionCovariates$pixelID]]
+  ignitionCovariates[, clim := as.vector(sim$currentClimateRasters[[1]])[ignitionCovariates$pixelID]]
   ignitionCovariates <- ignitionCovariates[!is.na(clim)] # don't predict with no climate data
   setnames(ignitionCovariates, "clim", new = names(sim$currentClimateRasters))
 
   sim$fireSense_IgnitionAndEscapeCovariates <- ignitionCovariates
+  gc()
   return(invisible(sim))
 }
 
