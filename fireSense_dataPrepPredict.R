@@ -67,7 +67,7 @@ defineModule(sim, list(
                  desc = "time since burn for non-forested pixels"),
     expectsInput("pixelGroupMap", "SpatRaster", sourceURL = NA,
                  desc = "SpatRaster that defines the pixelGroups for cohortData table"),
-    expectsInput("projectedClimateLayers", "list", sourceURL = NA,
+    expectsInput("projectedClimateRasters", "list", sourceURL = NA,
                  desc = paste("list of projected climate variables in raster stack form",
                               "named according to variable, with names of individual raster layers",
                               "following the convention 'year<year>'")),
@@ -81,7 +81,7 @@ defineModule(sim, list(
                  desc = "table of LandR species equivalencies")
   ),
   outputObjects = bindrows(
-    createsOutput("currentClimateLayers", "list",
+    createsOutput("currentClimateRasters", "list",
                   desc = "list of project climate rasters at current time of sim"),
     createsOutput("fireSense_IgnitionAndEscapeCovariates", "data.table",
                   desc = paste("data.table of covariates for ignition prediction, with pixelID column",
@@ -107,7 +107,7 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
       # do stuff for this event
       sim <- Init(sim)
       sim <- scheduleEvent(sim, time(sim) + 1, "fireSense_dataPrepPredict", "ageNonForest")
-      sim <- scheduleEvent(sim, P(sim)$.runInitialTime, "fireSense_dataPrepPredict", "getClimateLayers")
+      sim <- scheduleEvent(sim, P(sim)$.runInitialTime, "fireSense_dataPrepPredict", "getClimateRasters")
 
       if ("fireSense_IgnitionPredict" %in% P(sim)$whichModulesToPrepare |
           "fireSense_EscapePredict" %in% P(sim)$whichModulesToPrepare) {
@@ -130,12 +130,12 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
       sim <- scheduleEvent(sim, time(sim) + P(sim)$fireTimeStep,
                            "fireSense_dataPrepPredict", "ageNonForest")
     },
-    getClimateLayers = {
-      sim$currentClimateLayers <- getCurrentClimate(sim$projectedClimateLayers,
+    getClimateRasters = {
+      sim$currentClimateRasters <- getCurrentClimate(sim$projectedClimateRasters,
                                                     time(sim),
                                                     rasterToMatch = sim$flammableRTM)
       sim <- scheduleEvent(sim, time(sim) + P(sim)$fireTimeStep,
-                           "fireSense_dataPrepPredict", "getClimateLayers")
+                           "fireSense_dataPrepPredict", "getClimateRasters")
 
     },
     prepIgnitionAndEscapePredictData = {
@@ -161,8 +161,9 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
 
 ### template initialization
 Init <- function(sim) {
-   if (!compareGeom(sim$pixelGroupMap, sim$projectedClimateLayers[[1]])) {
-     stop("mismatch in resolution detected - please review the resolution of sim$projectedClimateLayers")
+
+   if (!compareGeom(sim$pixelGroupMap, sim$projectedClimateRasters[[1]])) {
+     stop("mismatch in resolution detected - please review the resolution of sim$projectedClimateRasters")
    }
 
   return(invisible(sim))
@@ -170,9 +171,10 @@ Init <- function(sim) {
 
 ### template for plot events
 
-getCurrentClimate <- function(projectedClimateLayers, time, rasterToMatch) {
+getCurrentClimate <- function(projectedClimateRasters, time, rasterToMatch) {
+
   availableYears <- as.numeric(gsub(pattern = "year",
-                               x = names(projectedClimateLayers[[1]]),
+                               x = names(projectedClimateRasters[[1]]),
                                replacement = ""))
   if (time > max(availableYears)) {
     cutoff <- quantile(availableYears, probs = 0.9)
@@ -180,7 +182,7 @@ getCurrentClimate <- function(projectedClimateLayers, time, rasterToMatch) {
     message(paste0("re-using projected climate layers from ", time))
   }
   ## this will work with a list of raster stacks
-  thisYearsClimate <- lapply(projectedClimateLayers, FUN = function(x, rtm = rasterToMatch, TIME = time) {
+  thisYearsClimate <- lapply(projectedClimateRasters, FUN = function(x, rtm = rasterToMatch, TIME = time) {
 
     ras <- x[[paste0("year", TIME)]]
     if (!compareGeom(ras, rtm, stopiffalse = FALSE)) {
@@ -249,9 +251,9 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
   ignitionCovariates <- makeMutuallyExclusive(dt = ignitionCovariates,
                                               mutuallyExclusive = list("youngAge" = exclusiveCols))
 
-  ignitionCovariates[, clim := getValues(sim$currentClimateLayers[[1]])[ignitionCovariates$pixelID]]
+  ignitionCovariates[, clim := getValues(sim$currentClimateRasters[[1]])[ignitionCovariates$pixelID]]
   ignitionCovariates <- ignitionCovariates[!is.na(clim)] # don't predict with no climate data
-  setnames(ignitionCovariates, "clim", new = names(sim$currentClimateLayers))
+  setnames(ignitionCovariates, "clim", new = names(sim$currentClimateRasters))
 
   sim$fireSense_IgnitionAndEscapeCovariates <- ignitionCovariates
   return(invisible(sim))
@@ -288,8 +290,8 @@ prepare_SpreadPredict <- function(sim) {
 
 
 
-  climVar <- names(sim$currentClimateLayers)
-  vegData[, clim := values(sim$currentClimateLayers[[1]], mat = FALSE)[vegData$pixelID]]
+  climVar <- names(sim$currentClimateRasters)
+  vegData[, clim := values(sim$currentClimateRasters[[1]], mat = FALSE)[vegData$pixelID]]
   vegData <- vegData[!is.na(clim)] #don't predict with no climate data
   setnames(vegData, "clim", new = climVar)
   gc()
