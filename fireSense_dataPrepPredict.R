@@ -13,6 +13,7 @@ defineModule(sim, list(
   timeunit = "year",
   citation = list("citation.bib"),
   documentation = deparse(list("README.txt", "fireSense_dataPrepPredict.Rmd")),
+  loadOrder = list(after = "Biomass_borealDataPrep", "fireSense_dataPrepFit"),
   reqdPkgs = list("data.table",
                   "PredictiveEcology/fireSenseUtils@development (>= 0.0.5.9050)",
                   "terra"),
@@ -162,7 +163,7 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
 ### template initialization
 Init <- function(sim) {
 
-   if (!compareGeom(sim$pixelGroupMap, sim$projectedClimateRasters[[1]])) {
+   if (!compareGeom(sim$pixelGroupMap, sim$projectedClimateRasters[[1]], stopOnError = FALSE)) {
      stop("mismatch in resolution detected - please review the resolution of sim$projectedClimateRasters")
    }
 
@@ -183,15 +184,13 @@ getCurrentClimate <- function(projectedClimateRasters, time, rasterToMatch) {
   }
   ## this will work with a list of raster stacks
   thisYearsClimate <- lapply(projectedClimateRasters, FUN = function(x, rtm = rasterToMatch, TIME = time) {
-
     ras <- x[[paste0("year", TIME)]]
-    if (!compareGeom(ras, rtm, stopiffalse = FALSE)) {
+    if (!compareGeom(ras, rtm, stopOnError = FALSE)) {
       message("reprojecting fireSense climate layers")
       ras <- postProcess(ras, rasterToMatch = rtm)
     }
     return(ras)
   })
-
 
   return(thisYearsClimate)
 }
