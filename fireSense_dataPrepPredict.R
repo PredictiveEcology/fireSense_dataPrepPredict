@@ -265,6 +265,9 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
 prepare_SpreadPredict <- function(sim) {
 
   #much of this chunk can now be combined into a function, called for both ig and spread prep
+  #this fits cohortData into fuel classes
+  # if pixels are missing/absent but are able to be forested as determined by landcoverDT, 
+  # they receive 0 values - e.g. pixelGroup zero
   vegData <- cohortsToFuelClasses(cohortData = sim$cohortData,
                                   pixelGroupMap = sim$pixelGroupMap,
                                   flammableRTM = sim$flammableRTM,
@@ -273,12 +276,20 @@ prepare_SpreadPredict <- function(sim) {
                                   fuelClassCol = P(sim)$spreadFuelClassCol,
                                   sppEquivCol = P(sim)$sppEquivCol,
                                   cutoffForYoungAge = P(sim)$cutoffForYoungAge)
+
   fcs <- names(vegData)
-  getPix <- function(fc, type, index) { fc[[type]][index]}
+  #Nov 2023 - changes to terra package necessitate `as.vector`included
+  getPix <- function(fc, type, index) {as.vector(fc[type])[index]}
   fuelDT <- data.table(pixelID = sim$landcoverDT$pixelID)
-  fuelDT[, c(fcs) := nafill(lapply(fcs, getPix, fc = vegData, index = fuelDT$pixelID), fill = 0)]
+  fuelDT[, c(fcs) := lapply(fcs, getPix, fc = vegData, index = fuelDT$pixelID)]
   vegData <- fuelDT[sim$landcoverDT, on = c("pixelID")]
+  
+  # Nov 2023 - there should not be NA values - previously this used nafill 
+  # if they return - use x <- as.data.table(nafill(vegData), 0) and setnames(x, names(vegData))
   vegData[, rowcheck := rowSums(.SD), .SD = setdiff(names(vegData), 'pixelID')]
+  if (any(is.na(vegData$rowCheck))) {
+    stop("NA in vegData columns of fireSense_dataPrepPredict... please contact module developers")
+  }
   #if all rows are 0, it must be a forested LCC absent from cohortData
   vegData[rowcheck == 0, eval(P(sim)$missingLCC) := 1]
   set(vegData, NULL, 'rowcheck', NULL)
@@ -290,8 +301,6 @@ prepare_SpreadPredict <- function(sim) {
   }
   exclusiveCols <- c("class", names(sim$landcoverDT))
   exclusiveCols <- setdiff(exclusiveCols, "pixelID")
-
-
 
   climVar <- names(sim$currentClimateRasters)
   vegData[, clim := values(sim$currentClimateRasters[[1]], mat = FALSE)[vegData$pixelID]]
@@ -312,7 +321,6 @@ prepare_SpreadPredict <- function(sim) {
   cacheTags <- c(currentModule(sim), "function:.inputObjects")
   dPath <- asPath(getOption("reproducible.destinationPath", dataPath(sim)), 1)
   message(currentModule(sim), ": using dataPath '", dPath, "'.")
-
 
   if (!suppliedElsewhere("flammableRTM", sim)){
     rstLCC <- prepInputsLCC(year = 2010, destinationPath = dPath, 
