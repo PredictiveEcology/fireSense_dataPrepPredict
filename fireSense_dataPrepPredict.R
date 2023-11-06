@@ -74,6 +74,8 @@ defineModule(sim, list(
                               "following the convention 'year<year>'")),
     expectsInput("landcoverDT", "data.table", sourceURL = NA,
                  desc = "data.table with pixelID and relevant landcover classes"),
+    expectsInput("rasterToMatch", "SpatRaster", sourceURL = NA, 
+                 desc = "template raster used only to derive flammableRTM if the latter is absent"),
     expectsInput("rstCurrentBurn", "SpatRaster", sourceURL = NA,
                  desc = "binary raster with 1 representing annual burn"),
     expectsInput("rstLCC", "SpatRaster", sourceURL = NA,
@@ -132,9 +134,8 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
                            "fireSense_dataPrepPredict", "ageNonForest")
     },
     getClimateRasters = {
-      sim$currentClimateRasters <- getCurrentClimate(sim$projectedClimateRasters,
-                                                    time(sim),
-                                                    rasterToMatch = sim$flammableRTM)
+      sim <- getCurrentClimate(sim)
+      sim$currentClimateRasters <- lapply(sim$currentClimateRasters, terra::unwrap)
       sim <- scheduleEvent(sim, time(sim) + P(sim)$fireTimeStep,
                            "fireSense_dataPrepPredict", "getClimateRasters")
 
@@ -172,19 +173,21 @@ Init <- function(sim) {
 
 ### template for plot events
 
-getCurrentClimate <- function(projectedClimateRasters, time, rasterToMatch) {
-
+getCurrentClimate <- function(sim) {
+  #this function has been rewritten due to an undiagnosed bug involving 
+  # digest of a file-backed SpatRaster, and restartSpades()
   availableYears <- as.numeric(gsub(pattern = "year",
-                               x = names(projectedClimateRasters[[1]]),
+                               x = names(sim$projectedClimateRasters[[1]]),
                                replacement = ""))
-  if (time > max(availableYears)) {
+  if (time(sim) > max(availableYears)) {
     cutoff <- quantile(availableYears, probs = 0.9)
     time <- sample(availableYears[availableYears >= cutoff], size = 1)
     message(paste0("re-using projected climate layers from ", time))
   }
   ## this will work with a list of raster stacks
-  thisYearsClimate <- lapply(projectedClimateRasters, FUN = function(x, rtm = rasterToMatch, TIME = time) {
-    ras <- x[[paste0("year", TIME)]]
+  thisYearsClimate <- lapply(sim$projectedClimateRasters, 
+                             FUN = function(x, rtm = sim$rasterToMatch, currentYear = time(sim)) {
+    ras <- x[[paste0("year", currentYear)]]
     if (!compareGeom(ras, rtm, stopOnError = FALSE)) {
       message("reprojecting fireSense climate layers")
       ras <- postProcess(ras, rasterToMatch = rtm)
@@ -192,7 +195,9 @@ getCurrentClimate <- function(projectedClimateRasters, time, rasterToMatch) {
     return(ras)
   })
 
-  return(thisYearsClimate)
+  sim$currentClimateRasters <- terra::wrap(thisYearsClimate)
+  
+  return(sim)
 }
 
 ageNonForest <- function(TSD, rstCurrentBurn, timeStep) {
@@ -327,8 +332,6 @@ prepare_SpreadPredict <- function(sim) {
         "nonForest_lowFlam" = c(11, 12, 15) #shrub-lichen-moss + cropland. 2 barren classes are nonflam
       )
     }
-
-    if (!suppliedElsewhere("flammableRTM", ))
 
     sim$landcoverDT <- makeLandcoverDT(rstLCC = sim$rstLCC,
                                        flammableRTM = sim$flammableRTM,
