@@ -313,10 +313,13 @@ prepare_SpreadPredict <- function(sim) {
   dPath <- asPath(getOption("reproducible.destinationPath", dataPath(sim)), 1)
   message(currentModule(sim), ": using dataPath '", dPath, "'.")
 
-  if (!suppliedElsewhere("flammableRTM", sim)){
-    stop("please supply flammableRTM")
-  }
 
+  if (!suppliedElsewhere("flammableRTM", sim)){
+    rstLCC <- prepInputsLCC(year = 2010, destinationPath = dPath, 
+                            rasterToMatch = sim$rasterToMatch)
+    sim$flammableRTM <- defineFlammable(rstLCC, nonFlammClasses = c(13, 16, 17, 18, 19), 
+                                        mask = sim$rasterToMatch)
+  }
 
   if (!suppliedElsewhere("landcoverDT", sim)) {
     if (!suppliedElsewhere("rstLCC", sim)) {
