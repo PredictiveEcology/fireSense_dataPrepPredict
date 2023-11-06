@@ -8,7 +8,7 @@ defineModule(sim, list(
     person("Alex M", "Chubaty", role = "ctb", email = "achubaty@for-cast.ca")
   ),
   childModules = character(0),
-  version = list(fireSense_dataPrepPredict = "1.0.0"),
+  version = list(fireSense_dataPrepPredict = "1.0.1"),
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = "year",
   citation = list("citation.bib"),
@@ -195,7 +195,7 @@ getCurrentClimate <- function(sim) {
     return(ras)
   })
 
-  sim$currentClimateRasters <- terra::wrap(thisYearsClimate)
+  sim$currentClimateRasters <- lapply(thisYearsClimate, terra::wrap)
   
   return(sim)
 }
