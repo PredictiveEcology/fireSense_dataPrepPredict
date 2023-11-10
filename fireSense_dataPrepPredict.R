@@ -201,12 +201,12 @@ getCurrentClimate <- function(sim) {
 }
 
 ageNonForest <- function(TSD, rstCurrentBurn, timeStep) {
-  TSDvals <- values(TSD, mat = FALSE)
+  
+  TSDvals <- as.vector(TSD)
   TSDvals <- TSDvals + 1
   if (!is.null(rstCurrentBurn)) {
-    burnVals <- values(rstCurrentBurn, mat = FALSE)
+    burnVals <-as.vector(rstCurrentBurn)
     unburned <- is.na(burnVals) | burnVals == 0
-
     TSDvals[!unburned] <- 0
   }
   TSD <- setValues(TSD, TSDvals)
