@@ -304,7 +304,7 @@ prepare_SpreadPredict <- function(sim) {
 }
 
 .inputObjects <- function(sim) {
-  cacheTags <- c(currentModule(sim), "function:.inputObjects")
+  cacheTags <- c(currentModule(sim), "otherFunctions:.inputObjects")
   dPath <- asPath(getOption("reproducible.destinationPath", dataPath(sim)), 1)
   message(currentModule(sim), ": using dataPath '", dPath, "'.")
 
