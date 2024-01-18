@@ -56,6 +56,10 @@ defineModule(sim, list(
                           "and time are not relevant"))
   ),
   inputObjects = bindrows(
+    expectsInput("climateVariablesForFire", "list", sourceURL = NA, 
+                 paste("A list detailing which climate variables in `sim$projectedClimateRasters`",
+                       "to use for which fire processes (ignition and spread). If the list is length one,",
+                       "both processes will use the same variables. The default is to use 'MDC'.")),
     expectsInput("cohortData", "data.table", sourceURL = NA,
                  desc = "table that defines the cohorts by pixelGroup"),
     expectsInput("flammableRTM", "SpatRaster", sourceURL = NA,
@@ -322,6 +326,12 @@ prepare_SpreadPredict <- function(sim) {
   dPath <- asPath(getOption("reproducible.destinationPath", dataPath(sim)), 1)
   message(currentModule(sim), ": using dataPath '", dPath, "'.")
 
+  if (!suppliedElsewhere("climateVariablesForFire", sim)) {
+    sim$climateVariablesForFire <- list("spread" = "MDC", 
+                                        "ignition" = "MDC")
+  }
+
+  
   if (!suppliedElsewhere("flammableRTM", sim)){
     rstLCC <- prepInputsLCC(year = 2010, destinationPath = dPath, 
                             rasterToMatch = sim$rasterToMatch)
