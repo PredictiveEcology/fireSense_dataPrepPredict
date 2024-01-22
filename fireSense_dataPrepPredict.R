@@ -167,6 +167,8 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
 
 ### template initialization
 Init <- function(sim) {
+  
+  #standardize the climatevarsforFire
 
    if (!compareGeom(sim$pixelGroupMap, sim$projectedClimateRasters[[1]], stopOnError = FALSE)) {
      stop("mismatch in resolution detected - please review the resolution of sim$projectedClimateRasters")
@@ -220,7 +222,11 @@ ageNonForest <- function(TSD, rstCurrentBurn, timeStep) {
 }
 
 prepare_IgnitionAndEscapePredict <- function(sim) {
-  ## get fuel classes
+  
+  #get climate
+  ignitionClimate <- sim$currentClimateRasters[sim$climateVariablesForFire$ignition]
+  
+  #get fuel classes
   fuelClasses <- cohortsToFuelClasses(cohortData = sim$cohortData,
                                       sppEquiv = sim$sppEquiv,
                                       sppEquivCol = P(sim)$sppEquivCol,
@@ -232,13 +238,16 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
   ## make columns for each fuel class
   fcs <- names(fuelClasses)
 
+  
+  #TODO: this was relevant when SpatRaster values couldn't be subset using square brackets
+  #It shouldn't be necessary now
   getPix <- function(fc, type, index) {
     fuelVals <- values(fc[[type]], mat = FALSE)
     return(fuelVals[index])
   }
+  
   fuelDT <- data.table(pixelID = sim$landcoverDT$pixelID)
   fuelDT[, c(fcs) := nafill(x = lapply(fcs, FUN = getPix, fc = fuelClasses, index = fuelDT$pixelID), fill = 0)]
-
 
   ignitionCovariates <- fuelDT[sim$landcoverDT, on = c("pixelID")]
   ignitionCovariates[, rowcheck := rowSums(.SD), .SD = setdiff(names(ignitionCovariates), "pixelID")]
@@ -257,17 +266,23 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
   exclusiveCols <- setdiff(exclusiveCols, "pixelID")
   ignitionCovariates <- makeMutuallyExclusive(dt = ignitionCovariates,
                                               mutuallyExclusive = list("youngAge" = exclusiveCols))
-  ignitionCovariates[, clim := as.vector(sim$currentClimateRasters[[1]])[ignitionCovariates$pixelID]]
-  ignitionCovariates <- ignitionCovariates[!is.na(clim)] # don't predict with no climate data
-  setnames(ignitionCovariates, "clim", new = names(sim$currentClimateRasters))
-
+  
+  #approach must allow for multiple potential climate variable, due to shift from "hockey stick" model
+  climateCovariates <- rast(ignitionClimate)
+  climateCovariates <- na.omit(as.data.frame(climateCovariates, cells = TRUE))
+  set.names(climateCovariates, new = c("pixelID", names(ignitionClimate)))
+  ignitionCovariates <- climateCovariates[ignitionCovariates, on = c("pixelID")]
+  
   sim$fireSense_IgnitionAndEscapeCovariates <- ignitionCovariates
+  
   gc()
   return(invisible(sim))
 }
 
 prepare_SpreadPredict <- function(sim) {
 
+  spreadClimate <- sim$currentClimateRasters[sim$climateVariablesForFire$spread]
+  
   #much of this chunk can now be combined into a function, called for both ig and spread prep
   #this fits cohortData into fuel classes
   # if pixels are missing/absent but are able to be forested as determined by landcoverDT, 
@@ -306,16 +321,16 @@ prepare_SpreadPredict <- function(sim) {
   exclusiveCols <- c("class", names(sim$landcoverDT))
   exclusiveCols <- setdiff(exclusiveCols, "pixelID")
 
-  climVar <- names(sim$currentClimateRasters)
-  vegData[, clim := values(sim$currentClimateRasters[[1]], mat = FALSE)[vegData$pixelID]]
-  vegData <- vegData[!is.na(clim)] #don't predict with no climate data
-  setnames(vegData, "clim", new = climVar)
-  gc()
+  #approach must allow for multiple potential climate variable, due to shift from "hockey stick" model
+  climateCovariates <- rast(spreadClimate)
+  climateCovariates <- as.data.frame(climateCovariates, cells = TRUE)
+  climateCovariates <- na.omit(climateCovariates)
+  set.names(climateCovariates, new = c("pixelID", names(spreadClimate)))
+  vegData <- climateCovariates[vegData, on = c("pixelID")]
+    
+  spreadData <- makeMutuallyExclusive(dt = vegData, mutuallyExclusive = list("youngAge" = exclusiveCols))
 
-  spreadData <- makeMutuallyExclusive(dt = vegData,
-                                      mutuallyExclusive = list("youngAge" = exclusiveCols))
-
-  setcolorder(spreadData, neworder = c("pixelID", climVar, "youngAge"))
+  setcolorder(spreadData, neworder = c("pixelID", names(spreadClimate), "youngAge"))
   sim$fireSense_SpreadCovariates <- spreadData
 
   return(invisible(sim))
