@@ -168,7 +168,11 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
 ### template initialization
 Init <- function(sim) {
   
-  #standardize the climatevarsforFire
+  #TODO: assume a vector of variables has been passed? 
+  if (length(sim$climateVariablesForFire) == 1) {
+    sim$climateVariablesForFire <- list("ignition" = sim$climateVariablesForFire,
+                                        "spread" = sim$climateVariablesForFire)
+  }
 
    if (!compareGeom(sim$pixelGroupMap, sim$projectedClimateRasters[[1]], stopOnError = FALSE)) {
      stop("mismatch in resolution detected - please review the resolution of sim$projectedClimateRasters")
