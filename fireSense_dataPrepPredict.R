@@ -30,6 +30,10 @@ defineModule(sim, list(
                     desc = paste("if a pixel is forested but is absent from `cohortData`,",
                                  "it will be grouped in this class.",
                                  "Must be one of the names in `sim$nonForestedLCCGroups`.")),
+    defineParameter("nonflammableLCC", "numeric", c(20, 31, 32, 33), NA, NA,
+                    desc = paste("used to create flammableRTM if unsupplied.",
+                    "The non-flammable LCC in rstLCC layers - which",
+                    "default to water, snow/ice, rock, and barren land in NTEMS LCC")),
     defineParameter("nonForestCanBeYoungAge", "logical", TRUE, NA, NA,
                     desc = "update non-forest when burned, to become youngAge"),
     defineParameter("sppEquivCol", "character", "LandR", NA, NA,
@@ -346,20 +350,19 @@ prepare_SpreadPredict <- function(sim) {
                                         ignition = "MDC")
   }
 
+  if (!suppliedElsewhere("rstLCC", sim)) {
+    sim$rstLCC <- prepInputs_NTEMS_LCC_FAO(year = 2010,
+                                           destinationPath = dPath, cropTo = sim$rasterToMatch,
+                                           projectTo = sim$rasterToMatch, maskTo = sim$studyArea)
+  }
+
   if (!suppliedElsewhere("flammableRTM", sim)) {
-    rstLCC <- prepInputsLCC(year = 2010, destinationPath = dPath,
-                            rasterToMatch = sim$rasterToMatch)
-    sim$flammableRTM <- defineFlammable(rstLCC, nonFlammClasses = c(13, 16, 17, 18, 19),
+
+    sim$flammableRTM <- defineFlammable(sim$rstLCC, nonFlammClasses = P(sim)$nonflammableLCC,
                                         mask = sim$rasterToMatch)
   }
 
   if (!suppliedElsewhere("landcoverDT", sim)) {
-    if (!suppliedElsewhere("rstLCC", sim)) {
-      sim$rstLCC <- prepInputsLCC(year = 2010,
-                                  destinationPath = dPath,
-                                  rasterToMatch = sim$flammableRTM)
-    }
-
     if (!suppliedElsewhere("nonForestedLCCGroups", sim)) {
       #there is potential for problems if rstLCC is supplied and nonForestedLCCGroups is not, and vice versa
       sim$nonForestedLCCGroups <- list(
