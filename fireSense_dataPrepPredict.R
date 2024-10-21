@@ -245,7 +245,7 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
   fcs <- names(fuelClasses)
 
   ## TODO: this was relevant when SpatRaster values couldn't be subset using square brackets
-  ## It shouldn't be necessary now
+  ## It is no longer necessary and you can `as.data.table` the whole spatraster
   getPix <- function(fc, type, index) {
     fuelVals <- values(fc[[type]], mat = FALSE)
     return(fuelVals[index])
@@ -266,16 +266,15 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
     ignitionCovariates[YA_NF == TRUE, youngAge := 1]
     ignitionCovariates[, YA_NF := NULL]
   }
-
-  exclusiveCols <- c("class", names(sim$landcoverDT))
+  exclusiveCols <- c(fcs, names(sim$landcoverDT))
   exclusiveCols <- setdiff(exclusiveCols, "pixelID")
   ignitionCovariates <- makeMutuallyExclusive(dt = ignitionCovariates,
                                               mutuallyExclusive = list("youngAge" = exclusiveCols))
 
   #approach must allow for multiple potential climate variable, due to shift from "hockey stick" model
   climateCovariates <- rast(ignitionClimate)
-  climateCovariates <- na.omit(as.data.frame(climateCovariates, cells = TRUE))
-  set.names(climateCovariates, new = c("pixelID", names(ignitionClimate)))
+  climateCovariates <- na.omit(as.data.table(climateCovariates, cells = TRUE))
+  setnames(climateCovariates, new = c("pixelID", names(ignitionClimate)))
   ignitionCovariates <- climateCovariates[ignitionCovariates, on = c("pixelID")]
 
   sim$fireSense_IgnitionAndEscapeCovariates <- ignitionCovariates
@@ -357,12 +356,13 @@ prepare_SpreadPredict <- function(sim) {
   }
 
   if (!suppliedElsewhere("flammableRTM", sim)) {
-
+    if (!isInt(sim$rstLCC)) sim$rstLCC <- LandR::asInt(sim$rstLCC)
     sim$flammableRTM <- defineFlammable(sim$rstLCC, nonFlammClasses = P(sim)$nonflammableLCC,
                                         mask = sim$rasterToMatch)
   }
 
   if (!suppliedElsewhere("landcoverDT", sim)) {
+    #TODO: make these match the defaults used by dataPrepFit
     if (!suppliedElsewhere("nonForestedLCCGroups", sim)) {
       #there is potential for problems if rstLCC is supplied and nonForestedLCCGroups is not, and vice versa
       sim$nonForestedLCCGroups <- list(
