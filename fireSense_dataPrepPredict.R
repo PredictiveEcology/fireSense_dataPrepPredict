@@ -330,7 +330,7 @@ prepare_SpreadPredict <- function(sim) {
   exclusiveCols <- setdiff(exclusiveCols, "pixelID")
 
   #TODO: switch to R pipe here?
-  #approach must allow for multiple potential climate variable, due to shift from "hockey stick" model
+  #approach must allow for multiple potential climate variable
   climateCovariates <- rast(spreadClimate)
   climateCovariates <- as.data.frame(climateCovariates, cells = TRUE)
   climateCovariates <- na.omit(climateCovariates)
