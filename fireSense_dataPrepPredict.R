@@ -171,6 +171,7 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
 
 ### template initialization
 Init <- function(sim) {
+
   ## TODO: assume a vector of variables has been passed?
   if (length(sim$climateVariablesForFire) == 1) {
     sim$climateVariablesForFire <- list("ignition" = sim$climateVariablesForFire,
@@ -369,13 +370,16 @@ prepare_SpreadPredict <- function(sim) {
   }
 
   if (!suppliedElsewhere("landcoverDT", sim)) {
-    #TODO: make these match the defaults used by dataPrepFit
+
     if (!suppliedElsewhere("nonForestedLCCGroups", sim)) {
-      #there is potential for problems if rstLCC is supplied and nonForestedLCCGroups is not, and vice versa
+      LCCvals <- unique(sim$rstLCC[])
+      #check for NTEMS LCC else stop, as non-forest can't be inferred
+      if (!all(LCCvals %in% c(20, 31, 32, 33, 50, 80, 81, 100, 210, 220, 230, 240, NA))) {
+        stop ("Please supply landcoverDT to dataPrepPredict")
+    }
       sim$nonForestedLCCGroups <- list(
-        "nonForest_highFlam" = c(8, 10, 14),#shrubland, grassland, wetland
-        "nonForest_lowFlam" = c(11, 12, 15) #shrub-lichen-moss + cropland. 2 barren classes are nonflam
-      )
+        "nf_highFlam" = c(50, 100), # shrub, herbaceous
+        "nf_lowFlam" = c(40, 81)) # bryoids + non-treed wetland.
     }
 
     sim$landcoverDT <- makeLandcoverDT(rstLCC = sim$rstLCC,
