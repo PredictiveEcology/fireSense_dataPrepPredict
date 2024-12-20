@@ -123,7 +123,7 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
       if ("fireSense_IgnitionPredict" %in% P(sim)$whichModulesToPrepare |
           "fireSense_EscapePredict" %in% P(sim)$whichModulesToPrepare) {
         sim <- scheduleEvent(sim, P(sim)$.runInitialTime, "fireSense_dataPrepPredict",
-                             "prepIgnitionAndEscapePredictData",
+                             "prepIgAndEscPredictData",
                              eventPriority = 5.10)
       }
 
@@ -148,10 +148,10 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
                            "fireSense_dataPrepPredict", "getClimateRasters")
 
     },
-    prepIgnitionAndEscapePredictData = {
+    prepIgAndEscPredictData = {
       sim <- prepare_IgnitionAndEscapePredict(sim)
       sim <- scheduleEvent(sim, time(sim) + P(sim)$fireTimeStep,
-                           "fireSense_dataPrepPredict", "prepIgnitionAndEscapePredictData",
+                           "fireSense_dataPrepPredict", "prepIgAndEscPredictData",
                            eventPriority = 5.1)
     },
     prepSpreadPredictData = {
@@ -234,6 +234,9 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
   ignitionClimate <- sim$currentClimateRasters[sim$climateVariablesForFire$ignition]
 
   ## get fuel classes
+  #TODO: not sure if really slow or Boreal Cloud.
+  #if ignition and spread fuel classes are the same, this should use Mod
+  # to avoid doing it twice (in spreadFit, assuming people run both events)
   fuelClasses <- cohortsToFuelClasses(cohortData = sim$cohortData,
                                       sppEquiv = sim$sppEquiv,
                                       sppEquivCol = P(sim)$sppEquivCol,
@@ -242,33 +245,33 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
                                       flammableRTM = sim$flammableRTM,
                                       fuelClassCol = P(sim)$ignitionFuelClassCol,
                                       cutoffForYoungAge = P(sim)$cutoffForYoungAge)
-  ## make columns for each fuel class
-  fcs <- names(fuelClasses)
 
-  ## TODO: this was relevant when SpatRaster values couldn't be subset using square brackets
-  ## It is no longer necessary and you can `as.data.table` the whole spatraster
-  getPix <- function(fc, type, index) {
-    fuelVals <- values(fc[[type]], mat = FALSE)
-    return(fuelVals[index])
-  }
+  fcs <- setdiff(names(fuelClasses), "youngAge")
+  fuelClasses <- as.data.table(as.data.frame(fuelClasses, cells = TRUE))
+  setnames(fuelClasses, old = "cell", new = "pixelID")
 
-  fuelDT <- data.table(pixelID = sim$landcoverDT$pixelID)
-  fuelDT[, c(fcs) := nafill(x = lapply(fcs, FUN = getPix, fc = fuelClasses, index = fuelDT$pixelID), fill = 0)]
+  #make sure join is only landcoverDT
+  ignitionCovariates <- fuelClasses[sim$landcoverDT, on = c("pixelID")]
 
-  ignitionCovariates <- fuelDT[sim$landcoverDT, on = c("pixelID")]
   ignitionCovariates[, rowcheck := rowSums(.SD), .SD = setdiff(names(ignitionCovariates), "pixelID")]
   ## if all rows are 0, it must be a forested LCC absent from cohortData
   ignitionCovariates[rowcheck == 0, eval(P(sim)$missingLCC) := 1]
   set(ignitionCovariates, NULL, "rowcheck", NULL)
 
+  #this must happen after the missingLC are evaluated
+  ignitionCovariates <- ignitionCovariates[, eval(fcs) := lapply(.SD, FUN = logMinB), .SDcols = fcs]
+
+
   if (P(sim)$nonForestCanBeYoungAge) {
-    ignitionCovariates[, YA_NF := sim$nonForest_timeSinceDisturbance[ignitionCovariates$pixelID] <=
+    ignitionCovariates[, YA_NF := as.vector(sim$nonForest_timeSinceDisturbance)[ignitionCovariates$pixelID] <=
                          P(sim)$cutoffForYoungAge]
     ignitionCovariates[YA_NF == TRUE, youngAge := 1]
     ignitionCovariates[, YA_NF := NULL]
   }
-  exclusiveCols <- c(fcs, names(sim$landcoverDT))
+
+  exclusiveCols <- c(fuelClasses, names(sim$landcoverDT))
   exclusiveCols <- setdiff(exclusiveCols, "pixelID")
+  #TODO: I believe this triggers a warning
   ignitionCovariates <- makeMutuallyExclusive(dt = ignitionCovariates,
                                               mutuallyExclusive = list("youngAge" = exclusiveCols))
 
@@ -291,7 +294,7 @@ prepare_SpreadPredict <- function(sim) {
   ## this fits cohortData into fuel classes
   ##  if pixels are missing/absent but are able to be forested as determined by landcoverDT,
   ##  they receive 0 values - e.g. pixelGroup zero
-  vegData <- cohortsToFuelClasses(cohortData = sim$cohortData,
+  fuelClasses <- cohortsToFuelClasses(cohortData = sim$cohortData,
                                   pixelGroupMap = sim$pixelGroupMap,
                                   flammableRTM = sim$flammableRTM,
                                   sppEquiv = sim$sppEquiv,
@@ -300,44 +303,49 @@ prepare_SpreadPredict <- function(sim) {
                                   sppEquivCol = P(sim)$sppEquivCol,
                                   cutoffForYoungAge = P(sim)$cutoffForYoungAge)
 
-  fcs <- names(vegData)
-  ## Nov 2023 - changes to terra package necessitate `as.vector`included
-  #TODO: replace this with as.vector of the fuelClasses - with cells. Join to landcoverDT
-  getPix <- function(fc, type, index) { as.vector(fc[type])[index]}
-  fuelDT <- data.table(pixelID = sim$landcoverDT$pixelID)
-  fuelDT[, c(fcs) := lapply(fcs, getPix, fc = vegData, index = fuelDT$pixelID)]
-  vegData <- fuelDT[sim$landcoverDT, on = c("pixelID")]
+
+  ## make columns for each fuel class
+  # fuelClasses <- terra::app(fuelClasses, fun = logMinB)
+  #terra app is horrifically slow
+  fcs <- setdiff(names(fuelClasses), "youngAge")
+  fuelClasses <- as.data.table(as.data.frame(fuelClasses, cells = TRUE))
+  setnames(fuelClasses, old = "cell", new = "pixelID")
+
+  #make sure join is only landcoverDT
+  spreadCovariates <- fuelClasses[sim$landcoverDT, on = c("pixelID")]
+
 
   ## Nov 2023 - there should not be NA values - previously this used nafill
   ## if they return - use x <- as.data.table(nafill(vegData), 0) and setnames(x, names(vegData))
-  vegData[, rowcheck := rowSums(.SD), .SD = setdiff(names(vegData), 'pixelID')]
+  spreadCovariates[, rowcheck := rowSums(.SD), .SD = setdiff(names(vegData), 'pixelID')]
   if (any(is.na(vegData$rowCheck))) {
     stop("NA in vegData columns of fireSense_dataPrepPredict... please contact module developers")
   }
   #if all rows are 0, it must be a forested LCC absent from cohortData
-  vegData[rowcheck == 0, eval(P(sim)$missingLCC) := 1]
-  set(vegData, NULL, 'rowcheck', NULL)
+  spreadCovariates[rowcheck == 0, eval(P(sim)$missingLCC) := 1]
+  set(spreadCovariates, NULL, 'rowcheck', NULL)
+
+  spreadCovariates <- spreadCovariates[, eval(fcs) := lapply(.SD, FUN = logMinB), .SDcols = fcs]
+
 
   if (P(sim)$nonForestCanBeYoungAge) {
     #this should only alter non-forest
-    vegData[, isNonForest := rowSums(.SD) > 0, .SDcol = names(sim$nonForestedLCCGroups)]
-    vegData[, YA_NF := sim$nonForest_timeSinceDisturbance[vegData$pixelID] <= P(sim)$cutoffForYoungAge &
+    spreadCovariates[, isNonForest := rowSums(.SD) > 0, .SDcol = names(sim$nonForestedLCCGroups)]
+    spreadCovariates[, YA_NF := as.vector(sim$nonForest_timeSinceDisturbance)[spreadCovariates$pixelID] <= P(sim)$cutoffForYoungAge &
               isNonForest == TRUE]
-    vegData[YA_NF == TRUE, youngAge := 1]
-    vegData[, c("YA_NF", "isNonForest") := NULL]
+    spreadCovariates[YA_NF == TRUE, youngAge := 1]
+    spreadCovariates[, c("YA_NF", "isNonForest") := NULL]
   }
 
   exclusiveCols <- c(fcs, names(sim$landcoverDT))
   exclusiveCols <- setdiff(exclusiveCols, "pixelID")
 
-  #TODO: switch to R pipe here?
-  #approach must allow for multiple potential climate variable
-  climateCovariates <- rast(spreadClimate)
-  climateCovariates <- as.data.frame(climateCovariates, cells = TRUE)
-  climateCovariates <- na.omit(climateCovariates)
-  climateCovariates <- as.data.table(climateCovariates)
+  #TODO: this chunk is untested 18/12/2024
+  climateCovariates <- rast(spreadClimate) |> as.data.frame(cells = TRUE)
+  climateCovariates <- na.omit(climateCovariates) |> as.data.table()
+
   setnames(climateCovariates, new = c("pixelID", names(spreadClimate)))
-  vegData <- climateCovariates[vegData, on = c("pixelID")]
+  spreadCovariates <- climateCovariates[spreadCovariates, on = c("pixelID")]
 
   spreadData <- makeMutuallyExclusive(dt = vegData, mutuallyExclusive = list("youngAge" = exclusiveCols))
 
@@ -345,6 +353,15 @@ prepare_SpreadPredict <- function(sim) {
   sim$fireSense_SpreadCovariates <- spreadData
 
   return(invisible(sim))
+}
+
+#TODO: put in fireSenseUtils? use is not identical to dataPrepFit
+#to lessen the leverage of zeroes where there is no biomass
+#change the zeroes to one log below the minimum in the data (in this case 100 g/m2)
+logMinB <- function(x) {
+  minimumB <- exp(log(100) - 1)
+ x[x < minimumB] <- minimumB
+  x <- log(x)
 }
 
 .inputObjects <- function(sim) {
