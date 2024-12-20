@@ -317,8 +317,8 @@ prepare_SpreadPredict <- function(sim) {
 
   ## Nov 2023 - there should not be NA values - previously this used nafill
   ## if they return - use x <- as.data.table(nafill(vegData), 0) and setnames(x, names(vegData))
-  spreadCovariates[, rowcheck := rowSums(.SD), .SD = setdiff(names(vegData), 'pixelID')]
-  if (any(is.na(vegData$rowCheck))) {
+  spreadCovariates[, rowcheck := rowSums(.SD), .SD = setdiff(names(spreadCovariates), 'pixelID')]
+  if (any(is.na(spreadCovariates$rowCheck))) {
     stop("NA in vegData columns of fireSense_dataPrepPredict... please contact module developers")
   }
   #if all rows are 0, it must be a forested LCC absent from cohortData
