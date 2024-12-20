@@ -347,7 +347,7 @@ prepare_SpreadPredict <- function(sim) {
   setnames(climateCovariates, new = c("pixelID", names(spreadClimate)))
   spreadCovariates <- climateCovariates[spreadCovariates, on = c("pixelID")]
 
-  spreadData <- makeMutuallyExclusive(dt = vegData, mutuallyExclusive = list("youngAge" = exclusiveCols))
+  spreadData <- makeMutuallyExclusive(dt = spreadCovariates, mutuallyExclusive = list("youngAge" = exclusiveCols))
 
   setcolorder(spreadData, neworder = c("pixelID", names(spreadClimate), "youngAge"))
   sim$fireSense_SpreadCovariates <- spreadData
