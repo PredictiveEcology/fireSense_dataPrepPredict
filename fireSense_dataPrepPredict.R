@@ -22,7 +22,7 @@ defineModule(sim, list(
                     desc = paste("Age at and below which pixels are considered 'young'",
                                  "(i.e., `age <= cutoffForYoungAge`).")),
     defineParameter("fireTimeStep", "numeric", 1, NA, NA, desc = "time step of fire model"),
-    defineParameter("forestedLCC", "numeric", 1:6, NA, NA,
+    defineParameter("forestedLCC", "numeric", c(81, 210, 220, 230, 240), NA, NA,
                     desc = "forested landcover classes in `rstLCC` - only relevant if `landcoverDT` is not supplied"),
     defineParameter("ignitionFuelClassCol", "character", "FuelClass", NA, NA,
                     desc = "the column in sppEquiv that defines unique fuel classes for ignition"),
@@ -70,8 +70,8 @@ defineModule(sim, list(
                  desc = "RTM without ice/rocks/urban/water. Flammable map with 0 and 1."),
     expectsInput("nonForestedLCCGroups", "list", sourceURL = NA,
                  desc = paste("a named list of non-forested landcover groups,",
-                              "e.g. list('wetland' = c(19, 23, 32)).",
-                              "This is only relevant if landcoverDT is not supplied")),
+                              "e.g. `list('wetland' = c(19, 23, 32))`.",
+                              "This is only relevant if `landcoverDT` is not supplied")),
     expectsInput("nonForest_timeSinceDisturbance", "SpatRaster", sourceURL = NA,
                  desc = "time since burn for non-forested pixels"),
     expectsInput("pixelGroupMap", "SpatRaster", sourceURL = NA,
@@ -81,13 +81,13 @@ defineModule(sim, list(
                               "named according to variable, with names of individual raster layers",
                               "following the convention 'year<year>'")),
     expectsInput("landcoverDT", "data.table", sourceURL = NA,
-                 desc = "data.table with pixelID and relevant landcover classes"),
+                 desc = "data.table with `pixelID` and relevant landcover classes"),
     expectsInput("rasterToMatch", "SpatRaster", sourceURL = NA,
-                 desc = "template raster used only to derive flammableRTM if the latter is absent"),
+                 desc = "template raster used only to derive `flammableRTM` if the latter is absent"),
     expectsInput("rstCurrentBurn", "SpatRaster", sourceURL = NA,
                  desc = "binary raster with 1 representing annual burn"),
     expectsInput("rstLCC", "SpatRaster", sourceURL = NA,
-                 desc = "a landcover raster - only used if landcoverDT is unsupplied"),
+                 desc = "a landcover raster - only used if `landcoverDT` is not supplied"),
     expectsInput("sppEquiv", "data.table", sourceURL = NA,
                  desc = "table of LandR species equivalencies")
   ),
@@ -387,16 +387,16 @@ logMinB <- function(x) {
   }
 
   if (!suppliedElsewhere("landcoverDT", sim)) {
-
     if (!suppliedElsewhere("nonForestedLCCGroups", sim)) {
       LCCvals <- unique(sim$rstLCC[])
-      #check for NTEMS LCC else stop, as non-forest can't be inferred
+      ## check for NTEMS LCC else stop, as non-forest can't be inferred
       if (!all(LCCvals %in% c(20, 31, 32, 33, 50, 80, 81, 100, 210, 220, 230, 240, NA))) {
-        stop ("Please supply landcoverDT to dataPrepPredict")
-    }
+        stop("Please supply landcoverDT to dataPrepPredict")
+      }
       sim$nonForestedLCCGroups <- list(
-        "nf_highFlam" = c(50, 100), # shrub, herbaceous
-        "nf_lowFlam" = c(40, 81)) # bryoids + non-treed wetland.
+        "nf_highFlam" = c(50, 100), ## shrub, herbaceous
+        "nf_lowFlam" = c(40, 80)    ## bryoids + non-treed wetland
+      )
     }
 
     sim$landcoverDT <- makeLandcoverDT(rstLCC = sim$rstLCC,
