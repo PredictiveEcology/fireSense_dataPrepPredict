@@ -195,7 +195,7 @@ Describe any anticipated linkages to other modules, such as modules that supply 
 
 ### Getting help
 
--   provide a way for people to obtain help (e.g., module repository issues page)
+- <https://github.com/PredictiveEcology/fireSense_dataPrepPredict/issues>
 
 ## References
 

@@ -78,14 +78,17 @@ knitr::kable(df_params, caption = "List of (ref:fireSense-dataPrepPredict) param
 
 ### Events
 
+<!-- TODO -->
 Describe what happens for each event type.
 
 ### Plotting
 
+<!-- TODO -->
 Write what is plotted.
 
 ### Saving
 
+<!-- TODO -->
 Write what is saved.
 
 ### Module outputs
@@ -100,11 +103,12 @@ knitr::kable(df_outputs, caption = "List of (ref:fireSense-dataPrepPredict) outp
 
 ### Links to other modules
 
+<!-- TODO: link to other fireSense modules -->
 Describe any anticipated linkages to other modules, such as modules that supply input data or do post-hoc analysis.
 
 ### Getting help
 
--   provide a way for people to obtain help (e.g., module repository issues page)
+- <https://github.com/PredictiveEcology/fireSense_dataPrepPredict/issues>
 
 ## References
 
