@@ -56,12 +56,12 @@ This is a template for module documentation, and should be changed to reflect yo
 ### Module inputs and parameters
 
 Describe input data required by the module and how to obtain it (e.g., directly from online sources or supplied by other modules)
-If `sourceURL` is specified, `downloadData("fireSense_dataPrepPredict", "/private/var/folders/l2/hy6b0sl977bcd8695nt6j7s80000gn/T/RtmpTnPn1y/modules_10222d50573f")` may be sufficient.
+If `sourceURL` is specified, `downloadData("fireSense_dataPrepPredict", "..")` may be sufficient.
 
 Table \@ref(tab:moduleInputs-fireSense-dataPrepPredict) shows the full list of module inputs.
 
 ```{r moduleInputs-fireSense-dataPrepPredict, echo = FALSE, eval = TRUE, message = FALSE, warning = FALSE}
-df_inputs <- SpaDES.core::moduleInputs("fireSense_dataPrepPredict", "/private/var/folders/l2/hy6b0sl977bcd8695nt6j7s80000gn/T/RtmpTnPn1y/modules_10222d50573f")
+df_inputs <- SpaDES.core::moduleInputs("fireSense_dataPrepPredict", "..")
 knitr::kable(df_inputs,
              caption = "List of (ref:fireSense-dataPrepPredict) input objects and their description.") |>
   kableExtra::kable_styling(latex_options = "scale_down", full_width = TRUE)
@@ -71,7 +71,7 @@ Summary of user-visible parameters (Table \@ref(tab:moduleParams-fireSense-dataP
 
 
 ```{r moduleParams-fireSense-dataPrepPredict, echo = FALSE, eval = TRUE, message = FALSE, warning = FALSE}
-df_params <- SpaDES.core::moduleParams("fireSense_dataPrepPredict", "/private/var/folders/l2/hy6b0sl977bcd8695nt6j7s80000gn/T/RtmpTnPn1y/modules_10222d50573f")
+df_params <- SpaDES.core::moduleParams("fireSense_dataPrepPredict", "..")
 knitr::kable(df_params, caption = "List of (ref:fireSense-dataPrepPredict) parameters and their description.") |>
   kableExtra::kable_styling(latex_options = "scale_down", full_width = TRUE)
 ```
@@ -96,7 +96,7 @@ Write what is saved.
 Description of the module outputs (Table \@ref(tab:moduleOutputs-fireSense-dataPrepPredict)).
 
 ```{r moduleOutputs-fireSense-dataPrepPredict, echo = FALSE, eval = TRUE, message = FALSE, warning = FALSE}
-df_outputs <- SpaDES.core::moduleOutputs("fireSense_dataPrepPredict", "/private/var/folders/l2/hy6b0sl977bcd8695nt6j7s80000gn/T/RtmpTnPn1y/modules_10222d50573f")
+df_outputs <- SpaDES.core::moduleOutputs("fireSense_dataPrepPredict", "..")
 knitr::kable(df_outputs, caption = "List of (ref:fireSense-dataPrepPredict) outputs and their description.") |>
   kableExtra::kable_styling(latex_options = "scale_down", full_width = TRUE)
 ```

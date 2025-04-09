@@ -3025,7 +3025,7 @@ This is a template for module documentation, and should be changed to reflect yo
 <div id="module-inputs-and-parameters" class="section level3">
 <h3>Module inputs and parameters</h3>
 <p>Describe input data required by the module and how to obtain it (e.g., directly from online sources or supplied by other modules)
-If <code>sourceURL</code> is specified, <code>downloadData(&quot;fireSense_dataPrepPredict&quot;, &quot;/private/var/folders/l2/hy6b0sl977bcd8695nt6j7s80000gn/T/RtmpTnPn1y/modules_10222d50573f&quot;)</code> may be sufficient.</p>
+If <code>sourceURL</code> is specified, <code>downloadData(&quot;fireSense_dataPrepPredict&quot;, &quot;..&quot;)</code> may be sufficient.</p>
 <p>Table <a href="#tab:moduleInputs-fireSense-dataPrepPredict">1</a> shows the full list of module inputs.</p>
 <table class="table" style="color: black; margin-left: auto; margin-right: auto;">
 <caption>
@@ -3050,13 +3050,167 @@ sourceURL
 <tbody>
 <tr>
 <td style="text-align:left;">
-NA
+climateVariablesForFire
+</td>
+<td style="text-align:left;">
+list
+</td>
+<td style="text-align:left;">
+A list detailing which climate variables in <code>sim$projectedClimateRasters</code> to use for which fire processes (ignition and spread). If the list is length one, both processes will use the same variables. The default is to use ‘MDC’.
 </td>
 <td style="text-align:left;">
 NA
 </td>
+</tr>
+<tr>
+<td style="text-align:left;">
+cohortData
+</td>
+<td style="text-align:left;">
+data.table
+</td>
+<td style="text-align:left;">
+table that defines the cohorts by pixelGroup
+</td>
 <td style="text-align:left;">
 NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+flammableRTM
+</td>
+<td style="text-align:left;">
+SpatRaster
+</td>
+<td style="text-align:left;">
+RTM without ice/rocks/urban/water. Flammable map with 0 and 1.
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+nonForestedLCCGroups
+</td>
+<td style="text-align:left;">
+list
+</td>
+<td style="text-align:left;">
+a named list of non-forested landcover groups, e.g. <code>list(&#39;wetland&#39; = c(19, 23, 32))</code>. This is only relevant if <code>landcoverDT</code> is not supplied
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+nonForest_timeSinceDisturbance
+</td>
+<td style="text-align:left;">
+SpatRaster
+</td>
+<td style="text-align:left;">
+time since burn for non-forested pixels
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+pixelGroupMap
+</td>
+<td style="text-align:left;">
+SpatRaster
+</td>
+<td style="text-align:left;">
+SpatRaster that defines the pixelGroups for cohortData table
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+projectedClimateRasters
+</td>
+<td style="text-align:left;">
+list
+</td>
+<td style="text-align:left;">
+list of projected climate variables in raster stack form named according to variable, with names of individual raster layers following the convention ‘year&lt;year&gt;’
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+landcoverDT
+</td>
+<td style="text-align:left;">
+data.table
+</td>
+<td style="text-align:left;">
+data.table with <code>pixelID</code> and relevant landcover classes
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+rasterToMatch
+</td>
+<td style="text-align:left;">
+SpatRaster
+</td>
+<td style="text-align:left;">
+template raster used only to derive <code>flammableRTM</code> if the latter is absent
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+rstCurrentBurn
+</td>
+<td style="text-align:left;">
+SpatRaster
+</td>
+<td style="text-align:left;">
+binary raster with 1 representing annual burn
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+rstLCC
+</td>
+<td style="text-align:left;">
+SpatRaster
+</td>
+<td style="text-align:left;">
+a landcover raster - only used if <code>landcoverDT</code> is not supplied
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+sppEquiv
+</td>
+<td style="text-align:left;">
+data.table
+</td>
+<td style="text-align:left;">
+table of LandR species equivalencies
 </td>
 <td style="text-align:left;">
 NA
@@ -3094,13 +3248,73 @@ paramDesc
 <tbody>
 <tr>
 <td style="text-align:left;">
-.plots
+cutoffForYoungAge
+</td>
+<td style="text-align:left;">
+numeric
+</td>
+<td style="text-align:left;">
+15
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+Age at and below which pixels are considered ‘young’ (i.e., <code>age &amp;lt;= cutoffForYoungAge</code>).
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+fireTimeStep
+</td>
+<td style="text-align:left;">
+numeric
+</td>
+<td style="text-align:left;">
+1
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+time step of fire model
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+forestedLCC
+</td>
+<td style="text-align:left;">
+numeric
+</td>
+<td style="text-align:left;">
+81, 210,….
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+forested landcover classes in <code>rstLCC</code> - only relevant if <code>landcoverDT</code> is not supplied
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+ignitionFuelClassCol
 </td>
 <td style="text-align:left;">
 character
 </td>
 <td style="text-align:left;">
-screen
+FuelClass
 </td>
 <td style="text-align:left;">
 NA
@@ -3109,7 +3323,127 @@ NA
 NA
 </td>
 <td style="text-align:left;">
-Used by Plots function, which can be optionally used here
+the column in sppEquiv that defines unique fuel classes for ignition
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+missingLCCgroup
+</td>
+<td style="text-align:left;">
+character
+</td>
+<td style="text-align:left;">
+nonFores….
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+if a pixel is forested but is absent from <code>cohortData</code>, it will be grouped in this class. Must be one of the names in <code>sim$nonForestedLCCGroups</code>.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+nonflammableLCC
+</td>
+<td style="text-align:left;">
+numeric
+</td>
+<td style="text-align:left;">
+20, 31, ….
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+used to create flammableRTM if unsupplied. The non-flammable LCC in rstLCC layers - which default to water, snow/ice, rock, and barren land in NTEMS LCC
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+nonForestCanBeYoungAge
+</td>
+<td style="text-align:left;">
+logical
+</td>
+<td style="text-align:left;">
+TRUE
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+update non-forest when burned, to become youngAge
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+sppEquivCol
+</td>
+<td style="text-align:left;">
+character
+</td>
+<td style="text-align:left;">
+LandR
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+column name in <code>sppEquiv</code> object that defines unique species in <code>cohortData</code>
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+spreadFuelClassCol
+</td>
+<td style="text-align:left;">
+character
+</td>
+<td style="text-align:left;">
+FuelClass
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+if using fuel classes for spread, the column in sppEquiv that defines unique fuel classes
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+whichModulesToPrepare
+</td>
+<td style="text-align:left;">
+character
+</td>
+<td style="text-align:left;">
+fireSens….
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+Which fireSense fit modules to prep? defaults to all 3
 </td>
 </tr>
 <tr>
@@ -3120,7 +3454,7 @@ Used by Plots function, which can be optionally used here
 numeric
 </td>
 <td style="text-align:left;">
-0
+NA
 </td>
 <td style="text-align:left;">
 NA
@@ -3150,6 +3484,26 @@ NA
 </td>
 <td style="text-align:left;">
 Describes the simulation time interval between plot events.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+.runInitialTime
+</td>
+<td style="text-align:left;">
+numeric
+</td>
+<td style="text-align:left;">
+0
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+time to simulate initial fire
 </td>
 </tr>
 <tr>
@@ -3194,45 +3548,6 @@ This describes the simulation time interval between save events.
 </tr>
 <tr>
 <td style="text-align:left;">
-.studyAreaName
-</td>
-<td style="text-align:left;">
-character
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-Human-readable name for the study area used - e.g., a hash of the studyarea obtained using <code>reproducible::studyAreaName()</code>
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-.seed
-</td>
-<td style="text-align:left;">
-list
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-Named list of seeds to use for each event (names).
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
 .useCache
 </td>
 <td style="text-align:left;">
@@ -3248,7 +3563,7 @@ NA
 NA
 </td>
 <td style="text-align:left;">
-Should caching of events or module be used?
+Should this entire module be run with caching activated? This is generally intended for data-type modules, where stochasticity and time are not relevant
 </td>
 </tr>
 </tbody>
@@ -3256,14 +3571,17 @@ Should caching of events or module be used?
 </div>
 <div id="events" class="section level3">
 <h3>Events</h3>
+<!-- TODO -->
 <p>Describe what happens for each event type.</p>
 </div>
 <div id="plotting" class="section level3">
 <h3>Plotting</h3>
+<!-- TODO -->
 <p>Write what is plotted.</p>
 </div>
 <div id="saving" class="section level3">
 <h3>Saving</h3>
+<!-- TODO -->
 <p>Write what is saved.</p>
 </div>
 <div id="module-outputs" class="section level3">
@@ -3289,13 +3607,46 @@ desc
 <tbody>
 <tr>
 <td style="text-align:left;">
-NA
+currentClimateRasters
 </td>
 <td style="text-align:left;">
-NA
+list
 </td>
 <td style="text-align:left;">
-NA
+list of project climate rasters at current time of sim
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+fireSense_IgnitionAndEscapeCovariates
+</td>
+<td style="text-align:left;">
+data.table
+</td>
+<td style="text-align:left;">
+data.table of covariates for ignition prediction, with pixelID column corresponding to flammableRTM pixel index
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+fireSense_SpreadCovariates
+</td>
+<td style="text-align:left;">
+data.table
+</td>
+<td style="text-align:left;">
+data.table of covariates for spread prediction, with pixelID column corresponding to flammableRTM pixel index
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+nonForest_timeSinceDisturbance
+</td>
+<td style="text-align:left;">
+SpatRaster
+</td>
+<td style="text-align:left;">
+time since burn for non-forest pixels
 </td>
 </tr>
 </tbody>
@@ -3303,6 +3654,7 @@ NA
 </div>
 <div id="links-to-other-modules" class="section level3">
 <h3>Links to other modules</h3>
+<!-- TODO: link to other fireSense modules -->
 <p>Describe any anticipated linkages to other modules, such as modules that supply input data or do post-hoc analysis.</p>
 </div>
 <div id="getting-help" class="section level3">
