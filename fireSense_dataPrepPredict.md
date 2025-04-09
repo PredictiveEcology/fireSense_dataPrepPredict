@@ -37,6 +37,9 @@ Ian Eddy <ian.eddy@nrcan-rncan.gc.ca> [aut, cre], Eliot McIntire <eliot.mcintire
 
 ### Module summary
 
+<!-- TODO -->
+fireSense [@Marchal:2017a; @Marchal:2017b; @Marchal:2019]
+
 Provide a brief summary of what the module does / how to use the module.
 
 Module documentation should be written so that others can use your module.
