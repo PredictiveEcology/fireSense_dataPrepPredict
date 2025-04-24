@@ -2996,7 +2996,7 @@ border-radius: 0px;
 
 <h1 class="title toc-ignore">fireSense_dataPrepPredict Manual</h1>
 <h3 class="subtitle">v.1.0.1</h3>
-<h4 class="date">Last updated: 2025-04-09</h4>
+<h4 class="date">Last updated: 2025-04-24</h4>
 
 </div>
 
@@ -3088,6 +3088,20 @@ RTM without ice/rocks/urban/water. Flammable map with 0 and 1.
 </td>
 <td style="text-align:left;">
 NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+missingLCCgroup
+</td>
+<td style="text-align:left;">
+character
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+if a pixel is forested but is absent from <code>cohortData</code>, it will be grouped in this class. It can be estimated if <code>P(sim)$estimateFuelClasses</code> is TRUE. If supplied, it must be one of the names in <code>sim$nonForestedLCCGroups</code>
 </td>
 </tr>
 <tr>
@@ -3308,7 +3322,7 @@ forested landcover classes in <code>rstLCC</code> - only relevant if <code>landc
 </tr>
 <tr>
 <td style="text-align:left;">
-ignitionFuelClassCol
+fuelClassCol
 </td>
 <td style="text-align:left;">
 character
@@ -3324,26 +3338,6 @@ NA
 </td>
 <td style="text-align:left;">
 the column in sppEquiv that defines unique fuel classes for ignition
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-missingLCCgroup
-</td>
-<td style="text-align:left;">
-character
-</td>
-<td style="text-align:left;">
-nonFores….
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-if a pixel is forested but is absent from <code>cohortData</code>, it will be grouped in this class. Must be one of the names in <code>sim$nonForestedLCCGroups</code>.
 </td>
 </tr>
 <tr>
@@ -3404,26 +3398,6 @@ NA
 </td>
 <td style="text-align:left;">
 column name in <code>sppEquiv</code> object that defines unique species in <code>cohortData</code>
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-spreadFuelClassCol
-</td>
-<td style="text-align:left;">
-character
-</td>
-<td style="text-align:left;">
-FuelClass
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-if using fuel classes for spread, the column in sppEquiv that defines unique fuel classes
 </td>
 </tr>
 <tr>
