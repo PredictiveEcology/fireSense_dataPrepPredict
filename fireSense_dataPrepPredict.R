@@ -24,12 +24,8 @@ defineModule(sim, list(
     defineParameter("fireTimeStep", "numeric", 1, NA, NA, desc = "time step of fire model"),
     defineParameter("forestedLCC", "numeric", c(81, 210, 220, 230, 240), NA, NA,
                     desc = "forested landcover classes in `rstLCC` - only relevant if `landcoverDT` is not supplied"),
-    defineParameter("ignitionFuelClassCol", "character", "FuelClass", NA, NA,
+    defineParameter("fuelClassCol", "character", "FuelClass", NA, NA,
                     desc = "the column in sppEquiv that defines unique fuel classes for ignition"),
-    defineParameter("missingLCCgroup", "character", "nonForest_highFlam", NA, NA,
-                    desc = paste("if a pixel is forested but is absent from `cohortData`,",
-                                 "it will be grouped in this class.",
-                                 "Must be one of the names in `sim$nonForestedLCCGroups`.")),
     defineParameter("nonflammableLCC", "numeric", c(20, 31, 32, 33), NA, NA,
                     desc = paste("used to create flammableRTM if unsupplied.",
                     "The non-flammable LCC in rstLCC layers - which",
@@ -38,8 +34,6 @@ defineModule(sim, list(
                     desc = "update non-forest when burned, to become youngAge"),
     defineParameter("sppEquivCol", "character", "LandR", NA, NA,
                     desc = "column name in `sppEquiv` object that defines unique species in `cohortData`"),
-    defineParameter("spreadFuelClassCol", "character", "FuelClass", NA, NA,
-                    desc = "if using fuel classes for spread, the column in sppEquiv that defines unique fuel classes"),
     defineParameter("whichModulesToPrepare", "character",
                     default = c("fireSense_SpreadPredict", "fireSense_IgnitionPredict", "fireSense_EscapeFit"),
                     NA, NA,
@@ -68,6 +62,10 @@ defineModule(sim, list(
                  desc = "table that defines the cohorts by pixelGroup"),
     expectsInput("flammableRTM", "SpatRaster", sourceURL = NA,
                  desc = "RTM without ice/rocks/urban/water. Flammable map with 0 and 1."),
+    expectsInput("missingLCCgroup", "character", NA,
+                 paste("if a pixel is forested but is absent from `cohortData`, it will be grouped in this class.",
+                       "It can be estimated if `P(sim)$estimateFuelClasses` is TRUE.",
+                       "If supplied, it must be one of the names in `sim$nonForestedLCCGroups`")),
     expectsInput("nonForestedLCCGroups", "list", sourceURL = NA,
                  desc = paste("a named list of non-forested landcover groups,",
                               "e.g. `list('wetland' = c(19, 23, 32))`.",
@@ -188,6 +186,7 @@ Init <- function(sim) {
 ### template for plot events
 
 getCurrentClimate <- function(sim) {
+
   ## this function has been rewritten due to an undiagnosed bug involving
   ##   digest of a file-backed SpatRaster, and restartSpades()
   availableYears <- as.numeric(gsub(pattern = "year",
@@ -230,6 +229,7 @@ ageNonForest <- function(TSD, rstCurrentBurn, timeStep) {
 }
 
 prepare_IgnitionAndEscapePredict <- function(sim) {
+
   ## get climate
   ignitionClimate <- sim$currentClimateRasters[sim$climateVariablesForFire$ignition]
 
@@ -243,7 +243,7 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
                                       pixelGroupMap = sim$pixelGroupMap,
                                       landcoverDT = sim$landcoverDT,
                                       flammableRTM = sim$flammableRTM,
-                                      fuelClassCol = P(sim)$ignitionFuelClassCol,
+                                      fuelClassCol = P(sim)$fuelClassCol,
                                       cutoffForYoungAge = P(sim)$cutoffForYoungAge)
 
   fcs <- setdiff(names(fuelClasses), "youngAge")
@@ -255,7 +255,7 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
 
   ignitionCovariates[, rowcheck := rowSums(.SD), .SD = setdiff(names(ignitionCovariates), "pixelID")]
   ## if all rows are 0, it must be a forested LCC absent from cohortData
-  ignitionCovariates[rowcheck == 0, eval(P(sim)$missingLCC) := 1]
+  ignitionCovariates[rowcheck == 0, eval(sim$missingLCCgroup) := 1]
   set(ignitionCovariates, NULL, "rowcheck", NULL)
 
   #this must happen after the missingLC are evaluated
@@ -277,6 +277,7 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
 
   #approach must allow for multiple potential climate variable, due to shift from "hockey stick" model
   climateCovariates <- rast(ignitionClimate)
+
   climateCovariates <- na.omit(as.data.table(climateCovariates, cells = TRUE))
   setnames(climateCovariates, new = c("pixelID", names(ignitionClimate)))
   ignitionCovariates <- climateCovariates[ignitionCovariates, on = c("pixelID")]
@@ -288,6 +289,7 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
 }
 
 prepare_SpreadPredict <- function(sim) {
+
   spreadClimate <- sim$currentClimateRasters[sim$climateVariablesForFire$spread]
 
   ## much of this chunk can now be combined into a function, called for both ig and spread prep
@@ -299,7 +301,7 @@ prepare_SpreadPredict <- function(sim) {
                                   flammableRTM = sim$flammableRTM,
                                   sppEquiv = sim$sppEquiv,
                                   landcoverDT = sim$landcoverDT,
-                                  fuelClassCol = P(sim)$spreadFuelClassCol,
+                                  fuelClassCol = P(sim)$fuelClassCol,
                                   sppEquivCol = P(sim)$sppEquivCol,
                                   cutoffForYoungAge = P(sim)$cutoffForYoungAge)
 
@@ -322,7 +324,7 @@ prepare_SpreadPredict <- function(sim) {
     stop("NA in vegData columns of fireSense_dataPrepPredict... please contact module developers")
   }
   #if all rows are 0, it must be a forested LCC absent from cohortData
-  spreadCovariates[rowcheck == 0, eval(P(sim)$missingLCC) := 1]
+  spreadCovariates[rowcheck == 0, eval(sim$missingLCCgroup) := 1]
   set(spreadCovariates, NULL, 'rowcheck', NULL)
 
   spreadCovariates <- spreadCovariates[, eval(fcs) := lapply(.SD, FUN = logMinB), .SDcols = fcs]
