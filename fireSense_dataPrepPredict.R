@@ -94,7 +94,7 @@ defineModule(sim, list(
   outputObjects = bindrows(
     createsOutput("currentClimateRasters", "list",
                   desc = "list of project climate rasters at current time of sim"),
-    createsOutput("fireSense_IgnitionAndEscapeCovariates", "data.table",
+    createsOutput("fireSense_igAndEscapePred_Covariates", "data.table",
                   desc = paste("data.table of covariates for ignition prediction, with pixelID column",
                                 "corresponding to flammableRTM pixel index")),
     createsOutput("fireSense_SpreadCovariates", "data.table",
@@ -302,7 +302,7 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
     #TODO: check names
   }
 
-  sim$fireSense_IgnitionAndEscapeCovariates <- ignitionCovariates
+  sim$fireSense_igAndEscapePred_Covariates <- ignitionCovariates
 
   gc()
   return(invisible(sim))
@@ -410,22 +410,24 @@ logMinB <- function(x) {
   }
 
   if (!suppliedElsewhere("landcoverDT", sim)) {
-    if (!suppliedElsewhere("nonForestedLCCGroups", sim)) {
-      LCCvals <- unique(sim$rstLCC[])
-      ## check for NTEMS LCC else stop, as non-forest can't be inferred
-      if (!all(LCCvals %in% c(20, 31, 32, 33, 50, 80, 81, 100, 210, 220, 230, 240, NA))) {
-        stop("Please supply landcoverDT to dataPrepPredict")
+    if (!suppliedElsewhere("landcoverDT2011")) {
+      if (!suppliedElsewhere("nonForestedLCCGroups", sim)) {
+        LCCvals <- unique(sim$rstLCC[])
+        ## check for NTEMS LCC else stop, as non-forest can't be inferred
+        if (!all(LCCvals %in% c(20, 31, 32, 33, 50, 80, 81, 100, 210, 220, 230, 240, NA))) {
+          stop("Please supply landcoverDT to dataPrepPredict")
+        }
+        sim$nonForestedLCCGroups <- list(
+          "nf_highFlam" = c(50, 100), ## shrub, herbaceous
+          "nf_lowFlam" = c(40, 80)    ## bryoids + non-treed wetland
+        )
       }
-      sim$nonForestedLCCGroups <- list(
-        "nf_highFlam" = c(50, 100), ## shrub, herbaceous
-        "nf_lowFlam" = c(40, 80)    ## bryoids + non-treed wetland
-      )
-    }
 
-    sim$landcoverDT <- makeLandcoverDT(rstLCC = sim$rstLCC,
-                                       flammableRTM = sim$flammableRTM,
-                                       forestedLCC = P(sim)$forestedLCC,
-                                       nonForestedLCCGroups = sim$nonForestedLCCGroups)
+      sim$landcoverDT <- makeLandcoverDT(rstLCC = sim$rstLCC,
+                                         flammableRTM = sim$flammableRTM,
+                                         forestedLCC = P(sim)$forestedLCC,
+                                         nonForestedLCCGroups = sim$nonForestedLCCGroups)
+    } #TODO: workaround for now until suppliedElsewhere works with objectSynonyms
   }
 
   if (!suppliedElsewhere("nonForest_timeSinceDisturbance", sim)) {
