@@ -410,7 +410,7 @@ logMinB <- function(x) {
   }
 
   if (!suppliedElsewhere("landcoverDT", sim)) {
-    if (!suppliedElsewhere("landcoverDT2011")) {
+    if (!suppliedElsewhere("landcoverDT2011", sim)) {
       if (!suppliedElsewhere("nonForestedLCCGroups", sim)) {
         LCCvals <- unique(sim$rstLCC[])
         ## check for NTEMS LCC else stop, as non-forest can't be inferred
