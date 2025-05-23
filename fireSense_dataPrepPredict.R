@@ -270,8 +270,8 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
     ignitionCovariates[, YA_NF := NULL]
   }
 
-  exclusiveCols <- c(fuelClasses, names(sim$landcoverDT))
-  exclusiveCols <- setdiff(exclusiveCols, "pixelID")
+  exclusiveCols <- c(fcs, names(sim$landcoverDT))
+  exclusiveCols <- setdiff(exclusiveCols, c("pixelID", "youngAge"))
   #TODO: I believe this triggers a warning
   ignitionCovariates <- makeMutuallyExclusive(dt = ignitionCovariates,
                                               mutuallyExclusive = list("youngAge" = exclusiveCols))
@@ -387,6 +387,7 @@ logMinB <- function(x) {
 }
 
 .inputObjects <- function(sim) {
+
   cacheTags <- c(currentModule(sim), "otherFunctions:.inputObjects")
   dPath <- asPath(inputPath(sim), 1)
   message(currentModule(sim), ": using dataPath '", dPath, "'.")
