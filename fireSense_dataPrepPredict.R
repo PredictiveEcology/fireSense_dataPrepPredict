@@ -21,9 +21,14 @@ defineModule(sim, list(
     defineParameter("cutoffForYoungAge", "numeric", 15, NA, NA,
                     desc = paste("Age at and below which pixels are considered 'young'",
                                  "(i.e., `age <= cutoffForYoungAge`).")),
+    defineParameter("dataYear", "numeric", 2011, 1985, 2022,
+                    "Used to override the default 'sourceURL' of NTEMS data"),
     defineParameter("fireTimeStep", "numeric", 1, NA, NA, desc = "time step of fire model"),
     defineParameter("forestedLCC", "numeric", c(81, 210, 220, 230, 240), NA, NA,
                     desc = "forested landcover classes in `rstLCC` - only relevant if `landcoverDT` is not supplied"),
+    defineParameter("flammabilityThreshold", "numeric", 0.1, 0, 1,
+                    paste("Minimum proportion of flammable old pixel needed to define a new pixel
+                          as flammable when upscaling the default flammable maps`.")),
     defineParameter("fuelClassCol", "character", "FuelClass", NA, NA,
                     desc = "the column in sppEquiv that defines unique fuel classes for ignition"),
     defineParameter("nonflammableLCC", "numeric", c(20, 31, 32, 33), NA, NA,
@@ -68,6 +73,8 @@ defineModule(sim, list(
                  paste("if a pixel is forested but is absent from `cohortData`, it will be grouped in this class.",
                        "It can be estimated if `P(sim)$estimateFuelClasses` is TRUE.",
                        "If supplied, it must be one of the names in `sim$nonForestedLCCGroups`")),
+    expectsInput("landcoverDT", "data.table", sourceURL = NA,
+                 desc = "data.table with `pixelID` and relevant landcover classes"),
     expectsInput("nonForestedLCCGroups", "list", sourceURL = NA,
                  desc = paste("a named list of non-forested landcover groups,",
                               "e.g. `list('wetland' = c(19, 23, 32))`.",
@@ -80,8 +87,9 @@ defineModule(sim, list(
                  desc = paste("list of projected climate variables in raster stack form",
                               "named according to variable, with names of individual raster layers",
                               "following the convention 'year<year>'")),
-    expectsInput("landcoverDT", "data.table", sourceURL = NA,
-                 desc = "data.table with `pixelID` and relevant landcover classes"),
+    expectsInput("propFlammable", "SpatRaster", sourceURL = NA,
+                 paste("a conditional object created if rstLCC is also not supplied, ",
+                 "a raster representing the proportion of flammable landcover in a pixel")),
     expectsInput("rasterToMatch", "SpatRaster", sourceURL = NA,
                  desc = "template raster used only to derive `flammableRTM` if the latter is absent"),
     expectsInput("rstCurrentBurn", "SpatRaster", sourceURL = NA,
@@ -100,6 +108,8 @@ defineModule(sim, list(
     createsOutput("fireSense_SpreadCovariates", "data.table",
                   desc = paste("data.table of covariates for spread prediction, with pixelID column",
                                 "corresponding to flammableRTM pixel index")),
+    createsOutput("landcoverDT", "data.table",
+                  "data.table with `pixelID` and relevant landcover classes for flammable pixels"),
     createsOutput("nonForest_timeSinceDisturbance", "SpatRaster",
                   desc = "time since burn for non-forest pixels")
   )
@@ -171,6 +181,14 @@ doEvent.fireSense_dataPrepPredict = function(sim, eventTime, eventType) {
 
 ### template initialization
 Init <- function(sim) {
+  browser()
+  if (is.null(sim$landcoverDT)) {
+      sim$landcoverDT <- makeLandcoverDT(rstLCC = sim$rstLCC,
+                                         flammableRTM = sim$flammableRTM,
+                                         forestedLCC = P(sim)$forestedLCC,
+                                         nonForestedLCCGroups = sim$nonForestedLCCGroups)
+  }
+
 
   ## TODO: assume a vector of variables has been passed?
   if (length(sim$climateVariablesForFire) == 1) {
@@ -231,7 +249,7 @@ ageNonForest <- function(TSD, rstCurrentBurn, timeStep) {
 }
 
 prepare_IgnitionAndEscapePredict <- function(sim) {
-
+  browser()
   ## get climate
   ignitionClimate <- sim$currentClimateRasters[sim$climateVariablesForFire$ignition]
 
@@ -398,9 +416,18 @@ logMinB <- function(x) {
   }
 
   if (!suppliedElsewhere("rstLCC", sim)) {
-    sim$rstLCC <- prepInputs_NTEMS_LCC_FAO(year = 2010,
-                                           destinationPath = dPath, cropTo = sim$rasterToMatch,
-                                           projectTo = sim$rasterToMatch, maskTo = sim$studyArea)
+    rstLCC <- Cache(makeFireSenseLCC,
+                     neededYear = P(sim)$dataYear,
+                     writeTo = .suffix("rstLCC.tif",
+                                       paste0(P(sim)$dataYear, "_", P(sim)$.studyAreaName)),
+                     destinationPath = inputPath(sim),
+                     studyArea = sim$studyArea_biomassParam,
+                     rasterToMatch = sim$rasterToMatchLarge,
+                     nonflammableLCC = P(sim)$nonflammableLCC,
+                     flammabilityThreshold = P(sim)$flammabilityThreshold,
+                     userTags = c("makeFireSenseLCC", "predict"))
+    sim$rstLCC <- rstLCC$lcc
+    sim$propFlammable <- rstLCC$flammableProp #
   }
 
   if (!suppliedElsewhere("flammableRTM", sim)) {
@@ -409,26 +436,6 @@ logMinB <- function(x) {
                                         mask = sim$rasterToMatch)
   }
 
-  if (!suppliedElsewhere("landcoverDT", sim)) {
-    if (!suppliedElsewhere("landcoverDT2011", sim)) {
-      if (!suppliedElsewhere("nonForestedLCCGroups", sim)) {
-        LCCvals <- unique(sim$rstLCC[])
-        ## check for NTEMS LCC else stop, as non-forest can't be inferred
-        if (!all(LCCvals %in% c(20, 31, 32, 33, 50, 80, 81, 100, 210, 220, 230, 240, NA))) {
-          stop("Please supply landcoverDT to dataPrepPredict")
-        }
-        sim$nonForestedLCCGroups <- list(
-          "nf_highFlam" = c(50, 100), ## shrub, herbaceous
-          "nf_lowFlam" = c(40, 80)    ## bryoids + non-treed wetland
-        )
-      }
-
-      sim$landcoverDT <- makeLandcoverDT(rstLCC = sim$rstLCC,
-                                         flammableRTM = sim$flammableRTM,
-                                         forestedLCC = P(sim)$forestedLCC,
-                                         nonForestedLCCGroups = sim$nonForestedLCCGroups)
-    } #TODO: workaround for now until suppliedElsewhere works with objectSynonyms
-  }
 
   if (!suppliedElsewhere("nonForest_timeSinceDisturbance", sim)) {
     message("nonForest_timeSinceDisturbance not supplied - generating simulated map")
