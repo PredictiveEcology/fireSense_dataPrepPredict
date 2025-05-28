@@ -13,7 +13,8 @@ defineModule(sim, list(
   timeunit = "year",
   citation = list("citation.bib"),
   documentation = deparse(list("README.txt", "fireSense_dataPrepPredict.Rmd")),
-  loadOrder = list(after = "Biomass_borealDataPrep", "fireSense_dataPrepFit"),
+  loadOrder = list(after = c("Biomass_borealDataPrep", "fireSense_dataPrepFit",
+                             "fireSense_IgnitionFit", "fireSense_SpreadFit")),
   reqdPkgs = list(
     "data.table",
     "PredictiveEcology/fireSenseUtils@development (>= 0.0.5.9050)",
@@ -201,14 +202,12 @@ doEvent.fireSense_dataPrepPredict <- function(sim, eventTime, eventType) {
       if ("fireSense_IgnitionPredict" %in% P(sim)$whichModulesToPrepare |
         "fireSense_EscapePredict" %in% P(sim)$whichModulesToPrepare) {
         sim <- scheduleEvent(sim, P(sim)$.runInitialTime, "fireSense_dataPrepPredict",
-          "prepIgAndEscPredictData",
-          eventPriority = 5.10
+          "prepIgAndEscPredictData"
         )
       }
 
       if ("fireSense_SpreadPredict" %in% P(sim)$whichModulesToPrepare) {
-        sim <- scheduleEvent(sim, P(sim)$.runInitialTime, "fireSense_dataPrepPredict", "prepSpreadPredictData",
-          eventPriority = 5.10
+        sim <- scheduleEvent(sim, P(sim)$.runInitialTime, "fireSense_dataPrepPredict", "prepSpreadPredictData"
         )
       }
       # schedule future event(s)
@@ -236,15 +235,13 @@ doEvent.fireSense_dataPrepPredict <- function(sim, eventTime, eventType) {
     prepIgAndEscPredictData = {
       sim <- prepare_IgnitionAndEscapePredict(sim)
       sim <- scheduleEvent(sim, time(sim) + P(sim)$fireTimeStep,
-        "fireSense_dataPrepPredict", "prepIgAndEscPredictData",
-        eventPriority = 5.1
+        "fireSense_dataPrepPredict", "prepIgAndEscPredictData"
       )
     },
     prepSpreadPredictData = {
       sim <- prepare_SpreadPredict(sim)
       sim <- scheduleEvent(sim, time(sim) + P(sim)$fireTimeStep,
-        "fireSense_dataPrepPredict", "prepSpreadPredictData",
-        eventPriority = 5.1
+        "fireSense_dataPrepPredict", "prepSpreadPredictData"
       )
     },
     warning(paste("Undefined event type: \'", current(sim)[1, "eventType", with = FALSE],
@@ -401,10 +398,9 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
   # this must happen after the missingLC are evaluated
   ignitionCovariates <- ignitionCovariates[, eval(fcs) := lapply(.SD, FUN = logMinB), .SDcols = fcs]
 
-
   if (P(sim)$nonForestCanBeYoungAge) {
     ignitionCovariates[, YA_NF := as.vector(sim$nonForest_timeSinceDisturbance)[ignitionCovariates$pixelID] <=
-      P(sim)$cutoffForYoungAge]
+                         P(sim)$cutoffForYoungAge]
     ignitionCovariates[YA_NF == TRUE, youngAge := 1]
     ignitionCovariates[, YA_NF := NULL]
   }
@@ -423,22 +419,28 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
   setnames(climateCovariates, new = c("pixelID", names(ignitionClimate)))
   ignitionCovariates <- climateCovariates[ignitionCovariates, on = c("pixelID")]
 
+  #put back into raster for aggregate
+  #TODO: this should be put in fireSenseUtils
+  covCols <- setdiff(names(ignitionCovariates), "pixelID")
+  rasObj <- rast(sim$flammableRTM)
+  rasObj[!is.na(sim$flammableRTM[])] <- 0 #make sure NA is 0 for mean during aggregate
+  out <- lapply(covCols, FUN = function(cov, ras = rasObj, covDT = ignitionCovariates) {
+    ras[covDT$pixelID] <- covDT[[cov]]
+    return(ras)
+  })
+  names(out) <- covCols
+  ignitionCovariates <- rast(out)
+
   # now aggregate to match fitting resolution...
   if (!is.null(sim$fireSense_IgnitionFitted$fittingRes)) {
     # following changes to ignitionModel - prediction will now occur at same spatial scale,
     # location of predicted ignitions will be randomly drawn from finer scale
 
-    covNames <- setdiff(names(climateCovariates, "pixelID"))
-    covRas <- lapply(covNames, function(cov, rtm = sim$flammableRTM, covDT = ignitionCovariates) {
-      covRas <- rast(rtm)
-      covRas[covDT$pixelID] <- covDT[[cov]]
-      return(covRas)
-    })
-    covRas <- rast(covRas) # make into single raster
     igAggFactor <- sim$fireSense_IgnitionFitted$fittingRes / c(res(sim$rasterToMatch)[1])
-    covRas <- terra::aggregate(covRas, fact = igAggFactor)
-    ignitionCovariates <- as.data.table(covRas, cells = TRUE)
+    ignitionCovariates <- terra::aggregate(ignitionCovariates, fact = igAggFactor)
+    ignitionCovariates <- as.data.table(ignitionCovariates, cells = TRUE)
   }
+  setnames (ignitionCovariates, old = "cell", new = "pixelID")
 
   sim$fireSense_igAndEscapePred_Covariates <- ignitionCovariates
 
