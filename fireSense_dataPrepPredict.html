@@ -2996,7 +2996,7 @@ border-radius: 0px;
 
 <h1 class="title toc-ignore">fireSense_dataPrepPredict Manual</h1>
 <h3 class="subtitle">v.1.0.1</h3>
-<h4 class="date">Last updated: 2025-05-26</h4>
+<h4 class="date">Last updated: 2025-05-28</h4>
 
 </div>
 
@@ -3120,20 +3120,6 @@ if a pixel is forested but is absent from <code>cohortData</code>, it will be gr
 </tr>
 <tr>
 <td style="text-align:left;">
-landcoverDT
-</td>
-<td style="text-align:left;">
-data.table
-</td>
-<td style="text-align:left;">
-data.table with <code>pixelID</code> and relevant landcover classes
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
 nonForestedLCCGroups
 </td>
 <td style="text-align:left;">
@@ -3141,20 +3127,6 @@ list
 </td>
 <td style="text-align:left;">
 a named list of non-forested landcover groups, e.g. <code>list(&#39;wetland&#39; = c(19, 23, 32))</code>. This is only relevant if <code>landcoverDT</code> is not supplied
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-nonForest_timeSinceDisturbance
-</td>
-<td style="text-align:left;">
-SpatRaster
-</td>
-<td style="text-align:left;">
-time since burn for non-forested pixels
 </td>
 <td style="text-align:left;">
 NA
@@ -3258,6 +3230,20 @@ table of LandR species equivalencies
 NA
 </td>
 </tr>
+<tr>
+<td style="text-align:left;">
+standAgeMap
+</td>
+<td style="text-align:left;">
+SpatRaster
+</td>
+<td style="text-align:left;">
+stand age map in study area
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
 </tbody>
 </table>
 <p>Summary of user-visible parameters (Table <a href="#tab:moduleParams-fireSense-dataPrepPredict">3</a>)</p>
@@ -3325,7 +3311,7 @@ numeric
 2022
 </td>
 <td style="text-align:left;">
-Used to override the default ‘sourceURL’ of NTEMS data
+Used to override the default ‘sourceURL’ of NTEMS data for objects when not supplied
 </td>
 </tr>
 <tr>
@@ -3385,7 +3371,7 @@ numeric
 1
 </td>
 <td style="text-align:left;">
-Minimum proportion of flammable old pixel needed to define a new pixel as flammable when upscaling the default flammable maps<code>. &lt;/td&gt;   &lt;/tr&gt;   &lt;tr&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; fuelClassCol &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; character &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; FuelClass &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; NA &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; NA &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; the column in sppEquiv that defines unique fuel classes for ignition &lt;/td&gt;   &lt;/tr&gt;   &lt;tr&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; nonflammableLCC &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; numeric &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; 20, 31, .... &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; NA &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; NA &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; used to create flammableRTM if unsupplied. The non-flammable LCC in rstLCC layers - which default to water, snow/ice, rock, and barren land in NTEMS LCC &lt;/td&gt;   &lt;/tr&gt;   &lt;tr&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; nonForestCanBeYoungAge &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; logical &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; TRUE &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; NA &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; NA &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; update non-forest when burned, to become youngAge &lt;/td&gt;   &lt;/tr&gt;   &lt;tr&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; sppEquivCol &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; character &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; LandR &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; NA &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; NA &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; column name in</code>sppEquiv<code>object that defines unique species in</code>cohortData`
+Minimum proportion of flammable old pixel needed to define a new pixel as flammable when upscaling the default flammable maps<code>. &lt;/td&gt;   &lt;/tr&gt;   &lt;tr&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; fuelClassCol &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; character &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; FuelClass &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; NA &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; NA &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; the column in sppEquiv that defines unique fuel classes for ignition &lt;/td&gt;   &lt;/tr&gt;   &lt;tr&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; nonflammableLCC &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; numeric &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; 0, 20, 3.... &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; NA &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; NA &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; used to create flammableRTM if unsupplied. The non-flammable LCC in rstLCC layers - which default to water, snow/ice, rock, and barren land in NTEMS LCC &lt;/td&gt;   &lt;/tr&gt;   &lt;tr&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; nonForestCanBeYoungAge &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; logical &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; TRUE &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; NA &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; NA &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; update non-forest when burned, to become youngAge &lt;/td&gt;   &lt;/tr&gt;   &lt;tr&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; sppEquivCol &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; character &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; LandR &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; NA &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; NA &lt;/td&gt;    &lt;td style=&quot;text-align:left;&quot;&gt; column name in</code>sppEquiv<code>object that defines unique species in</code>cohortData`
 </td>
 </tr>
 <tr>
@@ -3598,6 +3584,17 @@ data.table
 </td>
 <td style="text-align:left;">
 data.table of covariates for spread prediction, with pixelID column corresponding to flammableRTM pixel index
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+flammableRTM
+</td>
+<td style="text-align:left;">
+SpatRaster
+</td>
+<td style="text-align:left;">
+binary raster of flammable landcover for 2001
 </td>
 </tr>
 <tr>
