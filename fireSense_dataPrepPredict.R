@@ -531,6 +531,10 @@ logMinB <- function(x) {
   dPath <- asPath(inputPath(sim), 1)
   message(currentModule(sim), ": using dataPath '", dPath, "'.")
 
+  objectSyns <- list(c("standAgeMap2011", "standAgeMap"),
+                     c("rstLCC2011", "rstLCC"))
+  sim <- objectSynonyms(sim, objectSyns)
+
   if (!suppliedElsewhere("climateVariablesForFire", sim)) {
     sim$climateVariablesForFire <- list(
       spread = "MDC",
