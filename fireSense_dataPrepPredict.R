@@ -435,8 +435,7 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
   if (!is.null(sim$fireSense_IgnitionFitted$fittingRes)) {
     # following changes to ignitionModel - prediction will now occur at same spatial scale,
     # location of predicted ignitions will be randomly drawn from finer scale
-
-    igAggFactor <- sim$fireSense_IgnitionFitted$fittingRes / c(res(sim$rasterToMatch)[1])
+    igAggFactor <- ceiling(sim$fireSense_IgnitionFitted$fittingRes / c(res(sim$rasterToMatch)[1]))
     ignitionCovariates <- terra::aggregate(ignitionCovariates, fact = igAggFactor)
     ignitionCovariates <- as.data.table(ignitionCovariates, cells = TRUE)
   }
