@@ -437,8 +437,8 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
     # location of predicted ignitions will be randomly drawn from finer scale
     igAggFactor <- ceiling(sim$fireSense_IgnitionFitted$fittingRes / c(res(sim$rasterToMatch)[1]))
     ignitionCovariates <- terra::aggregate(ignitionCovariates, fact = igAggFactor)
-    ignitionCovariates <- as.data.table(ignitionCovariates, cells = TRUE)
   }
+  ignitionCovariates <- as.data.table(ignitionCovariates, cells = TRUE)
   setnames (ignitionCovariates, old = "cell", new = "pixelID")
 
   sim$fireSense_igAndEscapePred_Covariates <- ignitionCovariates
