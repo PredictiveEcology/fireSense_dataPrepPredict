@@ -8,7 +8,7 @@ defineModule(sim, list(
     person("Alex M", "Chubaty", role = "ctb", email = "achubaty@for-cast.ca")
   ),
   childModules = character(0),
-  version = list(fireSense_dataPrepPredict = "1.0.1"),
+  version = list(fireSense_dataPrepPredict = "1.0.2"),
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = "year",
   citation = list("citation.bib"),
@@ -127,9 +127,12 @@ defineModule(sim, list(
         "This is only relevant if `landcoverDT` is not supplied"
       )
     ),
+    expectsInput("lightningMaps", "SpatRaster",
+                 sourceURL = NA,
+                 paste("A 4-layer SpatRaster of lightning: lightningDays, lightningDensity, positiveCG, positiveCGdensity")),
     expectsInput("pixelGroupMap", "SpatRaster",
-      sourceURL = NA,
-      desc = "SpatRaster that defines the pixelGroups for cohortData table"
+                 sourceURL = NA,
+                 desc = "SpatRaster that defines the pixelGroups for cohortData table"
     ),
     expectsInput("projectedClimateRasters", "list",
       sourceURL = NA,
@@ -432,12 +435,21 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
   ignitionCovariates <- rast(out)
 
   # now aggregate to match fitting resolution...
-  if (!is.null(sim$fireSense_IgnitionFitted$fittingRes)) {
+  mods <- sim$fireSense_IgnitionFitted$modelList
+  if (!is.null(mods$fittingRes)) {
     # following changes to ignitionModel - prediction will now occur at same spatial scale,
     # location of predicted ignitions will be randomly drawn from finer scale
-    igAggFactor <- ceiling(sim$fireSense_IgnitionFitted$fittingRes / c(res(sim$rasterToMatch)[1]))
+    igAggFactor <- ceiling(mods$fittingRes / c(res(sim$rasterToMatch)[1]))
     ignitionCovariates <- terra::aggregate(ignitionCovariates, fact = igAggFactor)
   }
+
+  # Lightning --> was at 1km resolution, so don't add prior to aggregation; add after
+  a <- postProcess(sim$lightningMaps[[2]], to = ignitionCovariates)
+  lightningTxt <- grep("lightn", unlist(sim$fireSense_IgnitionFitted$scaleData$dimnames), ignore.case = TRUE, value = TRUE)
+  names(a) <- lightningTxt
+
+  ignitionCovariates <- c(ignitionCovariates, lightning = a)
+
   ignitionCovariates <- as.data.table(ignitionCovariates, cells = TRUE)
   setnames (ignitionCovariates, old = "cell", new = "pixelID")
 
@@ -487,6 +499,13 @@ prepare_SpreadPredict <- function(sim) {
   spreadCovariates[rowcheck == 0, eval(sim$missingLCCgroup) := 1]
   set(spreadCovariates, NULL, "rowcheck", NULL)
 
+  # Making exclusive has to be prior to logMinB, or else the 0 biomass become -0.59 or so
+  #   --> they need to stay at the minimum of 3.605
+  exclusiveCols <- c(fcs, names(sim$landcoverDT))
+  exclusiveCols <- setdiff(exclusiveCols, "pixelID")
+  spreadCovariates <- makeMutuallyExclusive(dt = spreadCovariates,
+                                      mutuallyExclusive = list("youngAge" = exclusiveCols))
+
   spreadCovariates <- spreadCovariates[, eval(fcs) := lapply(.SD, FUN = logMinB), .SDcols = fcs]
 
 
@@ -499,8 +518,8 @@ prepare_SpreadPredict <- function(sim) {
     spreadCovariates[, c("YA_NF", "isNonForest") := NULL]
   }
 
-  exclusiveCols <- c(fcs, names(sim$landcoverDT))
-  exclusiveCols <- setdiff(exclusiveCols, "pixelID")
+  # exclusiveCols <- c(fcs, names(sim$landcoverDT))
+  # exclusiveCols <- setdiff(exclusiveCols, "pixelID")
 
   # TODO: this chunk is untested 18/12/2024
   climateCovariates <- rast(spreadClimate) |> as.data.frame(cells = TRUE)
@@ -509,22 +528,15 @@ prepare_SpreadPredict <- function(sim) {
   setnames(climateCovariates, new = c("pixelID", names(spreadClimate)))
   spreadCovariates <- climateCovariates[spreadCovariates, on = c("pixelID")]
 
-  spreadData <- makeMutuallyExclusive(dt = spreadCovariates, mutuallyExclusive = list("youngAge" = exclusiveCols))
+  # spreadCovariates <- makeMutuallyExclusive(dt = spreadCovariates,
+  #                                     mutuallyExclusive = list("youngAge" = exclusiveCols))
 
-  setcolorder(spreadData, neworder = c("pixelID", names(spreadClimate), "youngAge"))
-  sim$fireSense_SpreadCovariates <- spreadData
+  setcolorder(spreadCovariates, neworder = c("pixelID", names(spreadClimate), "youngAge"))
+  sim$fireSense_SpreadCovariates <- spreadCovariates
 
   return(invisible(sim))
 }
 
-# TODO: put in fireSenseUtils? use is not identical to dataPrepFit
-# to lessen the leverage of zeroes where there is no biomass
-# change the zeroes to one log below the minimum in the data (in this case 100 g/m2)
-logMinB <- function(x) {
-  minimumB <- exp(log(100) - 1)
-  x[x < minimumB] <- minimumB
-  x <- log(x)
-}
 
 .inputObjects <- function(sim) {
   cacheTags <- c(currentModule(sim), "otherFunctions:.inputObjects")
