@@ -372,6 +372,9 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
   ## get climate
   ignitionClimate <- sim$currentClimateRasters[sim$climateVariablesForFire$ignition]
 
+  # Coming out of the CacheGeo, this is unreliably a data.frame instead of a data.table
+  if (!data.table::is.data.table(sim$sppEquiv)) data.table::setDT(sim$sppEquiv)
+
   ## get fuel classes
   # if ignition and spread fuel classes are the same, this should use Mod
   # to avoid doing it twice (in spreadFit, assuming people run both events)
