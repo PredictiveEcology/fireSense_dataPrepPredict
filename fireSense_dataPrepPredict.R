@@ -546,9 +546,9 @@ prepare_SpreadPredict <- function(sim) {
   dPath <- asPath(inputPath(sim), 1)
   message(currentModule(sim), ": using dataPath '", dPath, "'.")
 
-  objectSyns <- list(c("standAgeMap2011", "standAgeMap"),
-                     c("rstLCC2011", "rstLCC"))
-  sim <- objectSynonyms(sim, objectSyns)
+  # objectSyns <- list(c("standAgeMap", "standAgeMap2011"),
+  #                    c("rstLCC", "rstLCC2011"))
+  # sim <- objectSynonyms(sim, objectSyns)
 
   if (!suppliedElsewhere("climateVariablesForFire", sim)) {
     sim$climateVariablesForFire <- list(
@@ -557,33 +557,42 @@ prepare_SpreadPredict <- function(sim) {
     )
   }
 
-  if (!suppliedElsewhere("rstLCC", sim)) {
-    rstLCC <- Cache(makeFireSenseLCC,
-      neededYear = P(sim)$dataYear,
-      writeTo = .suffix(
-        "rstLCC.tif",
-        paste0(P(sim)$dataYear, "_", P(sim)$.studyAreaName)
-      ),
-      destinationPath = inputPath(sim),
-      studyArea = sim$studyArea,
-      rasterToMatch = sim$rasterToMatch,
-      overwrite=  TRUE,
-      nonflammableLCC = P(sim)$nonflammableLCC,
-      flammabilityThreshold = P(sim)$flammabilityThreshold,
-      userTags = c("makeFireSenseLCC", "predict")
-    )
-    sim$rstLCC <- rstLCC$lcc
-    sim$propFlammable <- rstLCC$flammableProp
-  }
+  # if (!suppliedElsewhere("rstLCC", sim)) {
+    if (suppliedElsewhere("rstLCCs", sim)) {
+      sim$rstLCC <- tail(sim$rstLCCs, 1)[[1]]
+    } else {
+      rstLCC <- Cache(makeFireSenseLCC,
+                      neededYear = P(sim)$dataYear,
+                      writeTo = .suffix(
+                        "rstLCC.tif",
+                        paste0(P(sim)$dataYear, "_", P(sim)$.studyAreaName)
+                      ),
+                      destinationPath = inputPath(sim),
+                      studyArea = sim$studyArea,
+                      rasterToMatch = sim$rasterToMatch,
+                      overwrite=  TRUE,
+                      nonflammableLCC = P(sim)$nonflammableLCC,
+                      flammabilityThreshold = P(sim)$flammabilityThreshold,
+                      userTags = c("makeFireSenseLCC", "predict")
+      )
+      sim$rstLCC <- rstLCC$lcc
+      sim$propFlammable <- rstLCC$flammableProp
+    }
 
-  if (!suppliedElsewhere("standAgeMap", sim)) {
-    sim$standAgeMap <- Cache(prepInputsStandAgeMap,
-                             rasterToMatch = sim$rasterToMatch,
-                             studyArea = sim$studyArea,
-                             destinationPath = dPath,
-                             startTime = P(sim)$dataYear,
-                             userTags = c(cacheTags, "prepInputsStandAgeMap2011"))
-  }
+  # }
+
+  # if (!suppliedElsewhere("standAgeMap", sim)) {
+    if (suppliedElsewhere("standAgeMaps", sim)) {
+      sim$standAgeMap <- tail(sim$standAgeMaps, 1)[[1]]
+    } else {
+      sim$standAgeMap <- Cache(prepInputsStandAgeMap,
+                               rasterToMatch = sim$rasterToMatch,
+                               studyArea = sim$studyArea,
+                               destinationPath = dPath,
+                               startTime = P(sim)$dataYear,
+                               userTags = c(cacheTags, "prepInputsStandAgeMap2011"))
+    }
+  # }
 
   if (!suppliedElsewhere("fireSense_IgnitionFitted")) {
     if ("fireSense_IgnitionFit" %in% P(sim)$whichModulesToPrepare) {
