@@ -568,8 +568,8 @@ prepare_SpreadPredict <- function(sim) {
           paste0(P(sim)$dataYear, "_", P(sim)$.studyAreaName)
         ),
         destinationPath = inputPath(sim),
-        studyArea = sim$studyArea,
-        rasterToMatch = sim$rasterToMatch,
+        maskTo = sim$studyArea,
+        to = sim$rasterToMatch,
         overwrite = TRUE,
         nonflammableLCC = P(sim)$nonflammableLCC,
         flammabilityThreshold = P(sim)$flammabilityThreshold
