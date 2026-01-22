@@ -561,19 +561,20 @@ prepare_SpreadPredict <- function(sim) {
     if (suppliedElsewhere("rstLCCs", sim)) {
       sim$rstLCC <- tail(sim$rstLCCs, 1)[[1]]
     } else {
-      rstLCC <- Cache(makeFireSenseLCC,
-                      neededYear = P(sim)$dataYear,
-                      writeTo = .suffix(
-                        "rstLCC.tif",
-                        paste0(P(sim)$dataYear, "_", P(sim)$.studyAreaName)
-                      ),
-                      destinationPath = inputPath(sim),
-                      studyArea = sim$studyArea,
-                      rasterToMatch = sim$rasterToMatch,
-                      overwrite=  TRUE,
-                      nonflammableLCC = P(sim)$nonflammableLCC,
-                      flammabilityThreshold = P(sim)$flammabilityThreshold,
-                      userTags = c("makeFireSenseLCC", "predict")
+      rstLCC <- makeFireSenseLCC(
+        neededYear = P(sim)$dataYear,
+        writeTo = .suffix(
+          "rstLCC.tif",
+          paste0(P(sim)$dataYear, "_", P(sim)$.studyAreaName)
+        ),
+        destinationPath = inputPath(sim),
+        maskTo = sim$studyArea,
+        to = sim$rasterToMatch,
+        overwrite = TRUE,
+        nonflammableLCC = P(sim)$nonflammableLCC,
+        flammabilityThreshold = P(sim)$flammabilityThreshold
+      ) |> Cache(
+        userTags = c("makeFireSenseLCC", "predict")
       )
       sim$rstLCC <- rstLCC$lcc
       sim$propFlammable <- rstLCC$flammableProp
@@ -582,16 +583,17 @@ prepare_SpreadPredict <- function(sim) {
   # }
 
   # if (!suppliedElsewhere("standAgeMap", sim)) {
-    if (suppliedElsewhere("standAgeMaps", sim)) {
-      sim$standAgeMap <- tail(sim$standAgeMaps, 1)[[1]]
-    } else {
-      sim$standAgeMap <- Cache(prepInputsStandAgeMap,
-                               rasterToMatch = sim$rasterToMatch,
-                               studyArea = sim$studyArea,
-                               destinationPath = dPath,
-                               startTime = P(sim)$dataYear,
-                               userTags = c(cacheTags, "prepInputsStandAgeMap2011"))
-    }
+  if (suppliedElsewhere("standAgeMaps", sim)) {
+    sim$standAgeMap <- tail(sim$standAgeMaps, 1)[[1]]
+  } else {
+    sim$standAgeMap <- prepInputsStandAgeMap(
+      rasterToMatch = sim$rasterToMatch,
+      studyArea = sim$studyArea,
+      destinationPath = dPath,
+      startTime = P(sim)$dataYear) |>
+      Cache(
+        userTags = c(cacheTags, "prepInputsStandAgeMap2011"))
+  }
   # }
 
   if (!suppliedElsewhere("fireSense_IgnitionFitted")) {
