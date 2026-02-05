@@ -2996,7 +2996,7 @@ border-radius: 0px;
 
 <h1 class="title toc-ignore">fireSense_dataPrepPredict Manual</h1>
 <h3 class="subtitle">v.1.0.2</h3>
-<h4 class="date">Last updated: 2025-11-07</h4>
+<h4 class="date">Last updated: 2026-02-05</h4>
 
 </div>
 
@@ -3070,24 +3070,10 @@ cohortData
 data.table
 </td>
 <td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
 table that defines the cohorts by pixelGroup
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-flammableRTM
-</td>
-<td style="text-align:left;">
-SpatRaster
-</td>
-<td style="text-align:left;">
-RTM without ice/rocks/urban/water. Flammable map with 0 and 1.
-</td>
-<td style="text-align:left;">
-NA
 </td>
 </tr>
 <tr>
@@ -3120,16 +3106,30 @@ if a pixel is forested but is absent from <code>cohortData</code>, it will be gr
 </tr>
 <tr>
 <td style="text-align:left;">
+flammableRTM
+</td>
+<td style="text-align:left;">
+SpatRaster
+</td>
+<td style="text-align:left;">
+Flammable landcover i.e, conditions at start(sim). Taken from last layer of rstLCCs
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
 nonForestedLCCGroups
 </td>
 <td style="text-align:left;">
 list
 </td>
 <td style="text-align:left;">
-a named list of non-forested landcover groups, e.g. <code>list(&#39;wetland&#39; = c(19, 23, 32))</code>. This is only relevant if <code>landcoverDT</code> is not supplied
+NA
 </td>
 <td style="text-align:left;">
-NA
+a named list of non-forested landcover groups, e.g. <code>list(&#39;wetland&#39; = c(19, 23, 32))</code>. This is only relevant if <code>landcoverDT</code> is not supplied
 </td>
 </tr>
 <tr>
@@ -3140,10 +3140,10 @@ lightningMaps
 SpatRaster
 </td>
 <td style="text-align:left;">
-A 4-layer SpatRaster of lightning: lightningDays, lightningDensity, positiveCG, positiveCGdensity
+NA
 </td>
 <td style="text-align:left;">
-NA
+A 4-layer SpatRaster of lightning: lightningDays, lightningDensity, positiveCG, positiveCGdensity
 </td>
 </tr>
 <tr>
@@ -3154,10 +3154,10 @@ pixelGroupMap
 SpatRaster
 </td>
 <td style="text-align:left;">
-SpatRaster that defines the pixelGroups for cohortData table
+NA
 </td>
 <td style="text-align:left;">
-NA
+SpatRaster that defines the pixelGroups for cohortData table
 </td>
 </tr>
 <tr>
@@ -3168,10 +3168,10 @@ projectedClimateRasters
 list
 </td>
 <td style="text-align:left;">
-list of projected climate variables in raster stack form named according to variable, with names of individual raster layers following the convention ‘year&lt;year&gt;’
+NA
 </td>
 <td style="text-align:left;">
-NA
+list of projected climate variables in raster stack form named according to variable, with names of individual raster layers following the convention ‘year&lt;year&gt;’
 </td>
 </tr>
 <tr>
@@ -3182,10 +3182,10 @@ propFlammable
 SpatRaster
 </td>
 <td style="text-align:left;">
-a conditional object created if rstLCC is also not supplied, a raster representing the proportion of flammable landcover in a pixel
+NA
 </td>
 <td style="text-align:left;">
-NA
+a conditional object created if rstLCC is also not supplied, a raster representing the proportion of flammable landcover in a pixel
 </td>
 </tr>
 <tr>
@@ -3196,10 +3196,10 @@ rasterToMatch
 SpatRaster
 </td>
 <td style="text-align:left;">
-template raster used only to derive <code>flammableRTM</code> if the latter is absent
+NA
 </td>
 <td style="text-align:left;">
-NA
+template raster used only to derive <code>flammableRTM</code> if the latter is absent
 </td>
 </tr>
 <tr>
@@ -3252,10 +3252,24 @@ standAgeMap
 SpatRaster
 </td>
 <td style="text-align:left;">
-stand age map in study area
+stand age map in study area; assumed to be ages at <code>start(sim)</code>
 </td>
 <td style="text-align:left;">
 NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+landcoverDT
+</td>
+<td style="text-align:left;">
+data.table
+</td>
+<td style="text-align:left;">
+<code>pixelID</code> and relevant landcover classes for flammable pixels in each layer,
+</td>
+<td style="text-align:left;">
+i.e, conditions at start(sim). Taken from last layer of landcoverDTs
 </td>
 </tr>
 </tbody>
@@ -3598,28 +3612,6 @@ data.table
 </td>
 <td style="text-align:left;">
 data.table of covariates for spread prediction, with pixelID column corresponding to flammableRTM pixel index
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-flammableRTM
-</td>
-<td style="text-align:left;">
-SpatRaster
-</td>
-<td style="text-align:left;">
-binary raster of flammable landcover for 2001
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-landcoverDT
-</td>
-<td style="text-align:left;">
-data.table
-</td>
-<td style="text-align:left;">
-data.table with <code>pixelID</code> and relevant landcover classes for flammable pixels
 </td>
 </tr>
 <tr>
