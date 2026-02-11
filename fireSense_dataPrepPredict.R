@@ -223,7 +223,7 @@ doEvent.fireSense_dataPrepPredict <- function(sim, eventTime, eventType) {
 Init <- function(sim) {
 
   objs <- c(sim$standAgeMap, sim$rstLCC)
-  browser()
+  
   if (!LandR::.compareRas(sim$rasterToMatch, objs[[1]], stopOnError = FALSE)) {
     objs <- lapply(objs, FUN = postProcess, to = sim$rasterToMatch)
   }
