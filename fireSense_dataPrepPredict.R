@@ -322,16 +322,15 @@ ageNonForest <- function(TSD, rstCurrentBurn, timeStep) {
     burnVals <- as.vector(rstCurrentBurn)
     unburned <- is.na(burnVals) | burnVals == 0
     TSDvals[!unburned] <- 0
+    rm(TSDvals, burnVals, unburned)
   }
   TSD <- setValues(TSD, TSDvals)
-  rm(TSDvals, burnVals, unburned)
   # gc()
   return(TSD)
 }
 
 prepare_IgnitionAndEscapePredict <- function(sim) {
   ## get climate
-  browser()
   ignitionClimate <- sim$currentClimateRasters[sim$climateVariablesForFire$ignition]
 
   # Coming out of the CacheGeo, this is unreliably a data.frame instead of a data.table
@@ -431,7 +430,6 @@ prepare_SpreadPredict <- function(sim) {
   ## this fits cohortData into fuel classes
   ##  if pixels are missing/absent but are able to be forested as determined by landcoverDT,
   ##  they receive 0 values - e.g. pixelGroup zero
-  
   spreadCovariates <- fireSenseUtils:::fireSenseCovariatesCreate(
     cohortData = sim$cohortData,
     pixelGroupMap = sim$pixelGroupMap,
@@ -534,9 +532,6 @@ prepare_SpreadPredict <- function(sim) {
   df[df - df[[fcs[[1]]]][1] == 0] <- NA
   fuelInSamePixelAsNonForest <- any(rowSums(!is.na(df[, ..fcs])) > 0 & 
                                       (rowSums(df[, ..nfCols]) > 0))
-  
-  
-  
   
   if (fuelInSamePixelAsNonForest)
     stop("Flammablel fuels (i.e., trees) are present in pixels that are identified as non-fore")
