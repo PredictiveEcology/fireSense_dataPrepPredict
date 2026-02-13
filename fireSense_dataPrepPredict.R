@@ -529,12 +529,13 @@ prepare_SpreadPredict <- function(sim) {
   nfCols <- setdiff(names(sim$landcoverDT), "pixelID")
   df <- sim$fireSense_SpreadCovariates
   fcs <- setdiff(colnames(df), c(nonFuelNames, nfCols))
-  df[df - df[[fcs[[1]]]][1] == 0] <- NA
+  df[df - min(df[[fcs[[1]]]], na.rm = TRUE) == 0] <- NA
+  # df[df - df[[fcs[[1]]]][1] == 0] <- NA
   fuelInSamePixelAsNonForest <- any(rowSums(!is.na(df[, ..fcs])) > 0 & 
                                       (rowSums(df[, ..nfCols]) > 0))
   
   if (fuelInSamePixelAsNonForest)
-    stop("Flammablel fuels (i.e., trees) are present in pixels that are identified as non-fore")
+    stop("Flammable fuels (i.e., trees) are present in pixels that are identified as non-fore")
   
   return(invisible(sim))
 }
