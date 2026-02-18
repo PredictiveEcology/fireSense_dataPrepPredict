@@ -89,14 +89,16 @@ defineModule(sim, list(
   inputObjects = bindrows(
     expectsInput("climateVariablesForFire", "list",
       sourceURL = NA,
-      paste(
-        "A list detailing which climate variables in `sim$projectedClimateRasters`",
-        "to use for which fire processes (ignition and spread). If the list is length one,",
-        "both processes will use the same variables. The default is to use 'MDC'."
-      )
-    ),
-    expectsInput("cohortData", "data.table", NA, 
-        "table that defines the cohorts by pixelGroup"),
+                 paste(
+                   "A list detailing which climate variables in `sim$projectedClimateRasters`",
+                   "to use for which fire processes (ignition and spread). If the list is length one,",
+                   "both processes will use the same variables. The default is to use 'MDC'.")),
+    expectsInput("climateYear", "character",
+                 paste("optional character vector giving year (e.g. 'year2009') for preparing",
+                       "the `currentClimateRasters` object. If unsupplied, `time(sim)` is used.",
+                       "see PredictiveEcology/climateYear")),
+    expectsInput("cohortData", "data.table", NA,
+                 "table that defines the cohorts by pixelGroup"),
     expectsInput("fireSense_IgnitionFitted", "fireSense_IgnitionFit", NA,
         "object containing slot `fittingRes` - the spatial resolution at which ignition will be predicted"),
     expectsInput("missingLCCgroup", "character", NA, paste(
@@ -293,7 +295,15 @@ getCurrentClimate <- function(sim) {
     x = names(sim$projectedClimateRasters[[1]]),
     replacement = ""
   ))
-  if (time(sim) > max(availableYears)) {
+
+
+  if (is.null(sim$climateYear)) {
+    currentYear <- time(sim)
+  } else {
+    currentYear <- sim$climateYear
+  }
+
+  if (currentYear > max(availableYears)) {
     cutoff <- quantile(availableYears, probs = 0.9)
     time <- sample(availableYears[availableYears >= cutoff], size = 1)
     message(paste0("re-using projected climate layers from ", time))
