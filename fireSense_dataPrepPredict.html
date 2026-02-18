@@ -2996,7 +2996,7 @@ border-radius: 0px;
 
 <h1 class="title toc-ignore">fireSense_dataPrepPredict Manual</h1>
 <h3 class="subtitle">v.1.0.2</h3>
-<h4 class="date">Last updated: 2026-02-13</h4>
+<h4 class="date">Last updated: 2026-02-18</h4>
 
 </div>
 
@@ -3057,6 +3057,20 @@ list
 </td>
 <td style="text-align:left;">
 A list detailing which climate variables in <code>sim$projectedClimateRasters</code> to use for which fire processes (ignition and spread). If the list is length one, both processes will use the same variables. The default is to use ‘MDC’.
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+climateYear
+</td>
+<td style="text-align:left;">
+character
+</td>
+<td style="text-align:left;">
+optional character vector giving year (e.g. ‘year2009’) for preparing the <code>currentClimateRasters</code> object. If unsupplied, <code>time(sim)</code> is used. see PredictiveEcology/climateYear
 </td>
 <td style="text-align:left;">
 NA
