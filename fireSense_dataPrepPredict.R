@@ -123,7 +123,7 @@ defineModule(sim, list(
     expectsInput("rasterToMatch", "SpatRaster", NA, 
         "template raster used only to derive `flammableRTM` if the latter is absent"),
     expectsInput("rstCurrentBurn", "SpatRaster", "binary raster with 1 representing annual burn"),
-    expectsInput("rstLCC", "SpatRaster", "a landcover raster - only used if `landcoverDT` is not supplied"),
+    expectsInput("rstLCC_RTM", "SpatRaster", "a landcover raster - only used if `landcoverDT` is not supplied"),
     expectsInput("sppEquiv", "data.table", "table of LandR species equivalencies"),
     # expectsInput("standAgeMaps", "list", sourceURL = NA,
     #              "list of length 2 of maps of stand age in dataYear[[1]] and dataYear[[2]]",
@@ -224,16 +224,24 @@ doEvent.fireSense_dataPrepPredict <- function(sim, eventTime, eventType) {
 ### template initialization
 Init <- function(sim) {
 
-  objs <- c(sim$standAgeMap, sim$rstLCC)
+  standAgeMap <- if (!LandR::.compareRas(sim$rasterToMatch, sim$standAgeMap, stopOnError = FALSE)) {
+    postProcess(sim$standAgeMap, to = sim$rasterToMatch)
+  } else {
+    sim$standAgeMap
+  }
   
-  if (!LandR::.compareRas(sim$rasterToMatch, objs[[1]], stopOnError = FALSE)) {
-    objs <- lapply(objs, FUN = postProcess, to = sim$rasterToMatch)
+  rstLCC <- if (!LandR::.compareRas(sim$rasterToMatch, sim$rstLCC_RTM, stopOnError = FALSE)) {
+    postProcess(sim$rstLCC_RTM, to = sim$rasterToMatch)
+  } else {
+    sim$rstLCC_RTM
   }
-  if (!isInt(objs[[1]]) | !isInt(objs[[2]])) {
-    objs <- lapply(objs, LandR::asInt)
-  }
-  standAgeMap <- objs[[1]]
-  rstLCC <- objs[[2]]
+  
+  # objs <- c(sim$standAgeMap, sim$rstLCC_RTM)
+  # if (!isInt(objs[[1]]) | !isInt(objs[[2]])) {
+  #   objs <- lapply(objs, LandR::asInt)
+  # }
+  # standAgeMap <- objs[[1]]
+  # rstLCC <- objs[[2]]
   
   # sim$flammableRTM <- defineFlammable(rstLCC,
   #                                     nonFlammClasses = P(sim)$nonflammableLCC,
@@ -569,7 +577,7 @@ prepare_SpreadPredict <- function(sim) {
 
   # if (!suppliedElsewhere("rstLCC", sim)) {
     if (suppliedElsewhere("rstLCCs", sim)) {
-      sim$rstLCC <- tail(sim$rstLCCs, 1)[[1]]
+      sim$rstLCC_RTM <- tail(sim$rstLCCs, 1)[[1]]
     } else {
       rstLCC <- Cache(makeFireSenseLCC,
                       neededYear = P(sim)$dataYear,
@@ -585,7 +593,7 @@ prepare_SpreadPredict <- function(sim) {
                       flammabilityThreshold = P(sim)$flammabilityThreshold,
                       userTags = c("makeFireSenseLCC", "predict")
       )
-      sim$rstLCC <- rstLCC$lcc
+      sim$rstLCC_RTM <- rstLCC$lcc
       sim$propFlammable <- rstLCC$flammableProp
     }
 
@@ -619,7 +627,7 @@ prepare_SpreadPredict <- function(sim) {
   
   if (!suppliedElsewhere("landcoverDT", sim)) {
     sim$landcoverDT <- makeLandcoverDT(
-      rstLCC = sim$rstLCC,
+      rstLCC = sim$rstLCC_RTM,
       flammableRTM = sim$flammableRTM,
       forestedLCC = P(sim)$forestedLCC,
       nonForestedLCCGroups = sim$nonForestedLCCGroups
