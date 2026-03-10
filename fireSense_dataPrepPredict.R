@@ -97,6 +97,9 @@ defineModule(sim, list(
                  paste("optional character vector giving year (e.g. 'year2009') for preparing",
                        "the `currentClimateRasters` object. If unsupplied, `time(sim)` is used.",
                        "see PredictiveEcology/climateYear")),
+    expectsInput("currentClimateRasters", "SpatRaster", NA,
+                 "SpatRaster of climate layers at current time of sim; this will be generated ",
+                 "in this module (if this is absent) from projectedClimateRasters"),
     expectsInput("cohortData", "data.table", NA,
                  "table that defines the cohorts by pixelGroup"),
     expectsInput("fireSense_IgnitionFitted", "fireSense_IgnitionFit", NA,
@@ -116,7 +119,8 @@ defineModule(sim, list(
     expectsInput("projectedClimateRasters", "list", NA, paste(
         "list of projected climate variables in raster stack form",
         "named according to variable, with names of individual raster layers",
-        "following the convention 'year<year>'")),
+        "following the convention 'year<year>'; this will only be used if `currentClimateRasters` is ",
+        "not supplied")),
     expectsInput("propFlammable", "SpatRaster", NA, paste(
         "a conditional object created if rstLCC is also not supplied, ",
         "a raster representing the proportion of flammable landcover in a pixel")),
@@ -192,7 +196,8 @@ doEvent.fireSense_dataPrepPredict <- function(sim, eventTime, eventType) {
     },
     getClimateRasters = {
       sim <- getCurrentClimate(sim)
-      sim$currentClimateRasters <- lapply(sim$currentClimateRasters, terra::unwrap)
+      browser()
+      # sim$currentClimateRasters <- lapply(sim$currentClimateRasters, terra::unwrap)
       sim <- scheduleEvent(
         sim, time(sim) + P(sim)$fireTimeStep,
         "fireSense_dataPrepPredict", "getClimateRasters"
@@ -286,10 +291,6 @@ Init <- function(sim) {
     )
   }
 
-  if (!compareGeom(sim$pixelGroupMap, sim$projectedClimateRasters[[1]], stopOnError = FALSE)) {
-    stop("mismatch in resolution detected - please review the resolution of sim$projectedClimateRasters")
-  }
-
   return(invisible(sim))
 }
 
@@ -298,38 +299,51 @@ Init <- function(sim) {
 getCurrentClimate <- function(sim) {
   ## this function has been rewritten due to an undiagnosed bug involving
   ##   digest of a file-backed SpatRaster, and restartSpades()
-  availableYears <- as.numeric(gsub(
-    pattern = "year",
-    x = names(sim$projectedClimateRasters[[1]]),
-    replacement = ""
-  ))
-
-
-  if (is.null(sim$climateYear)) {
-    currentYear <- time(sim)
-  } else {
-    currentYear <- sim$climateYear
-  }
-
-  if (currentYear > max(availableYears)) {
-    cutoff <- quantile(availableYears, probs = 0.9)
-    time <- sample(availableYears[availableYears >= cutoff], size = 1)
-    message(paste0("re-using projected climate layers from ", time))
-  }
-  ## this will work with a list of raster stacks
-  thisYearsClimate <- lapply(sim$projectedClimateRasters,
-    FUN = function(x, rtm = sim$rasterToMatch, currentYear = time(sim)) {
-      ras <- x[[paste0("year", currentYear)]]
-      if (!compareGeom(ras, rtm, stopOnError = FALSE)) {
-        message("reprojecting fireSense climate layers")
-        ras <- postProcess(ras, rasterToMatch = rtm)
-      }
-      return(ras)
+  browser()
+  if (is.null(sim$currentClimateRasters)) {
+    
+    sim$currentClimateRasters <- sim$projectedClimateRasters[[1]]
+    if (!compareGeom(sim$pixelGroupMap, sim$currentClimateRasters, stopOnError = FALSE)) {
+      stop("mismatch in resolution detected - please review the resolution of sim$projectedClimateRasters")
     }
-  )
-
-  sim$currentClimateRasters <- lapply(thisYearsClimate, terra::wrap)
-
+    availableYears <- as.numeric(gsub(
+      pattern = "year",
+      x = names(sim$projectedClimateRasters[[1]]),
+      replacement = ""
+    ))
+    
+    
+    if (is.null(sim$climateYear)) {
+      currentYear <- time(sim)
+    } else {
+      currentYear <- sim$climateYear
+    }
+    
+    if (currentYear > max(availableYears)) {
+      cutoff <- quantile(availableYears, probs = 0.9)
+      time <- sample(availableYears[availableYears >= cutoff], size = 1)
+      message(paste0("re-using projected climate layers from ", time))
+    }
+    ## this will work with a list of raster stacks
+    thisYearsClimate <- lapply(sim$projectedClimateRasters,
+                               FUN = function(x, rtm = sim$rasterToMatch, currentYear = time(sim)) {
+                                 ras <- x[[paste0("year", currentYear)]]
+                                 if (!compareGeom(ras, rtm, stopOnError = FALSE)) {
+                                   message("reprojecting fireSense climate layers")
+                                   ras <- postProcess(ras, rasterToMatch = rtm)
+                                 }
+                                 return(ras)
+                               }
+    )
+    
+    sim$currentClimateRasters <- terra::rast(thisYearsClimate)#lapply(thisYearsClimate, terra::wrap)
+    
+  } 
+  if (!compareGeom(sim$pixelGroupMap, sim$currentClimateRasters, stopOnError = FALSE)) {
+    stop("mismatch in resolution detected - please review the resolution of sim$projectedClimateRasters")
+  }
+  
+  
   return(sim)
 }
 
@@ -349,6 +363,7 @@ ageNonForest <- function(TSD, rstCurrentBurn, timeStep) {
 
 prepare_IgnitionAndEscapePredict <- function(sim) {
   ## get climate
+  browser()
   ignitionClimate <- sim$currentClimateRasters[sim$climateVariablesForFire$ignition]
 
   # Coming out of the CacheGeo, this is unreliably a data.frame instead of a data.table
@@ -442,6 +457,7 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
 }
 
 prepare_SpreadPredict <- function(sim) {
+  browser()
   spreadClimate <- sim$currentClimateRasters[sim$climateVariablesForFire$spread]
 
   ## much of this chunk can now be combined into a function, called for both ig and spread prep
