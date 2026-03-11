@@ -353,7 +353,8 @@ ageNonForest <- function(TSD, rstCurrentBurn, timeStep) {
     burnVals <- as.vector(rstCurrentBurn)
     unburned <- is.na(burnVals) | burnVals == 0
     TSDvals[!unburned] <- 0
-    rm(TSDvals, burnVals, unburned)
+    # rm(TSDvals, burnVals, unburned)
+    rm(burnVals, unburned)
   }
   TSD <- setValues(TSD, TSDvals)
   # gc()
