@@ -139,8 +139,9 @@ defineModule(sim, list(
     
   ),
   outputObjects = bindrows(
-    createsOutput("currentClimateRasters", "list", 
-        "list of project climate rasters at current time of sim"),
+    createsOutput("currentClimateRasters", "SpatRaster", 
+                  "SpatRaster of climate layers at current time of sim; this will be generated ",
+                  "in this module (if this is absent) from projectedClimateRasters"),
     createsOutput("fireSense_igAndEscapePred_Covariates", "data.table", paste(
         "data.table of covariates for ignition prediction, with pixelID column",
         "corresponding to flammableRTM pixel index")),
@@ -196,7 +197,6 @@ doEvent.fireSense_dataPrepPredict <- function(sim, eventTime, eventType) {
     },
     getClimateRasters = {
       sim <- getCurrentClimate(sim)
-      browser()
       # sim$currentClimateRasters <- lapply(sim$currentClimateRasters, terra::unwrap)
       sim <- scheduleEvent(
         sim, time(sim) + P(sim)$fireTimeStep,
@@ -299,7 +299,6 @@ Init <- function(sim) {
 getCurrentClimate <- function(sim) {
   ## this function has been rewritten due to an undiagnosed bug involving
   ##   digest of a file-backed SpatRaster, and restartSpades()
-  browser()
   if (is.null(sim$currentClimateRasters)) {
     
     sim$currentClimateRasters <- sim$projectedClimateRasters[[1]]
@@ -363,8 +362,7 @@ ageNonForest <- function(TSD, rstCurrentBurn, timeStep) {
 
 prepare_IgnitionAndEscapePredict <- function(sim) {
   ## get climate
-  browser()
-  ignitionClimate <- sim$currentClimateRasters[sim$climateVariablesForFire$ignition]
+  ignitionClimate <- sim$currentClimateRasters[[sim$climateVariablesForFire$ignition]]
 
   # Coming out of the CacheGeo, this is unreliably a data.frame instead of a data.table
   if (!data.table::is.data.table(sim$sppEquiv)) data.table::setDT(sim$sppEquiv)
@@ -457,8 +455,7 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
 }
 
 prepare_SpreadPredict <- function(sim) {
-  browser()
-  spreadClimate <- sim$currentClimateRasters[sim$climateVariablesForFire$spread]
+  spreadClimate <- sim$currentClimateRasters[[sim$climateVariablesForFire$spread]]
 
   ## much of this chunk can now be combined into a function, called for both ig and spread prep
   ## this fits cohortData into fuel classes
