@@ -370,85 +370,124 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
   ## get fuel classes
   # if ignition and spread fuel classes are the same, this should use Mod
   # to avoid doing it twice (in spreadFit, assuming people run both events)
-  fuelClasses <- cohortsToFuelClasses(
+  fuelCovsCoarse <- prepare_FuelCovsCoarse(
     cohortData = sim$cohortData,
+    pixelGroupMap = sim$pixelGroupMap,
+    flammableRTM = sim$flammableRTM,
+    landcoverDT = sim$landcoverDT,
+    nonForest_timeSinceDisturbance = sim$nonForest_timeSinceDisturbance,
     sppEquiv = sim$sppEquiv,
     sppEquivCol = P(sim)$sppEquivCol,
-    pixelGroupMap = sim$pixelGroupMap,
-    landcoverDT = sim$landcoverDT,
-    flammableRTM = sim$flammableRTM,
     fuelClassCol = P(sim)$fuelClassCol,
-    cutoffForYoungAge = P(sim)$cutoffForYoungAge
+    cutoffForYoungAge = P(sim)$cutoffForYoungAge,
+    missingLCCgroup = sim$missingLCCgroup,
+    nonForestedLCCGroups = sim$nonForestedLCCGroups,
+    nonForestCanBeYoungAge = P(sim)$nonForestCanBeYoungAge,
+    studyAreaName = P(sim)$.studyAreaName,
+    rasTemplate = sim$flammableRTM, fact = Par$igAggFactor
   )
 
-  fcs <- setdiff(names(fuelClasses), "youngAge")
-  fuelClasses <- as.data.table(as.data.frame(fuelClasses, cells = TRUE))
-  setnames(fuelClasses, old = "cell", new = "pixelID")
-
-  # make sure join is only landcoverDT
-  ignitionCovariates <- fuelClasses[sim$landcoverDT, on = c("pixelID")]
-
-  ignitionCovariates[, rowcheck := rowSums(.SD), .SD = setdiff(names(ignitionCovariates), "pixelID")]
-  ## if all rows are 0, it must be a forested LCC absent from cohortData
-  ignitionCovariates[rowcheck == 0, eval(sim$missingLCCgroup) := 1]
-  set(ignitionCovariates, NULL, "rowcheck", NULL)
-
-  # this must happen after the missingLC are evaluated
-  ignitionCovariates <- ignitionCovariates[, eval(fcs) := lapply(.SD, FUN = logMinB), .SDcols = fcs]
-
-  if (P(sim)$nonForestCanBeYoungAge) {
-    ignitionCovariates[, YA_NF := as.vector(sim$nonForest_timeSinceDisturbance)[ignitionCovariates$pixelID] <=
-                         P(sim)$cutoffForYoungAge]
-    ignitionCovariates[YA_NF == TRUE, youngAge := 1]
-    ignitionCovariates[, YA_NF := NULL]
+  ignitionClimateCoarse <- prepare_ignitionClimate(
+    ignitionClimateList = as.list(ignitionClimate) |> setNames(names(ignitionClimate)), 
+    fact = P(sim)$igAggFactor,
+    useCache = FALSE)
+  
+  yrLab <- paste0("year", time(sim))
+  ignitionClimateCoarseList <- Map(r = ignitionClimateCoarse, function(r) r |> setNames(yrLab))
+  sim$fireSense_igAndEscapePred_Covariates <- 
+    mergePreparedCovs(years = list(yrLab) |> setNames(time(sim)), 
+                      list(fuelCovsCoarse) |> setNames(yrLab), 
+                      ignitionFirePoints = NULL, 
+                      sim$nonForestedLCCGroups,
+                      ignitionClimateCoarseList, 
+                      sim$lightningMaps["lightningDays"], 
+                      digest = append(NULL, list(P(sim)$igAggFactor)),
+                      useCache = FALSE)
+  
+  set(sim$fireSense_igAndEscapePred_Covariates, NULL, "ignitions", NULL)
+  # sim$lightningMaps <- prepare_LightningData(sim$rasterToMatch, P(sim)$igAggFactor, 
+  #                                            dPath = inputPath(sim))
+  # fuelClasses <- cohortsToFuelClasses(
+  #   cohortData = sim$cohortData,
+  #   sppEquiv = sim$sppEquiv,
+  #   sppEquivCol = P(sim)$sppEquivCol,
+  #   pixelGroupMap = sim$pixelGroupMap,
+  #   landcoverDT = sim$landcoverDT,
+  #   flammableRTM = sim$flammableRTM,
+  #   fuelClassCol = P(sim)$fuelClassCol,
+  #   cutoffForYoungAge = P(sim)$cutoffForYoungAge
+  # )
+  
+  if (FALSE) {
+    fcs <- setdiff(names(fuelClasses), "youngAge")
+    fuelClasses <- as.data.table(as.data.frame(fuelClasses, cells = TRUE))
+    setnames(fuelClasses, old = "cell", new = "pixelID")
+    
+    # make sure join is only landcoverDT
+    ignitionCovariates <- fuelClasses[sim$landcoverDT, on = c("pixelID")]
+    
+    ignitionCovariates[, rowcheck := rowSums(.SD), .SDcols = setdiff(names(ignitionCovariates), "pixelID")]
+    ## if all rows are 0, it must be a forested LCC absent from cohortData
+    ignitionCovariates[rowcheck == 0, eval(sim$missingLCCgroup) := 1]
+    set(ignitionCovariates, NULL, "rowcheck", NULL)
+    
+    # this must happen after the missingLC are evaluated
+    ignitionCovariates <- ignitionCovariates[, eval(fcs) := lapply(.SD, FUN = logMinB), .SDcols = fcs]
+    
+    if (P(sim)$nonForestCanBeYoungAge) {
+      ignitionCovariates[, YA_NF := as.vector(sim$nonForest_timeSinceDisturbance)[ignitionCovariates$pixelID] <=
+                           P(sim)$cutoffForYoungAge]
+      ignitionCovariates[YA_NF == TRUE, youngAge := 1]
+      ignitionCovariates[, YA_NF := NULL]
+    }
+    
+    exclusiveCols <- c(fcs, names(sim$landcoverDT))
+    exclusiveCols <- setdiff(exclusiveCols, c("pixelID", "youngAge"))
+    # TODO: I believe this triggers a warning
+    ignitionCovariates <- makeMutuallyExclusive(
+      dt = ignitionCovariates,
+      mutuallyExclusiveCols = list("youngAge" = exclusiveCols)
+    )
+    
+    # climateCovariates <- rast(ignitionClimate) # it was a list
+    
+    climateCovariates <- na.omit(as.data.table(ignitionClimate, cells = TRUE))
+    setnames(climateCovariates, new = c("pixelID", names(ignitionClimate)))
+    ignitionCovariates <- climateCovariates[ignitionCovariates, on = c("pixelID")]
+    
+    #put back into raster for aggregate
+    #TODO: this should be put in fireSenseUtils
+    covCols <- setdiff(names(ignitionCovariates), "pixelID")
+    rasObj <- rast(sim$flammableRTM)
+    rasObj[!is.na(sim$flammableRTM[])] <- 0 #make sure NA is 0 for mean during aggregate
+    out <- lapply(covCols, FUN = function(cov, ras = rasObj, covDT = ignitionCovariates) {
+      ras[covDT$pixelID] <- covDT[[cov]]
+      return(ras)
+    })
+    names(out) <- covCols
+    ignitionCovariates <- rast(out)
+    
+    # now aggregate to match fitting resolution...
+    mods <- sim$fireSense_IgnitionFitted$modelList
+    if (!is.null(mods$fittingRes)) {
+      # following changes to ignitionModel - prediction will now occur at same spatial scale,
+      # location of predicted ignitions will be randomly drawn from finer scale
+      igAggFactor <- ceiling(mods$fittingRes / c(res(sim$rasterToMatch)[1]))
+      ignitionCovariates <- terra::aggregate(ignitionCovariates, fact = igAggFactor)
+    }
+    
+    # Lightning --> was at 1km resolution, so don't add prior to aggregation; add after
+    a <- postProcess(sim$lightningMaps[[2]], to = ignitionCovariates)
+    lightningTxt <- grep("lightn", unlist(sim$fireSense_IgnitionFitted$scaleData$dimnames), ignore.case = TRUE, value = TRUE)
+    names(a) <- lightningTxt
+    
+    ignitionCovariates <- c(ignitionCovariates, lightning = a)
+    
+    ignitionCovariates <- as.data.table(ignitionCovariates, cells = TRUE)
+    setnames (ignitionCovariates, old = "cell", new = "pixelID")
+    
   }
-
-  exclusiveCols <- c(fcs, names(sim$landcoverDT))
-  exclusiveCols <- setdiff(exclusiveCols, c("pixelID", "youngAge"))
-  # TODO: I believe this triggers a warning
-  ignitionCovariates <- makeMutuallyExclusive(
-    dt = ignitionCovariates,
-    mutuallyExclusive = list("youngAge" = exclusiveCols)
-  )
-
-  climateCovariates <- rast(ignitionClimate)
-
-  climateCovariates <- na.omit(as.data.table(climateCovariates, cells = TRUE))
-  setnames(climateCovariates, new = c("pixelID", names(ignitionClimate)))
-  ignitionCovariates <- climateCovariates[ignitionCovariates, on = c("pixelID")]
-
-  #put back into raster for aggregate
-  #TODO: this should be put in fireSenseUtils
-  covCols <- setdiff(names(ignitionCovariates), "pixelID")
-  rasObj <- rast(sim$flammableRTM)
-  rasObj[!is.na(sim$flammableRTM[])] <- 0 #make sure NA is 0 for mean during aggregate
-  out <- lapply(covCols, FUN = function(cov, ras = rasObj, covDT = ignitionCovariates) {
-    ras[covDT$pixelID] <- covDT[[cov]]
-    return(ras)
-  })
-  names(out) <- covCols
-  ignitionCovariates <- rast(out)
-
-  # now aggregate to match fitting resolution...
-  mods <- sim$fireSense_IgnitionFitted$modelList
-  if (!is.null(mods$fittingRes)) {
-    # following changes to ignitionModel - prediction will now occur at same spatial scale,
-    # location of predicted ignitions will be randomly drawn from finer scale
-    igAggFactor <- ceiling(mods$fittingRes / c(res(sim$rasterToMatch)[1]))
-    ignitionCovariates <- terra::aggregate(ignitionCovariates, fact = igAggFactor)
-  }
-
-  # Lightning --> was at 1km resolution, so don't add prior to aggregation; add after
-  a <- postProcess(sim$lightningMaps[[2]], to = ignitionCovariates)
-  lightningTxt <- grep("lightn", unlist(sim$fireSense_IgnitionFitted$scaleData$dimnames), ignore.case = TRUE, value = TRUE)
-  names(a) <- lightningTxt
-
-  ignitionCovariates <- c(ignitionCovariates, lightning = a)
-
-  ignitionCovariates <- as.data.table(ignitionCovariates, cells = TRUE)
-  setnames (ignitionCovariates, old = "cell", new = "pixelID")
-
-  sim$fireSense_igAndEscapePred_Covariates <- ignitionCovariates
+#   sim$fireSense_igAndEscapePred_Covariates <- ignitionCovariates
 
   # gc()
   return(invisible(sim))
@@ -512,7 +551,7 @@ prepare_SpreadPredict <- function(sim) {
   # 
   # ## Nov 2023 - there should not be NA values - previously this used nafill
   # ## if they return - use x <- as.data.table(nafill(vegData), 0) and setnames(x, names(vegData))
-  # spreadCovariates[, rowcheck := rowSums(.SD), .SD = setdiff(names(spreadCovariates), "pixelID")]
+  # spreadCovariates[, rowcheck := rowSums(.SD), .SDcols = setdiff(names(spreadCovariates), "pixelID")]
   # if (any(is.na(spreadCovariates$rowCheck))) {
   #   stop("NA in vegData columns of fireSense_dataPrepPredict... please contact module developers")
   # }
@@ -532,7 +571,7 @@ prepare_SpreadPredict <- function(sim) {
   # 
   # if (P(sim)$nonForestCanBeYoungAge) {
   #   # this should only alter non-forest
-  #   spreadCovariates[, isNonForest := rowSums(.SD) > 0, .SDcol = names(sim$nonForestedLCCGroups)]
+  #   spreadCovariates[, isNonForest := rowSums(.SD) > 0, .SDcols = names(sim$nonForestedLCCGroups)]
   #   spreadCovariates[, YA_NF := as.vector(sim$nonForest_timeSinceDisturbance)[spreadCovariates$pixelID] <= P(sim)$cutoffForYoungAge &
   #     isNonForest == TRUE]
   #   spreadCovariates[YA_NF == TRUE, youngAge := 1]
@@ -543,7 +582,7 @@ prepare_SpreadPredict <- function(sim) {
   # exclusiveCols <- setdiff(exclusiveCols, "pixelID")
 
   # TODO: this chunk is untested 18/12/2024
-  climateCovariates <- rast(spreadClimate) |> as.data.frame(cells = TRUE)
+  climateCovariates <- spreadClimate |> as.data.frame(cells = TRUE)
   climateCovariates <- na.omit(climateCovariates) |> as.data.table()
 
   setnames(climateCovariates, new = c("pixelID", names(spreadClimate)))
