@@ -28,22 +28,18 @@ defineModule(sim, list(
         "(i.e., `age <= cutoffForYoungAge`)."
       )
     ),
-    defineParameter(
-      "dataYear", "numeric", 2011, 1985, 2022,
-      "Used to override the default 'sourceURL' of NTEMS data for objects when not supplied"
-    ),
+    defineParameter("dataYear", "numeric", 2011, 1985, 2022,
+                    "Used to override the default 'sourceURL' of NTEMS data for objects when not supplied"),
     defineParameter("fireTimeStep", "numeric", 1, NA, NA, desc = "time step of fire model"),
     defineParameter("forestedLCC", "numeric", c(81, 210, 220, 230, 240), NA, NA,
-      desc = "forested landcover classes in `rstLCC` - only relevant if `landcoverDT` is not supplied"
-    ),
-    defineParameter(
-      "flammabilityThreshold", "numeric", 0.1, 0, 1,
+                    "forested landcover classes in `rstLCC` - only relevant if `landcoverDT` is not supplied"),
+    defineParameter("flammabilityThreshold", "numeric", 0.1, 0, 1,
       paste("Minimum proportion of flammable old pixel needed to define a new pixel
-                          as flammable when upscaling the default flammable maps`.")
-    ),
-    defineParameter("fuelClassCol", "character", "FuelClass", NA, NA,
-      desc = "the column in sppEquiv that defines unique fuel classes for ignition"
-    ),
+                          as flammable when upscaling the default flammable maps`.")),
+    defineParameter("fuelClassCol", "character", "FuelClass", NA, NA, 
+                    "the column in sppEquiv that defines unique fuel classes for ignition"),
+    defineParameter("igAggFactor", "numeric", 4, 1, NA, # was 4 before xgboost, Jun 19, 2025
+                    "aggregation factor for rasters during ignition prep."),
     defineParameter("nonflammableLCC", "numeric", c(0, 20, 31, 32, 33), NA, NA,
       desc = paste(
         "used to create flammableRTM if unsupplied.",
@@ -229,6 +225,9 @@ doEvent.fireSense_dataPrepPredict <- function(sim, eventTime, eventType) {
 ### template initialization
 Init <- function(sim) {
 
+  # force it to be same as the other module's value
+  params(sim)[[currentModule(sim)]][["igAggFactor"]] <- SpaDES.core::paramCheckOtherMods(sim, "igAggFactor")
+  
   standAgeMap <- if (!LandR::.compareRas(sim$rasterToMatch, sim$standAgeMap, stopOnError = FALSE)) {
     postProcess(sim$standAgeMap, to = sim$rasterToMatch)
   } else {
