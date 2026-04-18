@@ -384,7 +384,8 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
     nonForestedLCCGroups = sim$nonForestedLCCGroups,
     nonForestCanBeYoungAge = P(sim)$nonForestCanBeYoungAge,
     studyAreaName = P(sim)$.studyAreaName,
-    rasTemplate = sim$flammableRTM, fact = Par$igAggFactor
+    rasTemplate = sim$flammableRTM, fact = Par$igAggFactor,
+    useCache = FALSE
   )
 
   ignitionClimateCoarse <- prepare_ignitionClimate(
