@@ -519,7 +519,7 @@ prepare_SpreadPredict <- function(sim) {
     candidates          = names(sim$studyAreaWithSpreadParams$params[[1]]),
     climateNames        = names(spreadClimate),
     nonForestedLCCNames = names(sim$nonForestedLCCGroups),
-    extraNonFuel        = sim$sppEquiv[[P(sim)$fuelClassCol]]
+    fuelNames           = sim$sppEquiv[[P(sim)$fuelClassCol]]
   )
   # requiredFuelClasses <- names(sim$studyAreaWithSpreadParams$params[[1]])
   # fuelNames <- sim$sppEquiv[[P(sim)$fuelClassCol]]
@@ -727,9 +727,12 @@ prepare_SpreadPredict <- function(sim) {
 
 
 getRequiredFuelClasses <- function(candidates, climateNames, nonForestedLCCNames,
-                                   extraNonFuel = character(0)) {
-  nonFuelNames <- c("pixelID", climateNames, "youngAge", "year",
-                    nonForestedLCCNames, extraNonFuel)
-  required <- setdiff(candidates, nonFuelNames)
+                                   fuelNames = NULL) {
+  nonFuelNames <- c("pixelID", climateNames, "youngAge", "year", nonForestedLCCNames)
+  required <- if (is.null(fuelNames)) {
+    setdiff(candidates, nonFuelNames)
+  } else {
+    intersect(candidates, c(fuelNames, nonFuelNames))
+  }
   grep("lightning", required, value = TRUE, invert = TRUE)
 }
