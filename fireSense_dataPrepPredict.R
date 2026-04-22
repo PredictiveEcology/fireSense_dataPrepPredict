@@ -368,6 +368,14 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
   if (!data.table::is.data.table(sim$sppEquiv)) data.table::setDT(sim$sppEquiv)
 
   ## get fuel classes
+  # There may be fuel classes that disappear because of succession/dispersal limtation etc. 
+  #   e.g., Popu_tre disappeared in one example. Need to set up an zero SpatRaster for any that disappear
+  requiredFuelClasses <- unique(unlist(sim$fireSense_IgnitionFitted$scaleData$dimnames))
+  nonFuelNames <- c("pixelID", names(ignitionClimate), "youngAge", "year", names(sim$nonForestedLCCGroups))
+  requiredFuelClasses <- setdiff(requiredFuelClasses, nonFuelNames)
+  # may be "lightningDays" or other
+  requiredFuelClasses <- grep("lightning", value = TRUE, invert = TRUE, requiredFuelClasses)
+  
   # if ignition and spread fuel classes are the same, this should use Mod
   # to avoid doing it twice (in spreadFit, assuming people run both events)
   fuelCovsCoarse <- prepare_FuelCovsCoarse(
@@ -379,6 +387,7 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
     sppEquiv = sim$sppEquiv,
     sppEquivCol = P(sim)$sppEquivCol,
     fuelClassCol = P(sim)$fuelClassCol,
+    requiredFuelClasses = requiredFuelClasses,
     cutoffForYoungAge = P(sim)$cutoffForYoungAge,
     missingLCCgroup = sim$missingLCCgroup,
     nonForestedLCCGroups = sim$nonForestedLCCGroups,
