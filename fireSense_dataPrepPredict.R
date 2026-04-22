@@ -363,18 +363,25 @@ ageNonForest <- function(TSD, rstCurrentBurn, timeStep) {
 prepare_IgnitionAndEscapePredict <- function(sim) {
   ## get climate
   ignitionClimate <- sim$currentClimateRasters[[sim$climateVariablesForFire$ignition]]
-
+  if (is.null(ignitionClimate))
+    stop("ignitionClimate is NULL; there is a problem to debug")
+  
   # Coming out of the CacheGeo, this is unreliably a data.frame instead of a data.table
   if (!data.table::is.data.table(sim$sppEquiv)) data.table::setDT(sim$sppEquiv)
 
   ## get fuel classes
   # There may be fuel classes that disappear because of succession/dispersal limtation etc. 
   #   e.g., Popu_tre disappeared in one example. Need to set up an zero SpatRaster for any that disappear
-  requiredFuelClasses <- unique(unlist(sim$fireSense_IgnitionFitted$scaleData$dimnames))
-  nonFuelNames <- c("pixelID", names(ignitionClimate), "youngAge", "year", names(sim$nonForestedLCCGroups))
-  requiredFuelClasses <- setdiff(requiredFuelClasses, nonFuelNames)
-  # may be "lightningDays" or other
-  requiredFuelClasses <- grep("lightning", value = TRUE, invert = TRUE, requiredFuelClasses)
+  requiredFuelClasses <- getRequiredFuelClasses(
+    candidates          = unique(unlist(sim$fireSense_IgnitionFitted$scaleData$dimnames)),
+    climateNames        = names(ignitionClimate),
+    nonForestedLCCNames = names(sim$nonForestedLCCGroups)
+  )
+  # requiredFuelClasses <- unique(unlist(sim$fireSense_IgnitionFitted$scaleData$dimnames))
+  # nonFuelNames <- c("pixelID", names(ignitionClimate), "youngAge", "year", names(sim$nonForestedLCCGroups))
+  # requiredFuelClasses <- setdiff(requiredFuelClasses, nonFuelNames)
+  # # may be "lightningDays" or other
+  # requiredFuelClasses <- grep("lightning", value = TRUE, invert = TRUE, requiredFuelClasses)
   
   # if ignition and spread fuel classes are the same, this should use Mod
   # to avoid doing it twice (in spreadFit, assuming people run both events)
@@ -505,7 +512,24 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
 
 prepare_SpreadPredict <- function(sim) {
   spreadClimate <- sim$currentClimateRasters[[sim$climateVariablesForFire$spread]]
+  if (is.null(spreadClimate))
+    stop("spreadClimate is NULL; there is a problem to debug")
 
+  requiredFuelClasses <- getRequiredFuelClasses(
+    candidates          = names(sim$studyAreaWithSpreadParams$params[[1]]),
+    climateNames        = names(spreadClimate),
+    nonForestedLCCNames = names(sim$nonForestedLCCGroups),
+    extraNonFuel        = sim$sppEquiv[[P(sim)$fuelClassCol]]
+  )
+  # requiredFuelClasses <- names(sim$studyAreaWithSpreadParams$params[[1]])
+  # fuelNames <- sim$sppEquiv[[P(sim)$fuelClassCol]]
+  # nonFuelNames <- c("pixelID", names(spreadClimate), "youngAge", "year", names(sim$nonForestedLCCGroups))
+  # nonLogitParams <- unique(c(fuelNames, nonFuelNames))
+  # logitParams <- setdiff(requiredFuelClasses, nonLogitParams)
+  # requiredFuelClasses <- setdiff(requiredFuelClasses, logitParams)
+  # # may be "lightningDays" or other --> likely not here because this is spread; just "in case"
+  # requiredFuelClasses <- grep("lightning", value = TRUE, invert = TRUE, requiredFuelClasses)
+  
   ## much of this chunk can now be combined into a function, called for both ig and spread prep
   ## this fits cohortData into fuel classes
   ##  if pixels are missing/absent but are able to be forested as determined by landcoverDT,
@@ -519,6 +543,7 @@ prepare_SpreadPredict <- function(sim) {
     sppEquiv = sim$sppEquiv,
     sppEquivCol = P(sim)$sppEquivCol,
     fuelClassCol = P(sim)$fuelClassCol,
+    requiredFuelClasses = requiredFuelClasses,
     cutoffForYoungAge = P(sim)$cutoffForYoungAge,
     missingLCCgroup = sim$missingLCCgroup,
     nonForestedLCCGroups = sim$nonForestedLCCGroups,
@@ -698,4 +723,13 @@ prepare_SpreadPredict <- function(sim) {
   
 
   return(invisible(sim))
+}
+
+
+getRequiredFuelClasses <- function(candidates, climateNames, nonForestedLCCNames,
+                                   extraNonFuel = character(0)) {
+  nonFuelNames <- c("pixelID", climateNames, "youngAge", "year",
+                    nonForestedLCCNames, extraNonFuel)
+  required <- setdiff(candidates, nonFuelNames)
+  grep("lightning", required, value = TRUE, invert = TRUE)
 }
