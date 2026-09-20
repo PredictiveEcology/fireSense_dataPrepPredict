@@ -34,11 +34,14 @@ test_that("prepSpreadPredictData builds one row per flammable pixel with this ye
   expect_identical(which(df$youngAge == 1), c(5L, 6L, 15L))
 })
 
-test_that("spread fuel classes follow the sppEquiv fuel column (pinned from origin/development)", {
-  ## PINNED FROM BASE: these are the values produced by
-  ## fireSenseUtils:::fireSenseCovariatesCreate() on origin/development. They are recorded so
-  ## that a change in how biomass is mapped to fuel classes is visible here rather than
-  ## downstream in a fitted model.
+test_that("spread fuel classes follow the sppEquiv fuel column (regression pin)", {
+  ## REGRESSION PIN: these are the values observed from
+  ## fireSenseUtils:::fireSenseCovariatesCreate() when this suite was written. They are
+  ## identical on origin/development and on this branch (verified by running this file
+  ## against both), but they are pinned observations of that package's internals, NOT
+  ## hand-derived truths: only the structural assertions below are hand-checked. They are
+  ## recorded so that a change in how biomass is mapped to fuel classes is visible here
+  ## rather than downstream in a fitted model.
   sim <- toyPrepRun()
   df <- covDF(sim$fireSense_SpreadCovariates)
   expect_equal(df$class1[1:4], c(8.006368, 8.006368, 3.605170, 3.605170), tolerance = 1e-6)
