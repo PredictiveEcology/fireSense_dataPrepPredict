@@ -54,28 +54,13 @@ defineModule(sim, list(
     defineParameter("sppEquivCol", "character", "LandR", NA, NA,
                     desc = "Column of `sppEquiv` with the species names used in `cohortData`."),
     defineParameter("whichModulesToPrepare", "character",
-                    default = c("fireSense_SpreadPredict", "fireSense_IgnitionPredict", "fireSense_EscapeFit"),
+                    default = c("fireSense_SpreadPredict", "fireSense_IgnitionPredict", "fireSense_EscapePredict"),
                     NA, NA,
                     desc = paste("Predict modules to prepare covariates for: `fireSense_IgnitionPredict` or",
                                  "`fireSense_EscapePredict` for the ignition/escape table,",
-                                 "`fireSense_SpreadPredict` for the spread table.")),
-    defineParameter(".plotInitialTime", "numeric", NA, NA, NA,
-      "Describes the simulation time at which the first plot event should occur."
-    ),
-    defineParameter(
-      ".plotInterval", "numeric", NA, NA, NA,
-      "Describes the simulation time interval between plot events."
-    ),
+                                 "`fireSense_SpreadPredict` for the spread table. Defaults to all three.")),
     defineParameter(
       ".runInitialTime", "numeric", start(sim), NA, NA, "Time of the first climate and covariate preparation events."
-    ),
-    defineParameter(
-      ".saveInitialTime", "numeric", NA, NA, NA,
-      "Describes the simulation time at which the first save event should occur."
-    ),
-    defineParameter(
-      ".saveInterval", "numeric", NA, NA, NA,
-      "This describes the simulation time interval between save events."
     ),
     defineParameter(
       ".useCache", "logical", FALSE, NA, NA,
@@ -101,8 +86,6 @@ defineModule(sim, list(
         "If absent, built from `projectedClimateRasters`.")),
     expectsInput("cohortData", "data.table", sourceURL = NA,
       desc = "Cohorts by `pixelGroup` (LandR)."),
-    expectsInput("fireSense_IgnitionFitted", "fireSense_IgnitionFit", sourceURL = NA,
-      desc = "Fitted ignition model. Not used by the current code."),
     expectsInput("missingLCCgroup", "character", sourceURL = NA,
       desc = paste(
         "Forested pixels that are absent from `cohortData` are assigned to this class.",
@@ -210,6 +193,9 @@ doEvent.fireSense_dataPrepPredict <- function(sim, eventTime, eventType) {
       sim <- scheduleEvent(sim, time(sim) + P(sim)$fireTimeStep,
         "fireSense_dataPrepPredict", "prepSpreadPredictData"
       )
+    },
+    save = {
+      message("fireSense_dataPrepPredict: the save event does nothing")
     },
     warning(paste("Undefined event type: \'", current(sim)[1, "eventType", with = FALSE],
       "\' in module \'", current(sim)[1, "moduleName", with = FALSE], "\'",
@@ -536,12 +522,6 @@ prepare_SpreadPredict <- function(sim) {
                                userTags = c(cacheTags, "prepInputsStandAgeMap2011"))
   }
 
-  if (!suppliedElsewhere("fireSense_IgnitionFitted", sim)) {
-    if ("fireSense_IgnitionFit" %in% P(sim)$whichModulesToPrepare) {
-      stop("please supply fireSense_IgnitionFitted object")
-    }
-  }
-  
   if (!suppliedElsewhere("flammableRTM", sim)) {
     sim$flammableRTM <- defineFlammable(rstLCC,
                                         nonFlammClasses = P(sim)$nonflammableLCC,

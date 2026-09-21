@@ -104,17 +104,34 @@ test_that("init schedules exactly the events implied by whichModulesToPrepare", 
   expect_identical(evs("fireSense_EscapeFit"), c("ageNonForest", "getClimateRasters"))
 })
 
-test_that("KNOWN BUG: the default whichModulesToPrepare prepares no escape covariates", {
-  ## The shipped default includes `fireSense_EscapeFit`, but `doEvent` tests for
-  ## `fireSense_EscapePredict`; the owner's decision is that the default should be
-  ## `fireSense_dataPrepPredict`'s own Predict trio. Either way the default is wrong, so this
-  ## records the INTENDED assertion -- that the default contains only Predict module names --
-  ## as a currently-failing expectation rather than blessing the shipped value.
+test_that("the default whichModulesToPrepare is the three Predict modules doEvent tests for", {
+  ## The default used to include `fireSense_EscapeFit`, which `doEvent` never tests for.
   md <- SpaDES.core::moduleMetadata(module = moduleName, path = modulePath)
   default <- md$parameters$default[[which(md$parameters$paramName == "whichModulesToPrepare")]]
-  expect_failure(expect_true(all(grepl("Predict$", default))))
-  ## the offending element, named so the fix is unambiguous
-  expect_true("fireSense_EscapeFit" %in% default)
+  expect_setequal(default, c("fireSense_IgnitionPredict", "fireSense_EscapePredict",
+                             "fireSense_SpreadPredict"))
+
+  ## with the default, init schedules both covariate events
+  sim <- SpaDES.core::spades(toyPrepSim(), events = "init", debug = FALSE)
+  expect_identical(sort(as.data.frame(SpaDES.core::events(sim))$eventType),
+                   c("ageNonForest", "getClimateRasters", "prepIgAndEscPredictData",
+                     "prepSpreadPredictData"))
+})
+
+test_that("the save event does nothing", {
+  sim <- SpaDES.core::spades(toyPrepSim(), events = "init", debug = FALSE)
+  before <- sapply(ls(sim), function(nm) reproducible::.robustDigest(sim[[nm]]))
+  queued <- as.data.frame(SpaDES.core::events(sim))
+
+  sim <- SpaDES.core::scheduleEvent(sim, SpaDES.core::start(sim), moduleName, "save")
+  expect_message(
+    expect_no_warning(sim <- SpaDES.core::spades(sim, events = "save", debug = FALSE)),
+    "the save event does nothing")
+
+  expect_true("save" %in% evOf(SpaDES.core::completed(sim), "save")$eventType)
+  expect_identical(sapply(ls(sim), function(nm) reproducible::.robustDigest(sim[[nm]])), before)
+  ## nothing new is scheduled
+  expect_identical(as.data.frame(SpaDES.core::events(sim)), queued)
 })
 
 test_that("events reschedule themselves one fireTimeStep ahead", {

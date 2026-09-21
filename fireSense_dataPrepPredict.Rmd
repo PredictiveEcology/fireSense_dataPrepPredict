@@ -80,13 +80,14 @@ knitr::kable(df_params, caption = "List of (ref:fireSense-dataPrepPredict) param
 
 ### Events
 
-All events after `init` repeat every `fireTimeStep` years.
+All events after `init`, except `save`, repeat every `fireTimeStep` years.
 
 - `init`: aligns `standAgeMap` and `rstLCC_RTM` to `rasterToMatch`; builds `landcoverDT` if absent; builds `nonForest_timeSinceDisturbance` if absent, from the fire polygons of the `cutoffForYoungAge` years up to `dataYear`.
 - `getClimateRasters` (from `.runInitialTime`): if `currentClimateRasters` is absent, takes layer `year<time(sim)>` of each element of `projectedClimateRasters`. Stops if it does not match `pixelGroupMap`.
 - `prepIgAndEscPredictData` (from `.runInitialTime`): builds `fireSense_igAndEscapePred_Covariates`. Scheduled if `whichModulesToPrepare` has `fireSense_IgnitionPredict` or `fireSense_EscapePredict`.
 - `prepSpreadPredictData` (from `.runInitialTime`): builds `fireSense_SpreadCovariates`. Scheduled if `whichModulesToPrepare` has `fireSense_SpreadPredict`.
 - `ageNonForest` (from `time(sim) + 1`): adds 1 to `nonForest_timeSinceDisturbance` and resets pixels burned in `rstCurrentBurn` to 0.
+- `save`: does nothing except emit a message. The module never schedules it.
 
 The module does not plot or save anything.
 
