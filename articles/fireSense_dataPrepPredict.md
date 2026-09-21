@@ -1,6 +1,6 @@
 ---
 title: "fireSense_dataPrepPredict Manual"
-subtitle: "v.1.0.2.9000"
+subtitle: "v.1.0.4.9000"
 date: "Last updated: 2026-09-21"
 output:
   bookdown::html_document2:
@@ -75,8 +75,8 @@ Table \@ref(tab:moduleInputs-fireSense-dataPrepPredict) shows the full list of m
   </tr>
   <tr>
    <td style="text-align:left;"> climateYear </td>
-   <td style="text-align:left;"> character </td>
-   <td style="text-align:left;"> Optional year used instead of `time(sim)` when checking whether the projected climate covers the current year. See PredictiveEcology/climateYear. </td>
+   <td style="text-align:left;"> numeric </td>
+   <td style="text-align:left;"> Optional year (e.g. 2009) used instead of `time(sim)` to build `currentClimateRasters`. See PredictiveEcology/climateYear. </td>
    <td style="text-align:left;"> NA </td>
   </tr>
   <tr>
@@ -128,12 +128,6 @@ Table \@ref(tab:moduleInputs-fireSense-dataPrepPredict) shows the full list of m
    <td style="text-align:left;"> NA </td>
   </tr>
   <tr>
-   <td style="text-align:left;"> propFlammable </td>
-   <td style="text-align:left;"> SpatRaster </td>
-   <td style="text-align:left;"> Proportion of flammable landcover in each pixel. Created with the default landcover when `rstLCCs` is not supplied; not used otherwise. </td>
-   <td style="text-align:left;"> NA </td>
-  </tr>
-  <tr>
    <td style="text-align:left;"> rasterToMatch </td>
    <td style="text-align:left;"> SpatRaster </td>
    <td style="text-align:left;"> Template raster for the study area. </td>
@@ -149,6 +143,12 @@ Table \@ref(tab:moduleInputs-fireSense-dataPrepPredict) shows the full list of m
    <td style="text-align:left;"> rstLCC_RTM </td>
    <td style="text-align:left;"> SpatRaster </td>
    <td style="text-align:left;"> Landcover raster, only used if `landcoverDT` is not supplied. Defaults to the last layer of `rstLCCs`, else NTEMS landcover for `dataYear`. </td>
+   <td style="text-align:left;"> NA </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> rstLCCs </td>
+   <td style="text-align:left;"> list </td>
+   <td style="text-align:left;"> Optional named list of landcover `SpatRaster`s, one per data year, as produced by `fireSense_dataPrepFit`. If supplied, the last element is used as `rstLCC_RTM`. </td>
    <td style="text-align:left;"> NA </td>
   </tr>
   <tr>
@@ -300,7 +300,7 @@ Summary of user-visible parameters (Table \@ref(tab:moduleParams-fireSense-dataP
 All events after `init`, except `save`, repeat every `fireTimeStep` years.
 
 - `init`: aligns `standAgeMap` and `rstLCC_RTM` to `rasterToMatch`; builds `landcoverDT` if absent; builds `nonForest_timeSinceDisturbance` if absent, from the fire polygons of the `cutoffForYoungAge` years up to `dataYear`.
-- `getClimateRasters` (from `.runInitialTime`): if `currentClimateRasters` is absent, takes layer `year<time(sim)>` of each element of `projectedClimateRasters`. Stops if it does not match `pixelGroupMap`.
+- `getClimateRasters` (from `.runInitialTime`): a supplied `currentClimateRasters` (e.g. from the `climateYear` module) is left alone. If it is absent, or this module built it for another year, takes layer `year<Y>` of each element of `projectedClimateRasters`, where `Y` is `climateYear` if supplied, else `time(sim)`. Stops if it does not match `pixelGroupMap`.
 - `prepIgAndEscPredictData` (from `.runInitialTime`): builds `fireSense_igAndEscapePred_Covariates`. Scheduled if `whichModulesToPrepare` has `fireSense_IgnitionPredict` or `fireSense_EscapePredict`.
 - `prepSpreadPredictData` (from `.runInitialTime`): builds `fireSense_SpreadCovariates`. Scheduled if `whichModulesToPrepare` has `fireSense_SpreadPredict`.
 - `ageNonForest` (from `time(sim) + 1`): adds 1 to `nonForest_timeSinceDisturbance` and resets pixels burned in `rstCurrentBurn` to 0.
