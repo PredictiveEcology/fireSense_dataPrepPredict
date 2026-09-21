@@ -8,7 +8,7 @@ defineModule(sim, list(
     person("Alex M", "Chubaty", role = "ctb", email = "achubaty@for-cast.ca")
   ),
   childModules = character(0),
-  version = list(fireSense_dataPrepPredict = "1.0.2.9000"),
+  version = list(fireSense_dataPrepPredict = "1.0.3.9000"),
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = "year",
   citation = list("citation.bib"),
@@ -89,8 +89,8 @@ defineModule(sim, list(
                    "A list detailing which climate variables in `sim$projectedClimateRasters`",
                    "to use for which fire processes (ignition and spread). If the list is length one,",
                    "both processes will use the same variables. The default is to use 'MDC'.")),
-    expectsInput("climateYear", "character",
-                 paste("optional character vector giving year (e.g. 'year2009') for preparing",
+    expectsInput("climateYear", "numeric",
+                 paste("optional numeric year (e.g. 2009) for preparing",
                        "the `currentClimateRasters` object. If unsupplied, `time(sim)` is used.",
                        "see PredictiveEcology/climateYear")),
     expectsInput("currentClimateRasters", "SpatRaster", NA,
@@ -124,6 +124,9 @@ defineModule(sim, list(
         "template raster used only to derive `flammableRTM` if the latter is absent"),
     expectsInput("rstCurrentBurn", "SpatRaster", "binary raster with 1 representing annual burn"),
     expectsInput("rstLCC_RTM", "SpatRaster", "a landcover raster - only used if `landcoverDT` is not supplied"),
+    expectsInput("rstLCCs", "list", NA, paste(
+        "optional named list of landcover `SpatRaster`s, one per data year, as produced by",
+        "`fireSense_dataPrepFit`. If supplied, the last element is used as `rstLCC_RTM`.")),
     expectsInput("sppEquiv", "data.table", "table of LandR species equivalencies"),
     # expectsInput("standAgeMaps", "list", sourceURL = NA,
     #              "list of length 2 of maps of stand age in dataYear[[1]] and dataYear[[2]]",
@@ -235,7 +238,8 @@ Init <- function(sim) {
   }
   
   rstLCC <- if (!LandR::.compareRas(sim$rasterToMatch, sim$rstLCC_RTM, stopOnError = FALSE)) {
-    postProcess(sim$rstLCC_RTM, to = sim$rasterToMatch)
+    ## landcover is categorical: nearest-neighbour, never the bilinear default
+    reproducible::postProcess(sim$rstLCC_RTM, to = sim$rasterToMatch, method = "near")
   } else {
     sim$rstLCC_RTM
   }
@@ -298,7 +302,20 @@ Init <- function(sim) {
 getCurrentClimate <- function(sim) {
   ## this function has been rewritten due to an undiagnosed bug involving
   ##   digest of a file-backed SpatRaster, and restartSpades()
-  if (is.null(sim$currentClimateRasters)) {
+  ## The climate year actually wanted for this event: `sim$climateYear`, when supplied,
+  ## overrides simulation time (see PredictiveEcology/climateYear).
+  if (is.null(sim$climateYear)) {
+    currentYear <- time(sim)
+  } else {
+    currentYear <- as.numeric(sim$climateYear)
+  }
+  currentYear <- as.numeric(currentYear) # drop time(sim)'s "unit" attribute
+
+  ## Key the cache on the year, not on `is.null()`: `currentClimateRasters` is also a
+  ## module output, so it persists between years; an `is.null()` guard builds it once and
+  ## then silently serves stale layers for the rest of the run.
+  if (is.null(sim$currentClimateRasters) ||
+      !isTRUE(mod$currentClimateYear == currentYear)) {
     
     sim$currentClimateRasters <- sim$projectedClimateRasters[[1]]
     if (!compareGeom(sim$pixelGroupMap, sim$currentClimateRasters, stopOnError = FALSE)) {
@@ -311,12 +328,6 @@ getCurrentClimate <- function(sim) {
     ))
     
     
-    if (is.null(sim$climateYear)) {
-      currentYear <- time(sim)
-    } else {
-      currentYear <- sim$climateYear
-    }
-    
     if (currentYear > max(availableYears)) {
       cutoff <- quantile(availableYears, probs = 0.9)
       time <- sample(availableYears[availableYears >= cutoff], size = 1)
@@ -324,7 +335,7 @@ getCurrentClimate <- function(sim) {
     }
     ## this will work with a list of raster stacks
     thisYearsClimate <- lapply(sim$projectedClimateRasters,
-                               FUN = function(x, rtm = sim$rasterToMatch, currentYear = time(sim)) {
+                               FUN = function(x, rtm = sim$rasterToMatch) {
                                  ras <- x[[paste0("year", currentYear)]]
                                  if (!compareGeom(ras, rtm, stopOnError = FALSE)) {
                                    message("reprojecting fireSense climate layers")
@@ -335,6 +346,7 @@ getCurrentClimate <- function(sim) {
     )
     
     sim$currentClimateRasters <- terra::rast(thisYearsClimate)#lapply(thisYearsClimate, terra::wrap)
+    mod$currentClimateYear <- currentYear
     
   } 
   if (!compareGeom(sim$pixelGroupMap, sim$currentClimateRasters, stopOnError = FALSE)) {
@@ -667,7 +679,7 @@ prepare_SpreadPredict <- function(sim) {
     )
   }
 
-  # if (!suppliedElsewhere("rstLCC", sim)) {
+  if (!suppliedElsewhere("rstLCC_RTM", sim)) {
     if (suppliedElsewhere("rstLCCs", sim)) {
       sim$rstLCC_RTM <- tail(sim$rstLCCs, 1)[[1]]
     } else {
@@ -678,8 +690,8 @@ prepare_SpreadPredict <- function(sim) {
                         paste0(P(sim)$dataYear, "_", P(sim)$.studyAreaName)
                       ),
                       destinationPath = inputPath(sim),
-                      studyArea = sim$studyArea,
-                      rasterToMatch = sim$rasterToMatch,
+                      maskTo = sim$studyArea,
+                      to = sim$rasterToMatch,
                       overwrite=  TRUE,
                       nonflammableLCC = P(sim)$nonflammableLCC,
                       flammabilityThreshold = P(sim)$flammabilityThreshold,
@@ -688,8 +700,7 @@ prepare_SpreadPredict <- function(sim) {
       sim$rstLCC_RTM <- rstLCC$lcc
       sim$propFlammable <- rstLCC$flammableProp
     }
-
-  # }
+  }
 
   if (!suppliedElsewhere("standAgeMap", sim)) {
     # if (suppliedElsewhere("standAgeMaps", sim)) {
@@ -711,7 +722,15 @@ prepare_SpreadPredict <- function(sim) {
   }
   
   if (!suppliedElsewhere("flammableRTM", sim)) {
-    sim$flammableRTM <- defineFlammable(rstLCC,
+    ## `rstLCC` only exists when the landcover was built above; otherwise derive it from
+    ## `rstLCC_RTM`, the same way `Init()` does.
+    rstLCCforFlammable <- if (!LandR::.compareRas(sim$rasterToMatch, sim$rstLCC_RTM,
+                                                 stopOnError = FALSE)) {
+      reproducible::postProcess(sim$rstLCC_RTM, to = sim$rasterToMatch, method = "near")
+    } else {
+      sim$rstLCC_RTM
+    }
+    sim$flammableRTM <- LandR::defineFlammable(rstLCCforFlammable,
                                         nonFlammClasses = P(sim)$nonflammableLCC,
                                         to = sim$rasterToMatch)
     
