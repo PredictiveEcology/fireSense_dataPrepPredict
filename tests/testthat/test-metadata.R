@@ -18,7 +18,7 @@ test_that("inputs are the expected names and classes", {
   expect_identical(
     inputs[order(names(inputs))],
     c(climateVariablesForFire  = "list",
-      climateYear              = "character",
+      climateYear              = "numeric",
       cohortData               = "data.table",
       currentClimateRasters    = "SpatRaster",
       flammableRTM             = "SpatRaster",
@@ -28,10 +28,10 @@ test_that("inputs are the expected names and classes", {
       nonForestedLCCGroups     = "list",
       pixelGroupMap            = "SpatRaster",
       projectedClimateRasters  = "list",
-      propFlammable            = "SpatRaster",
       rasterToMatch            = "SpatRaster",
       rstCurrentBurn           = "SpatRaster",
       rstLCC_RTM               = "SpatRaster",
+      rstLCCs                  = "list",
       sppEquiv                 = "data.table",
       standAgeMap              = "SpatRaster")
   )

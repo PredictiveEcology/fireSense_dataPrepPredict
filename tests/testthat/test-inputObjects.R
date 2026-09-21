@@ -1,16 +1,9 @@
-## `.inputObjects()` supplies defaults. Two of its branches are broken in ways that make the
-## module unusable without a workaround, so they are pinned here -- as recorded defects, not
-## as correct behaviour -- to make a fix detectable.
+## `.inputObjects()` supplies defaults. Two of its branches used to be broken in ways that made
+## the module unusable without a workaround; these tests pin the fixed behaviour.
 
-test_that("KNOWN BUG: .inputObjects leaves rstLCC_RTM NULL, so Init() cannot run", {
-  ## `.inputObjects` (module source l.509-510) branches on `suppliedElsewhere("rstLCCs", sim)`.
-  ## That branch is the only one that does not try to download NTEMS landcover, but it does
-  ## `sim$rstLCC_RTM <- tail(sim$rstLCCs, 1)[[1]]`, and `rstLCCs` is not a declared input
-  ## (it is absent from `inputObjects`, l.89-147), so it is not in the simList when
-  ## `.inputObjects` runs. `tail(NULL, 1)[[1]]` is NULL, so `rstLCC_RTM` is left NULL.
-  ##
-  ## INTENDED: taking the `rstLCCs` branch should produce a usable `rstLCC_RTM`.
-  ## Stated and recorded as failing. This does not assert that NULL is correct.
+test_that(".inputObjects takes rstLCC_RTM from a supplied rstLCCs, and init then runs", {
+  ## `rstLCCs` used not to be a declared input, so it was absent from the simList when
+  ## `.inputObjects` ran, `rstLCC_RTM` was left NULL and `Init()` errored in `.compareRas()`.
   objs <- toyObjects()   # supplies rstLCCs, does not supply rstLCC_RTM
   sim <- SpaDES.core::simInit(
     times = list(start = 2001, end = 2001, timeunit = "year"),
@@ -19,36 +12,27 @@ test_that("KNOWN BUG: .inputObjects leaves rstLCC_RTM NULL, so Init() cannot run
     objects = objs,
     paths = testPaths
   )
-  expect_failure(expect_s4_class(sim$rstLCC_RTM, "SpatRaster"))
-  ## recorded actual state
-  expect_null(sim$rstLCC_RTM)
-
-  ## and the consequence: `Init()` calls `.compareRas(rasterToMatch, rstLCC_RTM)` at l.241,
-  ## which errors on NULL, so the `init` event cannot complete and the module is unusable as
-  ## shipped. This is why `toyPrepSim()` restores `rstLCC_RTM` after `simInit()` for every
-  ## other test in this suite.
-  expect_error(SpaDES.core::spades(sim, events = "init", debug = FALSE),
-               "subscript out of bounds")
+  expect_s4_class(sim$rstLCC_RTM, "SpatRaster")
+  expect_identical(as.vector(terra::values(sim$rstLCC_RTM)), as.vector(terra::values(toyLCC())))
+  expect_no_error(SpaDES.core::spades(sim, events = "init", debug = FALSE))
 })
 
-test_that("KNOWN BUG: .inputObjects cannot build flammableRTM when it is not supplied", {
-  ## `.inputObjects` l.546 calls `defineFlammable(rstLCC, ...)`. `rstLCC` is a local created
-  ## only in the *other* branch (l.512), and `defineFlammable` is not imported by the module,
-  ## so with `rstLCCs` supplied and `flammableRTM` absent this is a guaranteed error.
-  ## The correct construction exists in `Init()` (~l.241-253). Recorded, not fixed here.
+test_that(".inputObjects builds flammableRTM from rstLCC_RTM when it is not supplied", {
+  ## This used to call `defineFlammable(rstLCC, ...)` with a local that only exists in the
+  ## other branch, which was a guaranteed error when `rstLCCs` was supplied.
   objs <- toyObjects()
   objs$flammableRTM <- NULL
   objs$landcoverDT <- NULL
-  expect_error(
-    SpaDES.core::simInit(
-      times = list(start = 2001, end = 2001, timeunit = "year"),
-      modules = moduleName,
-      params = stats::setNames(list(list(igAggFactor = 2)), moduleName),
-      objects = objs,
-      paths = testPaths
-    ),
-    "defineFlammable|could not find function|object 'rstLCC' not found"
+  objs$rstLCCs <- list(terra::as.int(toyLCC())) # `defineFlammable()` wants integer landcover
+  sim <- SpaDES.core::simInit(
+    times = list(start = 2001, end = 2001, timeunit = "year"),
+    modules = moduleName,
+    params = stats::setNames(list(list(igAggFactor = 2)), moduleName),
+    objects = objs,
+    paths = testPaths
   )
+  ## only cell 16 (class 20) is in `nonflammableLCC`
+  expect_equal(as.vector(terra::values(sim$flammableRTM)), c(rep(1, 15), 0))
 })
 
 test_that(".inputObjects supplies the default climateVariablesForFire", {

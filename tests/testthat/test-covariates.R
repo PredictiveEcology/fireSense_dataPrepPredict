@@ -123,31 +123,17 @@ test_that("a climate variable that is not in currentClimateRasters is an error",
   expect_error(toyPrepRun(objs), "invalid name")
 })
 
-test_that("KNOWN BUG: the covariate tables do NOT advance with simulation time", {
-  ## Intended behaviour: each year's covariates carry that year's climate. They do not.
-  ## `getCurrentClimate()` (module source l.296) only builds `sim$currentClimateRasters` when
-  ## it `is.null()`. The `getClimateRasters` event reschedules itself every year, but from the
-  ## second year on the object is already populated, so the whole build is skipped and the
-  ## climate stays frozen at `start(sim)`. Every later year's covariates are silently stale.
-  ##
-  ## The toy climate encodes the year in the value (year<Y> MDC cell n = (Y-2000)*100 + n),
-  ## so this is unambiguous: after running 2001 -> 2003 the table still holds year2001 values.
-  ## Below, the INTENDED assertions are stated and recorded as currently failing. When the
-  ## staleness is fixed, `expect_failure()` will itself fail and these must be unwrapped.
+test_that("the covariate tables advance with simulation time", {
+  ## `getCurrentClimate()` used to build `sim$currentClimateRasters` only when it was NULL,
+  ## so from the second year on the climate stayed frozen at `start(sim)`.
+  ## The toy climate encodes the year in the value (year<Y> MDC cell n = (Y-2000)*100 + n).
   sim <- toyPrepRun(times = list(start = 2001, end = 2003))
   sp <- covDF(sim$fireSense_SpreadCovariates)
   ig <- covDF(sim$fireSense_igAndEscapePred_Covariates)
 
-  ## INTENDED: the final year is 2003, so MDC should be 300 + pixelID
-  expect_failure(expect_identical(sp$MDC, 300 + 1:15))
-  expect_failure(expect_equal(ig$MDC, c(303.5, 305.5, 311.5)))
-
-  ## What actually happens, recorded so the staleness is visible and the fix is detectable:
-  ## the year2001 layer, unchanged after three simulated years.
-  expect_identical(sp$MDC, 100 + 1:15)
-
-  ## and the giveaway that this really is staleness rather than a mislabelled table: the
-  ## `year` column DOES track time(sim), so the table claims 2003 while carrying 2001 climate
+  ## the final year is 2003, so MDC is 300 + pixelID
+  expect_identical(sp$MDC, 300 + 1:15)
+  expect_equal(ig$MDC, c(303.5, 305.5, 311.5))
   expect_identical(unique(ig$year), 2003)
 })
 

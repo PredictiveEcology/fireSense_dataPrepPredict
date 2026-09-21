@@ -74,12 +74,8 @@ toyObjects <- function() {
     ## years since fire: 30 everywhere except the wetland cell 15 and the forest cell 1
     nonForest_timeSinceDisturbance = toyRast(c(5, rep(30, 13), 5, 30)),
     standAgeMap = toyRast(50),
-    ## `rstLCCs` is NOT in the metadata, so simInit() does not put it in the simList -- but
-    ## `suppliedElsewhere("rstLCCs", sim)` in `.inputObjects` (l.509) still sees it, which is
-    ## the only way to take the branch that does not try to download NTEMS landcover. The
-    ## branch then sets `sim$rstLCC_RTM <- tail(sim$rstLCCs, 1)[[1]]`, and since `sim$rstLCCs`
-    ## really is NULL by then, `sim$rstLCC_RTM` ends up NULL. See test-inputObjects.R.
-    ## Supplying `landcoverDT` is what keeps `Init()` from needing `rstLCC_RTM` at all.
+    ## supplying `rstLCCs` takes the branch of `.inputObjects` that does not download NTEMS
+    ## landcover; `rstLCC_RTM` is then its last element
     rstLCCs = list(toyLCC()),
     projectedClimateRasters = toyClimate(),
     climateVariablesForFire = list(ignition = "MDC", spread = "MDC"),
@@ -101,15 +97,6 @@ toyPrepSim <- function(objects = toyObjects(), params = list(),
     objects = objects,
     paths = testPaths
   )
-  ## Work around a module defect, deliberately and visibly: `.inputObjects` (l.509-510) takes
-  ## the `suppliedElsewhere("rstLCCs", sim)` branch -- which is the only branch that does not
-  ## try to download NTEMS landcover -- and sets `sim$rstLCC_RTM <- tail(sim$rstLCCs, 1)[[1]]`.
-  ## `rstLCCs` is not a declared input, so it is not in the simList at that point and the
-  ## result is NULL. `Init()` (l.241) then calls `.compareRas(rasterToMatch, NULL)`, which
-  ## errors with "subscript out of bounds", so the module cannot reach `init` at all.
-  ## Restoring it here lets the covariate tests exercise the code past that point; the defect
-  ## itself is pinned, unblessed, in test-inputObjects.R.
-  if (is.null(sim$rstLCC_RTM)) sim$rstLCC_RTM <- toyLCC()
   sim
 }
 
