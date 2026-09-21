@@ -45,18 +45,20 @@ download.file(url = "https://img.shields.io/badge/Made%20with-Markdown-1f425f.pn
 
 ### Module summary
 
-<!-- TODO -->
-fireSense [@Marchal:2017a; @Marchal:2017b; @Marchal:2019]
+Prepares, each year, the covariate tables that the fireSense [@Marchal:2017a; @Marchal:2017b; @Marchal:2019] predict modules use:
 
-Provide a brief summary of what the module does / how to use the module.
+- `fireSense_igAndEscapePred_Covariates` for *fireSense_IgnitionPredict* and *fireSense_EscapePredict*: fuel classes, non-forest landcover, `youngAge`, ignition climate and lightning days, aggregated by `igAggFactor`.
+- `fireSense_SpreadCovariates` for *fireSense_SpreadPredict*: the same fuel, landcover and `youngAge` columns plus spread climate, at the resolution of `flammableRTM`.
 
-Module documentation should be written so that others can use your module.
-This is a template for module documentation, and should be changed to reflect your module.
+Fuel classes come from `cohortData` and `pixelGroupMap`, grouped by the `fuelClassCol` column of `sppEquiv`.
+The covariates are built by the same *fireSenseUtils* functions that *fireSense_dataPrepFit* uses, so they match the fitted models.
 
 ### Module inputs and parameters
 
-Describe input data required by the module and how to obtain it (e.g., directly from online sources or supplied by other modules)
-If `sourceURL` is specified, `downloadData("fireSense_dataPrepPredict", "..")` may be sufficient.
+`cohortData`, `pixelGroupMap` and `rstCurrentBurn` come from the vegetation and fire modules during the simulation.
+`sppEquiv`, `nonForestedLCCGroups`, `missingLCCgroup`, `lightningMaps`, `flammableRTM` and `landcoverDT` should be the ones used by *fireSense_dataPrepFit*.
+Climate is either `currentClimateRasters`, or `projectedClimateRasters` with layers named `year<year>`.
+`igAggFactor` is overwritten in `init` with the value set in the other modules.
 
 Table \@ref(tab:moduleInputs-fireSense-dataPrepPredict) shows the full list of module inputs.
 
@@ -78,18 +80,16 @@ knitr::kable(df_params, caption = "List of (ref:fireSense-dataPrepPredict) param
 
 ### Events
 
-<!-- TODO -->
-Describe what happens for each event type.
+All events after `init`, except `save`, repeat every `fireTimeStep` years.
 
-### Plotting
+- `init`: aligns `standAgeMap` and `rstLCC_RTM` to `rasterToMatch`; builds `landcoverDT` if absent; builds `nonForest_timeSinceDisturbance` if absent, from the fire polygons of the `cutoffForYoungAge` years up to `dataYear`.
+- `getClimateRasters` (from `.runInitialTime`): a supplied `currentClimateRasters` (e.g. from the `climateYear` module) is left alone. If it is absent, or this module built it for another year, takes layer `year<Y>` of each element of `projectedClimateRasters`, where `Y` is `climateYear` if supplied, else `time(sim)`. Stops if it does not match `pixelGroupMap`.
+- `prepIgAndEscPredictData` (from `.runInitialTime`): builds `fireSense_igAndEscapePred_Covariates`. Scheduled if `whichModulesToPrepare` has `fireSense_IgnitionPredict` or `fireSense_EscapePredict`.
+- `prepSpreadPredictData` (from `.runInitialTime`): builds `fireSense_SpreadCovariates`. Scheduled if `whichModulesToPrepare` has `fireSense_SpreadPredict`.
+- `ageNonForest` (from `time(sim) + 1`): adds 1 to `nonForest_timeSinceDisturbance` and resets pixels burned in `rstCurrentBurn` to 0.
+- `save`: does nothing except emit a message. The module never schedules it.
 
-<!-- TODO -->
-Write what is plotted.
-
-### Saving
-
-<!-- TODO -->
-Write what is saved.
+The module does not plot or save anything.
 
 ### Module outputs
 
@@ -103,8 +103,8 @@ knitr::kable(df_outputs, caption = "List of (ref:fireSense-dataPrepPredict) outp
 
 ### Links to other modules
 
-<!-- TODO: link to other fireSense modules -->
-Describe any anticipated linkages to other modules, such as modules that supply input data or do post-hoc analysis.
+Runs after *Biomass_borealDataPrep*, *fireSense_dataPrepFit*, *fireSense_IgnitionFit* and *fireSense_SpreadFit*, and supplies *fireSense_IgnitionPredict*, *fireSense_EscapePredict* and *fireSense_SpreadPredict*.
+It is normally run as part of the [fireSense](https://github.com/PredictiveEcology/fireSense) module group.
 
 ### Getting help
 
