@@ -21,7 +21,6 @@ test_that("inputs are the expected names and classes", {
       climateYear              = "character",
       cohortData               = "data.table",
       currentClimateRasters    = "SpatRaster",
-      fireSense_IgnitionFitted = "fireSense_IgnitionFit",
       flammableRTM             = "SpatRaster",
       landcoverDT              = "data.table",
       lightningMaps            = "SpatRaster",
@@ -54,8 +53,7 @@ test_that("parameters are the expected names", {
   md <- SpaDES.core::moduleMetadata(module = moduleName, path = modulePath)
   expect_identical(
     sort(md$parameters$paramName),
-    sort(c(".plotInitialTime", ".plotInterval", ".runInitialTime", ".saveInitialTime",
-           ".saveInterval", ".useCache", "cutoffForYoungAge", "dataYear",
+    sort(c(".runInitialTime", ".useCache", "cutoffForYoungAge", "dataYear",
            "fireTimeStep", "flammabilityThreshold", "forestedLCC", "fuelClassCol",
            "igAggFactor", "nonflammableLCC", "nonForestCanBeYoungAge", "sppEquivCol",
            "whichModulesToPrepare"))
