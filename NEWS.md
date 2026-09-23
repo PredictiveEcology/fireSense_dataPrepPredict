@@ -1,3 +1,7 @@
+# fireSense_dataPrepPredict (development version)
+
+- Several fitted ELFs in one study area: with `sppEquivs`, `nonForestedLCCGroupsList` and `missingLCCgroupList` from `fireSense_dataPrepFit` (one element per ELF), every ELF's fuel covariates are made for every pixel, each with its own species table, non-forest groups and `landcoverDT`, and merged by `pixelID` (spread) or by layer (ignition). `fireSense_SpreadPredict` and `fireSense_IgnitionPredict` then apply each ELF's model to its own columns. One ELF works as before.
+
 # fireSense_dataPrepPredict 1.0.2
 
 First release from `development` since `main` was last updated (2022-02-28). Full history: https://github.com/PredictiveEcology/fireSense_dataPrepPredict/compare/9b276ed...v1.0.2

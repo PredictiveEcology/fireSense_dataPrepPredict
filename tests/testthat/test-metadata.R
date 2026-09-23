@@ -25,7 +25,9 @@ test_that("inputs are the expected names and classes", {
       landcoverDT              = "data.table",
       lightningMaps            = "SpatRaster",
       missingLCCgroup          = "character",
+      missingLCCgroupList      = "list",
       nonForestedLCCGroups     = "list",
+      nonForestedLCCGroupsList = "list",
       pixelGroupMap            = "SpatRaster",
       projectedClimateRasters  = "list",
       rasterToMatch            = "SpatRaster",
@@ -33,6 +35,7 @@ test_that("inputs are the expected names and classes", {
       rstLCC_RTM               = "SpatRaster",
       rstLCCs                  = "list",
       sppEquiv                 = "data.table",
+      sppEquivs                = "list",
       standAgeMap              = "SpatRaster")
   )
 })

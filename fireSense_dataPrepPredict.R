@@ -10,7 +10,7 @@ defineModule(sim, list(
     person("Alex M", "Chubaty", role = "ctb", email = "achubaty@for-cast.ca")
   ),
   childModules = character(0),
-  version = list(fireSense_dataPrepPredict = "1.0.4.9000"),
+  version = list(fireSense_dataPrepPredict = "1.0.4.9001"),
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = "year",
   citation = list("citation.bib"),
@@ -120,6 +120,13 @@ defineModule(sim, list(
       desc = paste(
         "Optional named list of landcover `SpatRaster`s, one per data year, as produced by",
         "`fireSense_dataPrepFit`. If supplied, the last element is used as `rstLCC_RTM`.")),
+    expectsInput("sppEquivs", "list", sourceURL = NA,
+      desc = paste("Only with several fitted ELFs: one `sppEquiv` per ELF, from `fireSense_dataPrepFit`. Each ELF's",
+                   "fuel covariates are made with its own, for every pixel.")),
+    expectsInput("nonForestedLCCGroupsList", "list", sourceURL = NA,
+      desc = "Only with several fitted ELFs: one `nonForestedLCCGroups` per ELF, in the order of `sppEquivs`."),
+    expectsInput("missingLCCgroupList", "list", sourceURL = NA,
+      desc = "Only with several fitted ELFs: one `missingLCCgroup` per ELF, in the order of `sppEquivs`."),
     expectsInput("sppEquiv", "data.table", sourceURL = NA,
       desc = "Table of LandR species equivalencies; must have columns `sppEquivCol` and `fuelClassCol`."),
     expectsInput("standAgeMap", "SpatRaster", sourceURL = NA,
@@ -378,28 +385,27 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
   
   # Coming out of the CacheGeo, this is unreliably a data.frame instead of a data.table
   if (!data.table::is.data.table(sim$sppEquiv)) data.table::setDT(sim$sppEquiv)
-  if (is.null(mod$requiredFuelClasses))
-    mod$requiredFuelClasses <- sim$sppEquiv[[P(sim)$fuelClassCol]]
-  # if ignition and spread fuel classes are the same, this should use Mod
-  # to avoid doing it twice (in spreadFit, assuming people run both events)
-  fuelCovsCoarse <- prepare_FuelCovsCoarse(
+  ## one fuel set per fitted ELF (one, as before, when there is one ELF); the covariate tables are merged,
+  ## each ELF's columns alongside the others', for fireSense_IgnitionPredict to pick its own
+  fuelSets <- ELFfuelSets(sim)
+  fuelCovsCoarse <- mergeCovariateTables(lapply(fuelSets, function(fs) prepare_FuelCovsCoarse(
     cohortData = sim$cohortData,
     pixelGroupMap = sim$pixelGroupMap,
     flammableRTM = sim$flammableRTM,
-    landcoverDT = sim$landcoverDT,
+    landcoverDT = fs$landcoverDT,
     nonForest_timeSinceDisturbance = sim$nonForest_timeSinceDisturbance,
-    sppEquiv = sim$sppEquiv,
+    sppEquiv = fs$sppEquiv,
     sppEquivCol = P(sim)$sppEquivCol,
     fuelClassCol = P(sim)$fuelClassCol,
-    requiredFuelClasses = mod$requiredFuelClasses,
+    requiredFuelClasses = fs$requiredFuelClasses,
     cutoffForYoungAge = P(sim)$cutoffForYoungAge,
-    missingLCCgroup = sim$missingLCCgroup,
-    nonForestedLCCGroups = sim$nonForestedLCCGroups,
+    missingLCCgroup = fs$missingLCCgroup,
+    nonForestedLCCGroups = fs$nonForestedLCCGroups,
     nonForestCanBeYoungAge = P(sim)$nonForestCanBeYoungAge,
     studyAreaName = P(sim)$.studyAreaName,
     rasTemplate = sim$flammableRTM, fact = Par$igAggFactor,
     useCache = FALSE
-  )
+  )))
 
   ignitionClimateCoarse <- prepare_ignitionClimate(
     ignitionClimateList = as.list(ignitionClimate) |> setNames(names(ignitionClimate)), 
@@ -412,7 +418,7 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
     mergePreparedCovs(years = list(yrLab) |> setNames(time(sim)), 
                       list(fuelCovsCoarse) |> setNames(yrLab), 
                       ignitionFirePoints = NULL, 
-                      sim$nonForestedLCCGroups,
+                      unionLCCGroups(fuelSets),
                       ignitionClimateCoarseList, 
                       sim$lightningMaps["lightningDays"], 
                       digest = append(NULL, list(P(sim)$igAggFactor)),
@@ -435,32 +441,47 @@ prepare_SpreadPredict <- function(sim) {
   if (is.null(spreadClimate))
     stop("spreadClimate is NULL; there is a problem to debug")
 
-  if (is.null(mod$requiredFuelClasses))
-    mod$requiredFuelClasses <- sim$sppEquiv[[P(sim)$fuelClassCol]]
-  
-  ## much of this chunk can now be combined into a function, called for both ig and spread prep
-  ## this fits cohortData into fuel classes
-  ##  if pixels are missing/absent but are able to be forested as determined by landcoverDT,
-  ##  they receive 0 values - e.g. pixelGroup zero
-  spreadCovariates <- fireSenseUtils:::fireSenseCovariatesCreate(
-    cohortData = sim$cohortData,
-    pixelGroupMap = sim$pixelGroupMap,
-    flammableRTM = sim$flammableRTM,
-    landcoverDT = sim$landcoverDT,
-    
-    sppEquiv = sim$sppEquiv,
-    sppEquivCol = P(sim)$sppEquivCol,
-    fuelClassCol = P(sim)$fuelClassCol,
-    requiredFuelClasses = mod$requiredFuelClasses,
-    cutoffForYoungAge = P(sim)$cutoffForYoungAge,
-    missingLCCgroup = sim$missingLCCgroup,
-    nonForestedLCCGroups = sim$nonForestedLCCGroups,
-    nonForestCanBeYoungAge = P(sim)$nonForestCanBeYoungAge,
-    nonForest_timeSinceDisturbance = sim$nonForest_timeSinceDisturbance,
-    studyAreaName = P(sim)$.studyAreaName,
-    useCache = FALSE # predict is annual, no point in caching
-  ) 
-  
+  ## one fuel set per fitted ELF (one, as before, when there is one ELF). Every ELF's covariates are made for
+  ## every pixel and the tables merged, so fireSense_SpreadPredict can apply each ELF's model wherever it
+  ## predicts, including the blend zone around its own pixels. Column names say what they hold (fuel class,
+  ## non-forest LCC codes), so a column two ELFs share means the same thing in both.
+  fuelSets <- ELFfuelSets(sim)
+  spreadCovariates <- mergeCovariateTables(lapply(fuelSets, function(fs) {
+    ## this fits cohortData into fuel classes
+    ##  if pixels are missing/absent but are able to be forested as determined by landcoverDT,
+    ##  they receive 0 values - e.g. pixelGroup zero
+    covs <- fireSenseUtils:::fireSenseCovariatesCreate(
+      cohortData = sim$cohortData,
+      pixelGroupMap = sim$pixelGroupMap,
+      flammableRTM = sim$flammableRTM,
+      landcoverDT = fs$landcoverDT,
+
+      sppEquiv = fs$sppEquiv,
+      sppEquivCol = P(sim)$sppEquivCol,
+      fuelClassCol = P(sim)$fuelClassCol,
+      requiredFuelClasses = fs$requiredFuelClasses,
+      cutoffForYoungAge = P(sim)$cutoffForYoungAge,
+      missingLCCgroup = fs$missingLCCgroup,
+      nonForestedLCCGroups = fs$nonForestedLCCGroups,
+      nonForestCanBeYoungAge = P(sim)$nonForestCanBeYoungAge,
+      nonForest_timeSinceDisturbance = sim$nonForest_timeSinceDisturbance,
+      studyAreaName = P(sim)$.studyAreaName,
+      useCache = FALSE # predict is annual, no point in caching
+    )
+    # Sanity check - make sure the nonForest pixels have no forest fuels
+    nfCols <- setdiff(names(fs$landcoverDT), "pixelID")
+    df <- copy(covs)
+    fcs <- setdiff(colnames(df), c("pixelID", "youngAge", nfCols))
+    if (length(fcs)) {
+      df[df - min(df[[fcs[[1]]]], na.rm = TRUE) == 0] <- NA
+      fuelInSamePixelAsNonForest <- any(rowSums(!is.na(df[, ..fcs])) > 0 &
+                                          (rowSums(df[, ..nfCols]) > 0))
+      if (fuelInSamePixelAsNonForest)
+        stop("Flammable fuels (i.e., trees) are present in pixels that are identified as non-fore")
+    }
+    covs
+  }))
+
   # TODO: this chunk is untested 18/12/2024
   climateCovariates <- spreadClimate |> as.data.frame(cells = TRUE)
   climateCovariates <- na.omit(climateCovariates) |> as.data.table()
@@ -471,21 +492,78 @@ prepare_SpreadPredict <- function(sim) {
   nonFuelNames <- c("pixelID", names(spreadClimate), "youngAge")
   setcolorder(spreadCovariates, neworder = nonFuelNames)
   sim$fireSense_SpreadCovariates <- spreadCovariates
-
-  # Sanity check - make sure the nonForest pixels have no forest fuels
-  nfCols <- setdiff(names(sim$landcoverDT), "pixelID")
-  df <- sim$fireSense_SpreadCovariates
-  fcs <- setdiff(colnames(df), c(nonFuelNames, nfCols))
-  df[df - min(df[[fcs[[1]]]], na.rm = TRUE) == 0] <- NA
-  fuelInSamePixelAsNonForest <- any(rowSums(!is.na(df[, ..fcs])) > 0 & 
-                                      (rowSums(df[, ..nfCols]) > 0))
-  
-  if (fuelInSamePixelAsNonForest)
-    stop("Flammable fuels (i.e., trees) are present in pixels that are identified as non-fore")
   
   return(invisible(sim))
 }
 
+
+#' The fuel sets to build covariates with: one per fitted ELF
+#'
+#' With several fitted ELFs, `fireSense_dataPrepFit` supplies one species table, non-forest grouping and
+#' missing-LCC group per ELF (`sppEquivs`, `nonForestedLCCGroupsList`, `missingLCCgroupList`); each gets its
+#' own `landcoverDT`, made once and kept in `mod`. With one ELF, the single set of objects, as before.
+#'
+#' @param sim A `simList`.
+#' @return list of lists, each with `sppEquiv`, `nonForestedLCCGroups`, `missingLCCgroup`, `landcoverDT` and
+#'   `requiredFuelClasses`.
+ELFfuelSets <- function(sim) {
+  fcc <- P(sim)$fuelClassCol
+  if (length(sim$sppEquivs) > 1L) {
+    n <- length(sim$sppEquivs)
+    if (length(sim$nonForestedLCCGroupsList) != n || length(sim$missingLCCgroupList) != n)
+      stop("fireSense_dataPrepPredict: sppEquivs, nonForestedLCCGroupsList and missingLCCgroupList must have one ",
+           "element per ELF")
+    if (is.null(mod$ELFlandcoverDTs)) {
+      rstLCC <- if (!LandR::.compareRas(sim$flammableRTM, sim$rstLCC_RTM, stopOnError = FALSE))
+        reproducible::postProcess(sim$rstLCC_RTM, to = sim$flammableRTM, method = "near") else sim$rstLCC_RTM
+      mod$ELFlandcoverDTs <- lapply(sim$nonForestedLCCGroupsList, function(g)
+        makeLandcoverDT(rstLCC = rstLCC, flammableRTM = sim$flammableRTM,
+                        forestedLCC = P(sim)$forestedLCC, nonForestedLCCGroups = g))
+    }
+    return(lapply(seq_len(n), function(i) {
+      se <- data.table::as.data.table(sim$sppEquivs[[i]])
+      list(sppEquiv = se, nonForestedLCCGroups = sim$nonForestedLCCGroupsList[[i]],
+           missingLCCgroup = sim$missingLCCgroupList[[i]], landcoverDT = mod$ELFlandcoverDTs[[i]],
+           requiredFuelClasses = se[[fcc]])
+    }))
+  }
+  if (!data.table::is.data.table(sim$sppEquiv)) data.table::setDT(sim$sppEquiv)
+  if (is.null(mod$requiredFuelClasses))
+    mod$requiredFuelClasses <- sim$sppEquiv[[fcc]]
+  list(list(sppEquiv = sim$sppEquiv, nonForestedLCCGroups = sim$nonForestedLCCGroups,
+            missingLCCgroup = sim$missingLCCgroup, landcoverDT = sim$landcoverDT,
+            requiredFuelClasses = mod$requiredFuelClasses))
+}
+
+#' Merge the covariates of several ELFs
+#'
+#' One ELF: its covariates, untouched. Several: tables are merged by `pixelID` keeping every pixel, and
+#' rasters by adding the layers the first lacks; a column or layer the ELFs share (same name, so the same
+#' content) is taken from the first.
+#'
+#' @param tabs list, one element per ELF: `data.table`s with `pixelID`, or `SpatRaster`s.
+#' @return one `data.table` or `SpatRaster`.
+mergeCovariateTables <- function(tabs) {
+  if (length(tabs) == 1L) return(tabs[[1]])
+  if (inherits(tabs[[1]], "SpatRaster"))
+    return(Reduce(function(a, b) {
+      extra <- setdiff(names(b), names(a))
+      if (length(extra)) c(a, b[[extra]]) else a
+    }, tabs))
+  tabs <- lapply(tabs, data.table::as.data.table)
+  Reduce(function(a, b) {
+    extra <- setdiff(names(b), names(a))
+    if (!length(extra)) return(a)
+    merge(a, b[, c("pixelID", extra), with = FALSE], by = "pixelID", all = TRUE)
+  }, tabs)
+}
+
+## the ELFs' non-forest groups together (a group two ELFs share has the same name and codes); one ELF: its own
+unionLCCGroups <- function(fuelSets) {
+  if (length(fuelSets) == 1L) return(fuelSets[[1]]$nonForestedLCCGroups)
+  g <- do.call(c, lapply(fuelSets, `[[`, "nonForestedLCCGroups"))
+  g[!duplicated(names(g))]
+}
 
 #' Supply default inputs
 #'
