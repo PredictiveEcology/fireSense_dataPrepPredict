@@ -10,7 +10,7 @@ defineModule(sim, list(
     person("Alex M", "Chubaty", role = "ctb", email = "achubaty@for-cast.ca")
   ),
   childModules = character(0),
-  version = list(fireSense_dataPrepPredict = "1.0.4.9001"),
+  version = list(fireSense_dataPrepPredict = "1.0.4.9002"),
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = "year",
   citation = list("citation.bib"),
@@ -62,6 +62,8 @@ defineModule(sim, list(
     defineParameter(
       ".runInitialTime", "numeric", start(sim), NA, NA, "Time of the first climate and covariate preparation events."
     ),
+    defineParameter(".studyAreaName", "character", NA, NA, NA,
+                    "Human-readable name for the study area used."),
     defineParameter(
       ".useCache", "logical", FALSE, NA, NA,
       paste(
@@ -221,6 +223,7 @@ doEvent.fireSense_dataPrepPredict <- function(sim, eventTime, eventType) {
 #'
 #' @return The `simList`, invisibly.
 Init <- function(sim) {
+  sim <- resolveStudyAreaName(sim)
 
   # force it to be same as the other module's value
   params(sim)[[currentModule(sim)]][["igAggFactor"]] <- SpaDES.core::paramCheckOtherMods(sim, "igAggFactor")
@@ -573,6 +576,20 @@ unionLCCGroups <- function(fuelSets) {
 #' @param sim A `simList`.
 #'
 #' @return The `simList`, invisibly.
+## An NA `.studyAreaName` becomes a hash of the study area (as in Biomass_borealDataPrep), so NA never
+## reaches a file name or cache tag. Without `studyArea`, the extent of `rasterToMatch` stands in for it.
+resolveStudyAreaName <- function(sim) {
+  if (is.na(P(sim)$.studyAreaName)) {
+    sa <- sim$studyArea
+    if (is.null(sa))
+      sa <- terra::as.polygons(terra::ext(sim$rasterToMatch), crs = terra::crs(sim$rasterToMatch))
+    params(sim)[[currentModule(sim)]][[".studyAreaName"]] <- reproducible::studyAreaName(sa)
+    message("The .studyAreaName is not supplied; derived name from the study area: ",
+            params(sim)[[currentModule(sim)]][[".studyAreaName"]])
+  }
+  sim
+}
+
 .inputObjects <- function(sim) {
   cacheTags <- c(currentModule(sim), "otherFunctions:.inputObjects")
   dPath <- asPath(inputPath(sim), 1)
@@ -589,6 +606,7 @@ unionLCCGroups <- function(fuelSets) {
     if (suppliedElsewhere("rstLCCs", sim)) {
       sim$rstLCC_RTM <- tail(sim$rstLCCs, 1)[[1]]
     } else {
+      sim <- resolveStudyAreaName(sim)
       rstLCC <- Cache(makeFireSenseLCC,
                       neededYear = P(sim)$dataYear,
                       writeTo = .suffix(
