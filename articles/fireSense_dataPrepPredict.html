@@ -32,7 +32,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">fireSense_dataPrepPredict</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.0.4.9000</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.0.4.9001</span>
       </span>
     </div>
 
@@ -71,9 +71,9 @@
   <div class="col-md-9 contents">
     <div class="page-header toc-ignore">
       <h1 data-toc-skip>fireSense_dataPrepPredict Manual</h1>
-            <h3 data-toc-skip class="subtitle">v.1.0.4.9000</h3>
+            <h3 data-toc-skip class="subtitle">v.1.0.4.9001</h3>
             
-            <h4 data-toc-skip class="date">Last updated: 2026-09-21</h4>
+            <h4 data-toc-skip class="date">Last updated: 2026-09-24</h4>
       
 
       <div class="hidden name"><code>fireSense_dataPrepPredict.Rmd</code></div>
@@ -329,6 +329,48 @@ list
 </td>
 <td style="text-align:left;">
 Optional named list of landcover <code>SpatRaster</code>s, one per data year, as produced by <code>fireSense_dataPrepFit</code>. If supplied, the last element is used as <code>rstLCC_RTM</code>.
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+sppEquivs
+</td>
+<td style="text-align:left;">
+list
+</td>
+<td style="text-align:left;">
+Only with several fitted ELFs: one <code>sppEquiv</code> per ELF, from <code>fireSense_dataPrepFit</code>. Each ELF’s fuel covariates are made with its own, for every pixel.
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+nonForestedLCCGroupsList
+</td>
+<td style="text-align:left;">
+list
+</td>
+<td style="text-align:left;">
+Only with several fitted ELFs: one <code>nonForestedLCCGroups</code> per ELF, in the order of <code>sppEquivs</code>.
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+missingLCCgroupList
+</td>
+<td style="text-align:left;">
+list
+</td>
+<td style="text-align:left;">
+Only with several fitted ELFs: one <code>missingLCCgroup</code> per ELF, in the order of <code>sppEquivs</code>.
 </td>
 <td style="text-align:left;">
 NA

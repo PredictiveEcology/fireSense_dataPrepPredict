@@ -1,7 +1,7 @@
 ---
 title: "fireSense_dataPrepPredict Manual"
-subtitle: "v.1.0.4.9000"
-date: "Last updated: 2026-09-21"
+subtitle: "v.1.0.4.9001"
+date: "Last updated: 2026-09-24"
 output:
   bookdown::html_document2:
     toc: true
@@ -149,6 +149,24 @@ Table \@ref(tab:moduleInputs-fireSense-dataPrepPredict) shows the full list of m
    <td style="text-align:left;"> rstLCCs </td>
    <td style="text-align:left;"> list </td>
    <td style="text-align:left;"> Optional named list of landcover `SpatRaster`s, one per data year, as produced by `fireSense_dataPrepFit`. If supplied, the last element is used as `rstLCC_RTM`. </td>
+   <td style="text-align:left;"> NA </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> sppEquivs </td>
+   <td style="text-align:left;"> list </td>
+   <td style="text-align:left;"> Only with several fitted ELFs: one `sppEquiv` per ELF, from `fireSense_dataPrepFit`. Each ELF's fuel covariates are made with its own, for every pixel. </td>
+   <td style="text-align:left;"> NA </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> nonForestedLCCGroupsList </td>
+   <td style="text-align:left;"> list </td>
+   <td style="text-align:left;"> Only with several fitted ELFs: one `nonForestedLCCGroups` per ELF, in the order of `sppEquivs`. </td>
+   <td style="text-align:left;"> NA </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> missingLCCgroupList </td>
+   <td style="text-align:left;"> list </td>
+   <td style="text-align:left;"> Only with several fitted ELFs: one `missingLCCgroup` per ELF, in the order of `sppEquivs`. </td>
    <td style="text-align:left;"> NA </td>
   </tr>
   <tr>
