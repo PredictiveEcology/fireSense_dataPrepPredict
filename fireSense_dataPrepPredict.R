@@ -10,7 +10,7 @@ defineModule(sim, list(
     person("Alex M", "Chubaty", role = "ctb", email = "achubaty@for-cast.ca")
   ),
   childModules = character(0),
-  version = list(fireSense_dataPrepPredict = "1.0.4.9002"),
+  version = list(fireSense_dataPrepPredict = "1.0.4.9003"),
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = "year",
   citation = list("citation.bib"),
@@ -133,6 +133,9 @@ defineModule(sim, list(
       desc = "Table of LandR species equivalencies; must have columns `sppEquivCol` and `fuelClassCol`."),
     expectsInput("standAgeMap", "SpatRaster", sourceURL = NA,
       desc = "Stand age (years) at `start(sim)`."),
+    expectsInput("studyArea", "SpatVector", sourceURL = NA,
+      desc = paste("Polygon of the study area. The fire polygons, land cover and stand age made in",
+                   "`.inputObjects` are masked to it.")),
     expectsInput("landcoverDT", "data.table", sourceURL = NA,
       desc = paste(
         "`pixelID` plus one binary column per non-forest landcover group, for flammable pixels,",
