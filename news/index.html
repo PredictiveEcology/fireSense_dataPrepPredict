@@ -17,7 +17,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">fireSense_dataPrepPredict</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.0.4.9001</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.0.4.9002</span>
       </span>
     </div>
 
@@ -53,7 +53,8 @@
 
     <div class="section level2">
 <h2 class="page-header" data-toc-text="development version" id="firesense_datapreppredict-development-version">fireSense_dataPrepPredict (development version)<a class="anchor" aria-label="anchor" href="#firesense_datapreppredict-development-version"></a></h2>
-<ul><li>Several fitted ELFs in one study area: with <code>sppEquivs</code>, <code>nonForestedLCCGroupsList</code> and <code>missingLCCgroupList</code> from <code>fireSense_dataPrepFit</code> (one element per ELF), every ELF’s fuel covariates are made for every pixel, each with its own species table, non-forest groups and <code>landcoverDT</code>, and merged by <code>pixelID</code> (spread) or by layer (ignition). <code>fireSense_SpreadPredict</code> and <code>fireSense_IgnitionPredict</code> then apply each ELF’s model to its own columns. One ELF works as before.</li>
+<ul><li>New parameter <code>.studyAreaName</code> (default <code>NA</code>). The module already read <code>P(sim)$.studyAreaName</code> without defining it, so it was always <code>NULL</code>, whatever the user set. Left <code>NA</code>, it becomes a hash of <code>studyArea</code> (or of the extent of <code>rasterToMatch</code>), as in Biomass_borealDataPrep. It names the study area in the landcover file (<code>rstLCC_&lt;dataYear&gt;_&lt;studyAreaName&gt;.tif</code>) and in cache tags, so caches built before this rebuild.</li>
+<li>Several fitted ELFs in one study area: with <code>sppEquivs</code>, <code>nonForestedLCCGroupsList</code> and <code>missingLCCgroupList</code> from <code>fireSense_dataPrepFit</code> (one element per ELF), every ELF’s fuel covariates are made for every pixel, each with its own species table, non-forest groups and <code>landcoverDT</code>, and merged by <code>pixelID</code> (spread) or by layer (ignition). <code>fireSense_SpreadPredict</code> and <code>fireSense_IgnitionPredict</code> then apply each ELF’s model to its own columns. One ELF works as before.</li>
 </ul></div>
     <div class="section level2">
 <h2 class="page-header" data-toc-text="1.0.2" id="firesense_datapreppredict-102">fireSense_dataPrepPredict 1.0.2<a class="anchor" aria-label="anchor" href="#firesense_datapreppredict-102"></a></h2>
