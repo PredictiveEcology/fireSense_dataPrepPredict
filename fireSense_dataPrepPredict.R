@@ -579,20 +579,6 @@ unionLCCGroups <- function(fuelSets) {
 #' @param sim A `simList`.
 #'
 #' @return The `simList`, invisibly.
-## An NA `.studyAreaName` becomes a hash of the study area (as in Biomass_borealDataPrep), so NA never
-## reaches a file name or cache tag. Without `studyArea`, the extent of `rasterToMatch` stands in for it.
-resolveStudyAreaName <- function(sim) {
-  if (is.na(P(sim)$.studyAreaName)) {
-    sa <- sim$studyArea
-    if (is.null(sa))
-      sa <- terra::as.polygons(terra::ext(sim$rasterToMatch), crs = terra::crs(sim$rasterToMatch))
-    params(sim)[[currentModule(sim)]][[".studyAreaName"]] <- reproducible::studyAreaName(sa)
-    message("The .studyAreaName is not supplied; derived name from the study area: ",
-            params(sim)[[currentModule(sim)]][[".studyAreaName"]])
-  }
-  sim
-}
-
 .inputObjects <- function(sim) {
   cacheTags <- c(currentModule(sim), "otherFunctions:.inputObjects")
   dPath <- asPath(inputPath(sim), 1)
@@ -663,4 +649,15 @@ resolveStudyAreaName <- function(sim) {
   
 
   return(invisible(sim))
+}
+
+## An NA `.studyAreaName` becomes a hash of `studyArea`, as in Biomass_borealDataPrep. Without a
+## `studyArea` it stays NA (see PredictiveEcology/LandR#246).
+resolveStudyAreaName <- function(sim) {
+  if (is.na(P(sim)$.studyAreaName) && !is.null(sim$studyArea)) {
+    params(sim)[[currentModule(sim)]][[".studyAreaName"]] <- reproducible::studyAreaName(sim$studyArea)
+    message("The .studyAreaName is not supplied; derived name from the study area: ",
+            params(sim)[[currentModule(sim)]][[".studyAreaName"]])
+  }
+  sim
 }
