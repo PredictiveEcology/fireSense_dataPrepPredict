@@ -20,8 +20,9 @@ test_that("prepSpreadPredictData builds one row per flammable pixel with this ye
   ## value of 100 + pixelID proves both the right variable and the right year were taken
   expect_identical(df$MDC, 100 + 1:15)
 
-  ## hand-computed from the toy map: cells 9, 10, 15 are wetland.
-  expect_identical(which(df$wetland == 1L), c(9L, 10L, 15L))
+  ## hand-computed from the toy map: cells 9, 10, 15 are wetland, but 15 is also young (below), and a
+  ## young pixel is nothing else (fireSenseUtils >= 0.2.3.9048), so its wetland value is 0.
+  expect_identical(which(df$wetland == 1L), c(9L, 10L))
   ## grass is 11 and 12 from the map, PLUS 13 and 14: those two are forested landcover (210)
   ## with no cohort in `pixelGroupMap`, and `missingLCCgroup` is "grass", so the module
   ## assigns them there. That is the documented behaviour of `missingLCCgroup`
@@ -97,7 +98,8 @@ test_that("igAggFactor 1 leaves the ignition covariates at flammableRTM resoluti
   ## no aggregation: the same 15 flammable pixels as the spread table, with the same climate
   expect_identical(df$pixelID, 1:15)
   expect_equal(df$MDC, 100 + 1:15)
-  expect_identical(which(df$wetland == 1), c(9L, 10L, 15L))
+  ## 15 is wetland but also young, and a young pixel is nothing else
+  expect_identical(which(df$wetland == 1), c(9L, 10L))
 })
 
 test_that("a different ignition climate variable selects a different layer", {
