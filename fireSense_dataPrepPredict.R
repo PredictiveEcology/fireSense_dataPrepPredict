@@ -19,7 +19,7 @@ defineModule(sim, list(
                              "fireSense_IgnitionFit", "fireSense_SpreadFit")),
   reqdPkgs = list(
     "data.table",
-    "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9055)",
+    "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9057)",
     "terra"
   ),
   parameters = rbind(
@@ -129,17 +129,16 @@ defineModule(sim, list(
       desc = "Only with several fitted ELFs: one `nonForestedLCCGroups` per ELF, in the order of `sppEquivs`."),
     expectsInput("missingLCCgroupList", "list", sourceURL = NA,
       desc = "Only with several fitted ELFs: one `missingLCCgroup` per ELF, in the order of `sppEquivs`."),
-    expectsInput("fuelClassRolesList", "list", sourceURL = NA,
-      desc = paste("Only with several fitted ELFs: one `fuelClassRoles` (`list(domClass =, secClass =)`, from",
-                   "`fireSense_dataPrepFit::sim$fuelClassRoles`) per ELF, in the order of `sppEquivs`. An ELF",
-                   "missing from this list, or fitted with `fuelCovariates = \"species\"`, predicts with the",
-                   "previous per-fuel-class columns.")),
     expectsInput("sppEquiv", "data.table", sourceURL = NA,
       desc = "Table of LandR species equivalencies; must have columns `sppEquivCol` and `fuelClassCol`."),
-    expectsInput("fuelClassRoles", "list", sourceURL = NA,
-      desc = paste("One fitted ELF only: `list(domClass =, secClass =)`, from",
-                   "`fireSense_dataPrepFit::sim$fuelClassRoles`. Unsupplied, or `domClass = NA`, predicts with",
-                   "the previous per-fuel-class columns.")),
+    expectsInput("studyAreaWithSpreadParams", "sf", sourceURL = NA,
+      desc = paste("The fitted SpreadFit ledger rows (from `fireSense_ELFs`; also read, undeclared, by",
+                   "`fireSense_SpreadPredict`), one row per fitted ELF, in the order of `sppEquivs`. Each",
+                   "row's `params[[1]]` column names are the fitted formula's terms: an ELF whose terms",
+                   "include `dom_agb_<class>`/`sec_agb_<class>` predicts with those classes' AGB columns,",
+                   "matching what that ELF was fitted with; otherwise (an older, per-species fit) with the",
+                   "previous one-column-per-fuel-class covariates. Unsupplied: every ELF predicts",
+                   "per-fuel-class, as before this was read.")),
     expectsInput("standAgeMap", "SpatRaster", sourceURL = NA,
       desc = "Stand age (years) at `start(sim)`."),
     expectsInput("studyArea", "SpatVector", sourceURL = NA,
@@ -465,11 +464,12 @@ prepare_SpreadPredict <- function(sim) {
     ## this fits cohortData into fuel classes
     ##  if pixels are missing/absent but are able to be forested as determined by landcoverDT,
     ##  they receive 0 values - e.g. pixelGroup zero
-    ## fs$fuelClassRoles is what the fit chose (fireSense_dataPrepFit::sim$fuelClassRoles, via
-    ## fuelClassRoles/fuelClassRolesList) -- domClass/secClass are forced here, never re-derived
+    ## fs$fuelClassRoles is read from this ELF's fitted parameter names (fuelClassRolesForELF(),
+    ## from sim$studyAreaWithSpreadParams) -- domClass/secClass are forced here, never re-derived
     ## from this prediction area, so an ELF predicts with the same dom_agb_*/sec_agb_* columns
-    ## its fit used even where a different class dominates here. domClass = NA (unset, or a fit
-    ## made with fuelCovariates = "species") predicts with the previous per-fuel-class columns.
+    ## its fit used even where a different class dominates here. domClass = NA (a fit made with
+    ## fuelCovariates = "species", or with no fitted parameters yet) predicts with the previous
+    ## per-fuel-class columns.
     covs <- fireSenseUtils:::fireSenseCovariatesCreate(
       cohortData = sim$cohortData,
       pixelGroupMap = sim$pixelGroupMap,
@@ -536,11 +536,39 @@ prepare_SpreadPredict <- function(sim) {
 #' @return list of lists, each with `sppEquiv`, `nonForestedLCCGroups`, `missingLCCgroup`, `landcoverDT`,
 #'   `requiredFuelClasses`, `rstLCC` (aligned to `flammableRTM`, for `treedWetland`/`treedWetland_agb`) and
 #'   `fuelClassRoles` (`list(domClass =, secClass =)`; `domClass = NA` predicts with per-fuel-class columns).
-## fuelClassRoles for a single ELF: NA/NA (predict with per-fuel-class columns) unless the fit
-## supplied one and it names an actual domClass
-noFuelClassRoles <- list(domClass = NA_character_, secClass = NA_character_)
-withFuelClassRoles <- function(fcr) {
-  if (is.null(fcr) || is.null(fcr$domClass) || is.na(fcr$domClass)) noFuelClassRoles else fcr
+
+#' The fuel-class name after `dom_agb_`/`sec_agb_` in a fitted covariate name
+#'
+#' `fireSenseUtils::fireSenseCovariatesCreate(fuelCovariates = "domSecOther")` names those columns
+#' `dom_agb_<domClass>`/`sec_agb_<secClass>` with the fuel class's own name unchanged (no further
+#' mangling), so recovering `domClass`/`secClass` from a fitted term name is stripping the prefix.
+#'
+#' @param termNames character vector, e.g. `colnames(sim$studyAreaWithSpreadParams$params[[1]])`.
+#' @return `list(domClass =, secClass =)`; both `NA` when `termNames` has no `dom_agb_*` term (an
+#'   older, per-species fit -- predicts with the previous one-column-per-fuel-class covariates).
+fuelClassRolesFromTermNames <- function(termNames) {
+  domTerm <- grep("^dom_agb_", termNames, value = TRUE)
+  secTerm <- grep("^sec_agb_", termNames, value = TRUE)
+  if (!length(domTerm))
+    return(list(domClass = NA_character_, secClass = NA_character_))
+  list(domClass = sub("^dom_agb_", "", domTerm[1]),
+       secClass = if (length(secTerm)) sub("^sec_agb_", "", secTerm[1]) else NA_character_)
+}
+
+#' `fuelClassRoles` for one row of `sim$studyAreaWithSpreadParams`
+#'
+#' @param sim A `simList`.
+#' @param i integer, the row (ELF), in the order of `sppEquivs` -- the same order
+#'   `fireSense_SpreadPredict::spreadPredictRun()` indexes `sa$params[[i]]` by.
+#' @return `list(domClass =, secClass =)`, from [fuelClassRolesFromTermNames()]; both `NA` when
+#'   `studyAreaWithSpreadParams` is absent, too short, or that ELF has no fitted parameters yet.
+fuelClassRolesForELF <- function(sim, i = 1L) {
+  sa <- sim$studyAreaWithSpreadParams
+  noRoles <- list(domClass = NA_character_, secClass = NA_character_)
+  if (is.null(sa) || NROW(sa) < i) return(noRoles)
+  p <- sa$params[[i]]
+  if (is.null(p) || !NROW(p)) return(noRoles)
+  fuelClassRolesFromTermNames(colnames(p))
 }
 
 ELFfuelSets <- function(sim) {
@@ -561,11 +589,10 @@ ELFfuelSets <- function(sim) {
     }
     return(lapply(seq_len(n), function(i) {
       se <- data.table::as.data.table(sim$sppEquivs[[i]])
-      fcr <- if (length(sim$fuelClassRolesList) >= i) sim$fuelClassRolesList[[i]] else NULL
       list(sppEquiv = se, nonForestedLCCGroups = sim$nonForestedLCCGroupsList[[i]],
            missingLCCgroup = sim$missingLCCgroupList[[i]], landcoverDT = mod$ELFlandcoverDTs[[i]],
            requiredFuelClasses = se[[fcc]], rstLCC = mod$ELFrstLCC,
-           fuelClassRoles = withFuelClassRoles(fcr))
+           fuelClassRoles = fuelClassRolesForELF(sim, i))
     }))
   }
   if (!data.table::is.data.table(sim$sppEquiv)) data.table::setDT(sim$sppEquiv)
@@ -578,7 +605,7 @@ ELFfuelSets <- function(sim) {
   list(list(sppEquiv = sim$sppEquiv, nonForestedLCCGroups = sim$nonForestedLCCGroups,
             missingLCCgroup = sim$missingLCCgroup, landcoverDT = sim$landcoverDT,
             requiredFuelClasses = mod$requiredFuelClasses, rstLCC = mod$ELFrstLCC,
-            fuelClassRoles = withFuelClassRoles(sim$fuelClassRoles)))
+            fuelClassRoles = fuelClassRolesForELF(sim, 1L)))
 }
 
 #' Merge the covariates of several ELFs
@@ -685,11 +712,6 @@ unionLCCGroups <- function(fuelSets) {
       forestedLCC = P(sim)$forestedLCC,
       nonForestedLCCGroups = sim$nonForestedLCCGroups
     )
-  }
-
-  if (!suppliedElsewhere("fuelClassRoles", sim)) {
-    ## no fit metadata to say otherwise: predict with the previous per-fuel-class columns
-    sim$fuelClassRoles <- list(domClass = NA_character_, secClass = NA_character_)
   }
 
   return(invisible(sim))

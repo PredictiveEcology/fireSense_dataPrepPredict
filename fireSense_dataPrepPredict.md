@@ -168,21 +168,15 @@ Table \@ref(tab:moduleInputs-fireSense-dataPrepPredict) shows the full list of m
    <td style="text-align:left;"> NA </td>
   </tr>
   <tr>
-   <td style="text-align:left;"> fuelClassRolesList </td>
-   <td style="text-align:left;"> list </td>
-   <td style="text-align:left;"> Only with several fitted ELFs: one `fuelClassRoles` (`list(domClass =, secClass =)`, from `fireSense_dataPrepFit::sim$fuelClassRoles`) per ELF, in the order of `sppEquivs`. An ELF missing from this list, or fitted with `fuelCovariates = "species"`, predicts with the previous per-fuel-class columns. </td>
-   <td style="text-align:left;"> NA </td>
-  </tr>
-  <tr>
    <td style="text-align:left;"> sppEquiv </td>
    <td style="text-align:left;"> data.table </td>
    <td style="text-align:left;"> Table of LandR species equivalencies; must have columns `sppEquivCol` and `fuelClassCol`. </td>
    <td style="text-align:left;"> NA </td>
   </tr>
   <tr>
-   <td style="text-align:left;"> fuelClassRoles </td>
-   <td style="text-align:left;"> list </td>
-   <td style="text-align:left;"> One fitted ELF only: `list(domClass =, secClass =)`, from `fireSense_dataPrepFit::sim$fuelClassRoles`. Unsupplied, or `domClass = NA`, predicts with the previous per-fuel-class columns. </td>
+   <td style="text-align:left;"> studyAreaWithSpreadParams </td>
+   <td style="text-align:left;"> sf </td>
+   <td style="text-align:left;"> The fitted SpreadFit ledger rows (from `fireSense_ELFs`; also read, undeclared, by `fireSense_SpreadPredict`), one row per fitted ELF, in the order of `sppEquivs`. Each row's `params[[1]]` column names are the fitted formula's terms: an ELF whose terms include `dom_agb_&lt;class&gt;`/`sec_agb_&lt;class&gt;` predicts with those classes' AGB columns, matching what that ELF was fitted with; otherwise (an older, per-species fit) with the previous one-column-per-fuel-class covariates. Unsupplied: every ELF predicts per-fuel-class, as before this was read. </td>
    <td style="text-align:left;"> NA </td>
   </tr>
   <tr>

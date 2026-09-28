@@ -3291,20 +3291,6 @@ NA
 </tr>
 <tr>
 <td style="text-align:left;">
-fuelClassRolesList
-</td>
-<td style="text-align:left;">
-list
-</td>
-<td style="text-align:left;">
-Only with several fitted ELFs: one <code>fuelClassRoles</code> (<code>list(domClass =, secClass =)</code>, from <code>fireSense_dataPrepFit::sim$fuelClassRoles</code>) per ELF, in the order of <code>sppEquivs</code>. An ELF missing from this list, or fitted with <code>fuelCovariates = &quot;species&quot;</code>, predicts with the previous per-fuel-class columns.
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
 sppEquiv
 </td>
 <td style="text-align:left;">
@@ -3319,13 +3305,13 @@ NA
 </tr>
 <tr>
 <td style="text-align:left;">
-fuelClassRoles
+studyAreaWithSpreadParams
 </td>
 <td style="text-align:left;">
-list
+sf
 </td>
 <td style="text-align:left;">
-One fitted ELF only: <code>list(domClass =, secClass =)</code>, from <code>fireSense_dataPrepFit::sim$fuelClassRoles</code>. Unsupplied, or <code>domClass = NA</code>, predicts with the previous per-fuel-class columns.
+The fitted SpreadFit ledger rows (from <code>fireSense_ELFs</code>; also read, undeclared, by <code>fireSense_SpreadPredict</code>), one row per fitted ELF, in the order of <code>sppEquivs</code>. Each row’s <code>params[[1]]</code> column names are the fitted formula’s terms: an ELF whose terms include <code>dom_agb_&amp;lt;class&amp;gt;</code>/<code>sec_agb_&amp;lt;class&amp;gt;</code> predicts with those classes’ AGB columns, matching what that ELF was fitted with; otherwise (an older, per-species fit) with the previous one-column-per-fuel-class covariates. Unsupplied: every ELF predicts per-fuel-class, as before this was read.
 </td>
 <td style="text-align:left;">
 NA

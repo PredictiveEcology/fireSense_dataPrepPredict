@@ -22,8 +22,6 @@ test_that("inputs are the expected names and classes", {
       cohortData               = "data.table",
       currentClimateRasters    = "SpatRaster",
       flammableRTM             = "SpatRaster",
-      fuelClassRoles           = "list",
-      fuelClassRolesList       = "list",
       landcoverDT              = "data.table",
       lightningMaps            = "SpatRaster",
       missingLCCgroup          = "character",
@@ -39,7 +37,8 @@ test_that("inputs are the expected names and classes", {
       sppEquiv                 = "data.table",
       sppEquivs                = "list",
       standAgeMap              = "SpatRaster",
-      studyArea                = "SpatVector")
+      studyArea                = "SpatVector",
+      studyAreaWithSpreadParams = "sf")
   )
 })
 
