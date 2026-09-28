@@ -36,7 +36,8 @@ test_that("inputs are the expected names and classes", {
       rstLCCs                  = "list",
       sppEquiv                 = "data.table",
       sppEquivs                = "list",
-      standAgeMap              = "SpatRaster")
+      standAgeMap              = "SpatRaster",
+      studyArea                = "SpatVector")
   )
 })
 

@@ -1,5 +1,9 @@
 # fireSense_dataPrepPredict (development version)
 
+- `studyArea` is now a declared input. `.inputObjects` used it to mask the fire polygons, land cover and stand age it
+  makes, but an undeclared object is not visible there, so it was always `NULL` and nothing was masked. It also made
+  an unset `.studyAreaName` come from the extent of `rasterToMatch` in `.inputObjects` but from `studyArea` in `Init`.
+  That `rasterToMatch` fallback is removed: without a `studyArea`, an unset `.studyAreaName` stays `NA`.
 - New parameter `.studyAreaName` (default `NA`). The module already read `P(sim)$.studyAreaName` without defining it,
   so it was always `NULL`, whatever the user set. Left `NA`, it becomes a hash of `studyArea` (or of the extent of
   `rasterToMatch`), as in Biomass_borealDataPrep. It names the study area in the landcover file
