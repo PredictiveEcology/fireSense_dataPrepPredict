@@ -1,6 +1,6 @@
 ---
 title: "fireSense_dataPrepPredict Manual"
-subtitle: "v.1.0.4.9005"
+subtitle: "v.1.0.4.9006"
 date: "Last updated: 2026-09-28"
 output:
   bookdown::html_document2:
@@ -289,6 +289,14 @@ Summary of user-visible parameters (Table \@ref(tab:moduleParams-fireSense-dataP
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> Should burned non-forest pixels be `youngAge` until `cutoffForYoungAge`? </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> scanfiVersion </td>
+   <td style="text-align:left;"> character </td>
+   <td style="text-align:left;"> V3 </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> SCANFI land-cover version for non-forest land cover, when this module builds its own landcover (only used if `rstLCC_RTM`/`rstLCCs` is not supplied). </td>
   </tr>
   <tr>
    <td style="text-align:left;"> sppEquivCol </td>
