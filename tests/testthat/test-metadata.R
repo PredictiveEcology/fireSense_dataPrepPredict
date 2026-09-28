@@ -60,7 +60,7 @@ test_that("parameters are the expected names", {
     sort(md$parameters$paramName),
     sort(c(".runInitialTime", ".studyAreaName", ".useCache", "cutoffForYoungAge", "dataYear",
            "fireTimeStep", "flammabilityThreshold", "forestedLCC", "fuelClassCol",
-           "igAggFactor", "nonflammableLCC", "nonForestCanBeYoungAge", "sppEquivCol",
-           "whichModulesToPrepare"))
+           "igAggFactor", "nonflammableLCC", "nonForestCanBeYoungAge", "scanfiVersion",
+           "sppEquivCol", "whichModulesToPrepare"))
   )
 })
