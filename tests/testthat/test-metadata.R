@@ -37,7 +37,8 @@ test_that("inputs are the expected names and classes", {
       sppEquiv                 = "data.table",
       sppEquivs                = "list",
       standAgeMap              = "SpatRaster",
-      studyArea                = "SpatVector")
+      studyArea                = "SpatVector",
+      studyAreaWithSpreadParams = "sf")
   )
 })
 
