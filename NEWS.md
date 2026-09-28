@@ -1,5 +1,9 @@
 # fireSense_dataPrepPredict (development version)
 
+- Fixed: `nonflammableLCC`'s default (`c(0, 20, 31, 32, 33)`) missed SCANFI's rock/exposed code
+  (`30`), so rock entered predictions as flammable non-forest. The default now comes from
+  `fireSenseUtils::fireSenseNonflammableLCC`, the single source of truth `makeFireSenseLCC()`
+  also uses. Needs `fireSenseUtils@development (>= 0.2.3.9060)`. Version 1.0.4.9005.
 - `prepare_SpreadPredict()` now passes `rstLCC` to `fireSenseCovariatesCreate()` (previously never
   passed, so `treedWetland` never appeared). It now also reads `sim$studyAreaWithSpreadParams`
   (the fitted SpreadFit ledger rows `fireSense_ELFs` supplies, also read undeclared by

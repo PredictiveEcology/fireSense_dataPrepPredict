@@ -10,7 +10,7 @@ defineModule(sim, list(
     person("Alex M", "Chubaty", role = "ctb", email = "achubaty@for-cast.ca")
   ),
   childModules = character(0),
-  version = list(fireSense_dataPrepPredict = "1.0.4.9004"),
+  version = list(fireSense_dataPrepPredict = "1.0.4.9005"),
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = "year",
   citation = list("citation.bib"),
@@ -19,7 +19,7 @@ defineModule(sim, list(
                              "fireSense_IgnitionFit", "fireSense_SpreadFit")),
   reqdPkgs = list(
     "data.table",
-    "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9057)",
+    "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9060)",
     "terra"
   ),
   parameters = rbind(
@@ -43,10 +43,11 @@ defineModule(sim, list(
     defineParameter("igAggFactor", "numeric", 4, 1, NA,
                     paste("Aggregation factor for the ignition and escape covariates.",
                           "Overwritten in `init` by the value set in other modules.")),
-    defineParameter("nonflammableLCC", "numeric", c(0, 20, 31, 32, 33), NA, NA,
+    defineParameter("nonflammableLCC", "numeric", fireSenseUtils::fireSenseNonflammableLCC, NA, NA,
       desc = paste(
         "Non-flammable landcover classes, used to create `flammableRTM` and the default landcover",
-        "if not supplied. Defaults are water, snow/ice, rock and barren land in NTEMS LCC."
+        "if not supplied. The default, `fireSenseUtils::fireSenseNonflammableLCC`, is no data,",
+        "water, rock, snow/ice and barren land."
       )
     ),
     defineParameter("nonForestCanBeYoungAge", "logical", TRUE, NA, NA,
