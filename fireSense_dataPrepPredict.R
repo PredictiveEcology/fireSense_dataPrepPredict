@@ -19,7 +19,7 @@ defineModule(sim, list(
                              "fireSense_IgnitionFit", "fireSense_SpreadFit")),
   reqdPkgs = list(
     "data.table",
-    "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9050)",
+    "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9055)",
     "terra"
   ),
   parameters = rbind(

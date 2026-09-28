@@ -7,7 +7,7 @@
   `treedWetland_agb` columns using THOSE classes, not the classes that happen to dominate the
   prediction area. Unsupplied (the default, and every previously-fitted ELF), prediction is
   unchanged: the previous one-column-per-fuel-class covariates. Needs
-  `fireSenseUtils@development (>= 0.2.3.9050)`. Version 1.0.4.9004.
+  `fireSenseUtils@development (>= 0.2.3.9055)`. Version 1.0.4.9004.
 
 - `studyArea` is now a declared input. `.inputObjects` used it to mask the fire polygons, land cover and stand age it
   makes, but an undeclared object is not visible there, so it was always `NULL` and nothing was masked. It also made
