@@ -1,6 +1,6 @@
 ---
 title: "fireSense_dataPrepPredict Manual"
-subtitle: "v.1.0.4.9004"
+subtitle: "v.1.0.4.9005"
 date: "Last updated: 2026-09-28"
 output:
   bookdown::html_document2:
@@ -280,7 +280,7 @@ Summary of user-visible parameters (Table \@ref(tab:moduleParams-fireSense-dataP
    <td style="text-align:left;"> 0, 20, 3.... </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
-   <td style="text-align:left;"> Non-flammable landcover classes, used to create `flammableRTM` and the default landcover if not supplied. Defaults are water, snow/ice, rock and barren land in NTEMS LCC. </td>
+   <td style="text-align:left;"> Non-flammable landcover classes, used to create `flammableRTM` and the default landcover if not supplied. The default, `fireSenseUtils::fireSenseNonflammableLCC`, is no data, water, rock, snow/ice and barren land. </td>
   </tr>
   <tr>
    <td style="text-align:left;"> nonForestCanBeYoungAge </td>
