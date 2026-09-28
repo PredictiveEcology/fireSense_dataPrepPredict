@@ -1,7 +1,7 @@
 ---
 title: "fireSense_dataPrepPredict Manual"
-subtitle: "v.1.0.4.9002"
-date: "Last updated: 2026-09-24"
+subtitle: "v.1.0.4.9003"
+date: "Last updated: 2026-09-28"
 output:
   bookdown::html_document2:
     toc: true
@@ -179,6 +179,12 @@ Table \@ref(tab:moduleInputs-fireSense-dataPrepPredict) shows the full list of m
    <td style="text-align:left;"> standAgeMap </td>
    <td style="text-align:left;"> SpatRaster </td>
    <td style="text-align:left;"> Stand age (years) at `start(sim)`. </td>
+   <td style="text-align:left;"> NA </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> studyArea </td>
+   <td style="text-align:left;"> SpatVector </td>
+   <td style="text-align:left;"> Polygon of the study area. The fire polygons, land cover and stand age made in `.inputObjects` are masked to it. </td>
    <td style="text-align:left;"> NA </td>
   </tr>
   <tr>
