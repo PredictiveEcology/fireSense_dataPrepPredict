@@ -1,6 +1,6 @@
 ---
 title: "fireSense_dataPrepPredict Manual"
-subtitle: "v.1.0.4.9003"
+subtitle: "v.1.0.4.9004"
 date: "Last updated: 2026-09-28"
 output:
   bookdown::html_document2:
@@ -168,9 +168,21 @@ Table \@ref(tab:moduleInputs-fireSense-dataPrepPredict) shows the full list of m
    <td style="text-align:left;"> NA </td>
   </tr>
   <tr>
+   <td style="text-align:left;"> fuelClassRolesList </td>
+   <td style="text-align:left;"> list </td>
+   <td style="text-align:left;"> Only with several fitted ELFs: one `fuelClassRoles` (`list(domClass =, secClass =)`, from `fireSense_dataPrepFit::sim$fuelClassRoles`) per ELF, in the order of `sppEquivs`. An ELF missing from this list, or fitted with `fuelCovariates = "species"`, predicts with the previous per-fuel-class columns. </td>
+   <td style="text-align:left;"> NA </td>
+  </tr>
+  <tr>
    <td style="text-align:left;"> sppEquiv </td>
    <td style="text-align:left;"> data.table </td>
    <td style="text-align:left;"> Table of LandR species equivalencies; must have columns `sppEquivCol` and `fuelClassCol`. </td>
+   <td style="text-align:left;"> NA </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> fuelClassRoles </td>
+   <td style="text-align:left;"> list </td>
+   <td style="text-align:left;"> One fitted ELF only: `list(domClass =, secClass =)`, from `fireSense_dataPrepFit::sim$fuelClassRoles`. Unsupplied, or `domClass = NA`, predicts with the previous per-fuel-class columns. </td>
    <td style="text-align:left;"> NA </td>
   </tr>
   <tr>

@@ -14,7 +14,7 @@ test_that("prepSpreadPredictData builds one row per flammable pixel with this ye
   ## the declared column order: pixelID, the climate layers, youngAge, then the fuels
   expect_identical(names(df)[1:3], c("pixelID", "MDC", "youngAge"))
   expect_setequal(names(df), c("pixelID", "MDC", "youngAge", "class1", "class2",
-                               "wetland", "grass"))
+                               "wetland", "grass", "treedWetland"))
 
   ## hand-computed: spread climate is MDC, and toy MDC for 2001 is 100 + cellNumber, so a
   ## value of 100 + pixelID proves both the right variable and the right year were taken

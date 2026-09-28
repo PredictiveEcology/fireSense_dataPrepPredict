@@ -22,6 +22,8 @@ test_that("inputs are the expected names and classes", {
       cohortData               = "data.table",
       currentClimateRasters    = "SpatRaster",
       flammableRTM             = "SpatRaster",
+      fuelClassRoles           = "list",
+      fuelClassRolesList       = "list",
       landcoverDT              = "data.table",
       lightningMaps            = "SpatRaster",
       missingLCCgroup          = "character",
