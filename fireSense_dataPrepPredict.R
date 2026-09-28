@@ -10,7 +10,7 @@ defineModule(sim, list(
     person("Alex M", "Chubaty", role = "ctb", email = "achubaty@for-cast.ca")
   ),
   childModules = character(0),
-  version = list(fireSense_dataPrepPredict = "1.0.4.9005"),
+  version = list(fireSense_dataPrepPredict = "1.0.4.9006"),
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = "year",
   citation = list("citation.bib"),
@@ -19,11 +19,11 @@ defineModule(sim, list(
                              "fireSense_IgnitionFit", "fireSense_SpreadFit")),
   reqdPkgs = list(
     "data.table",
-    "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9060)",
+    "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9062)",
     "terra"
   ),
   parameters = rbind(
-    defineParameter("cutoffForYoungAge", "numeric", 15, NA, NA,
+    defineParameter("cutoffForYoungAge", "numeric", fireSenseUtils::fireSenseYoungAgeCutoff, NA, NA,
       desc = paste(
         "Age at and below which pixels are considered 'young'",
         "(i.e., `age <= cutoffForYoungAge`)."
@@ -33,14 +33,14 @@ defineModule(sim, list(
                     paste("Year of the default landcover and stand age maps, and last year of the fires",
                           "used to initialise `nonForest_timeSinceDisturbance`.")),
     defineParameter("fireTimeStep", "numeric", 1, NA, NA, desc = "Interval between events of this module, in years."),
-    defineParameter("forestedLCC", "numeric", c(81, 210, 220, 230, 240), NA, NA,
+    defineParameter("forestedLCC", "numeric", fireSenseUtils::fireSenseForestedLCC, NA, NA,
                     "Forested landcover classes in `rstLCC_RTM`. Only used if `landcoverDT` is not supplied."),
-    defineParameter("flammabilityThreshold", "numeric", 0.1, 0, 1,
+    defineParameter("flammabilityThreshold", "numeric", fireSenseUtils::fireSenseFlammabilityThreshold, 0, 1,
       paste("Minimum proportion of flammable pixels for an upscaled pixel to be flammable,",
             "when building the default landcover.")),
-    defineParameter("fuelClassCol", "character", "FuelClass", NA, NA, 
+    defineParameter("fuelClassCol", "character", fireSenseUtils::fireSenseFuelClassCol, NA, NA,
                     "Column of `sppEquiv` that defines the fuel classes, for both ignition and spread."),
-    defineParameter("igAggFactor", "numeric", 4, 1, NA,
+    defineParameter("igAggFactor", "numeric", fireSenseUtils::fireSenseIgAggFactor, 1, NA,
                     paste("Aggregation factor for the ignition and escape covariates.",
                           "Overwritten in `init` by the value set in other modules.")),
     defineParameter("nonflammableLCC", "numeric", fireSenseUtils::fireSenseNonflammableLCC, NA, NA,
@@ -50,8 +50,13 @@ defineModule(sim, list(
         "water, rock, snow/ice and barren land."
       )
     ),
-    defineParameter("nonForestCanBeYoungAge", "logical", TRUE, NA, NA,
+    defineParameter("nonForestCanBeYoungAge", "logical", fireSenseUtils::fireSenseNonForestCanBeYoungAge, NA, NA,
                     desc = "Should burned non-forest pixels be `youngAge` until `cutoffForYoungAge`?"),
+    defineParameter("scanfiVersion", "character", fireSenseUtils::fireSenseSCANFIVersion, NA, NA,
+                    desc = paste(
+                      "SCANFI land-cover version for non-forest land cover, when this module builds its own",
+                      "landcover (only used if `rstLCC_RTM`/`rstLCCs` is not supplied)."
+                    )),
     defineParameter("sppEquivCol", "character", "LandR", NA, NA,
                     desc = "Column of `sppEquiv` with the species names used in `cohortData`."),
     defineParameter("whichModulesToPrepare", "character",
@@ -471,7 +476,7 @@ prepare_SpreadPredict <- function(sim) {
     ## its fit used even where a different class dominates here. domClass = NA (a fit made with
     ## fuelCovariates = "species", or with no fitted parameters yet) predicts with the previous
     ## per-fuel-class columns.
-    covs <- fireSenseUtils:::fireSenseCovariatesCreate(
+    covs <- fireSenseUtils::fireSenseCovariatesCreate(
       cohortData = sim$cohortData,
       pixelGroupMap = sim$pixelGroupMap,
       flammableRTM = sim$flammableRTM,
@@ -676,6 +681,7 @@ unionLCCGroups <- function(fuelSets) {
                       overwrite=  TRUE,
                       nonflammableLCC = P(sim)$nonflammableLCC,
                       flammabilityThreshold = P(sim)$flammabilityThreshold,
+                      scanfiVersion = P(sim)$scanfiVersion,
                       userTags = c("makeFireSenseLCC", "predict")
       )
       sim$rstLCC_RTM <- rstLCC$lcc
