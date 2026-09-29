@@ -1,7 +1,7 @@
 ---
 title: "fireSense_dataPrepPredict Manual"
-subtitle: "v.1.0.4.9006"
-date: "Last updated: 2026-09-28"
+subtitle: "v.1.0.4.9009"
+date: "Last updated: 2026-09-29"
 output:
   bookdown::html_document2:
     toc: true
@@ -41,8 +41,8 @@ Ian Eddy <ian.eddy@nrcan-rncan.gc.ca> [aut, cre], Eliot McIntire <eliot.mcintire
 
 Prepares, each year, the covariate tables that the fireSense [@Marchal:2017a; @Marchal:2017b; @Marchal:2019] predict modules use:
 
-- `fireSense_igAndEscapePred_Covariates` for *fireSense_IgnitionPredict* and *fireSense_EscapePredict*: fuel classes, non-forest landcover, `youngAge`, ignition climate and lightning days, aggregated by `igAggFactor`.
-- `fireSense_SpreadCovariates` for *fireSense_SpreadPredict*: the same fuel, landcover and `youngAge` columns plus spread climate, at the resolution of `flammableRTM`.
+- `fireSense_igAndEscapePred_Covariates` for *fireSense_ignitionPredict* (ignition and escape): fuel classes, non-forest landcover, `youngAge`, ignition climate and lightning days, aggregated by `igAggFactor`.
+- `fireSense_SpreadCovariates` for *fireSense_spreadPredict*: the same fuel, landcover and `youngAge` columns plus spread climate, at the resolution of `flammableRTM`.
 
 Fuel classes come from `cohortData` and `pixelGroupMap`, grouped by the `fuelClassCol` column of `sppEquiv`.
 The covariates are built by the same *fireSenseUtils* functions that *fireSense_dataPrepFit* uses, so they match the fitted models.
@@ -178,7 +178,7 @@ Table \@ref(tab:moduleInputs-fireSense-dataPrepPredict) shows the full list of m
   <tr>
    <td style="text-align:left;"> studyAreaWithSpreadParams </td>
    <td style="text-align:left;"> sf </td>
-   <td style="text-align:left;"> The fitted SpreadFit ledger rows (from `fireSense_ELFs`; also read, undeclared, by `fireSense_SpreadPredict`), one row per fitted ELF, in the order of `sppEquivs`. Each row's `params[[1]]` column names are the fitted formula's terms: an ELF whose terms include `dom_agb_&lt;class&gt;`/`sec_agb_&lt;class&gt;` predicts with those classes' AGB columns, matching what that ELF was fitted with; otherwise (an older, per-species fit) with the previous one-column-per-fuel-class covariates. Unsupplied: every ELF predicts per-fuel-class, as before this was read. </td>
+   <td style="text-align:left;"> The fitted SpreadFit ledger rows (from `fireSense_ELFs`; also read, undeclared, by `fireSense_spreadPredict`), one row per fitted ELF, in the order of `sppEquivs`. Each row's `params[[1]]` column names are the fitted formula's terms: an ELF whose terms include `dom_agb_&lt;class&gt;`/`sec_agb_&lt;class&gt;` predicts with those classes' AGB columns, matching what that ELF was fitted with; otherwise (an older, per-species fit) with the previous one-column-per-fuel-class covariates. Unsupplied: every ELF predicts per-fuel-class, as before this was read. </td>
    <td style="text-align:left;"> NA </td>
   </tr>
   <tr>
@@ -312,7 +312,7 @@ Summary of user-visible parameters (Table \@ref(tab:moduleParams-fireSense-dataP
    <td style="text-align:left;"> fireSens.... </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
-   <td style="text-align:left;"> Predict modules to prepare covariates for: `fireSense_IgnitionPredict` or `fireSense_EscapePredict` for the ignition/escape table, `fireSense_SpreadPredict` for the spread table. Defaults to all three. </td>
+   <td style="text-align:left;"> Predict modules to prepare covariates for: `fireSense_ignitionPredict` for the ignition/escape table, `fireSense_spreadPredict` for the spread table. Defaults to both. </td>
   </tr>
   <tr>
    <td style="text-align:left;"> .runInitialTime </td>
@@ -347,8 +347,8 @@ All events after `init`, except `save`, repeat every `fireTimeStep` years.
 
 - `init`: aligns `standAgeMap` and `rstLCC_RTM` to `rasterToMatch`; builds `landcoverDT` if absent; builds `nonForest_timeSinceDisturbance` if absent, from the fire polygons of the `cutoffForYoungAge` years up to `dataYear`.
 - `getClimateRasters` (from `.runInitialTime`): a supplied `currentClimateRasters` (e.g. from the `climateYear` module) is left alone. If it is absent, or this module built it for another year, takes layer `year<Y>` of each element of `projectedClimateRasters`, where `Y` is `climateYear` if supplied, else `time(sim)`. Stops if it does not match `pixelGroupMap`.
-- `prepIgAndEscPredictData` (from `.runInitialTime`): builds `fireSense_igAndEscapePred_Covariates`. Scheduled if `whichModulesToPrepare` has `fireSense_IgnitionPredict` or `fireSense_EscapePredict`.
-- `prepSpreadPredictData` (from `.runInitialTime`): builds `fireSense_SpreadCovariates`. Scheduled if `whichModulesToPrepare` has `fireSense_SpreadPredict`.
+- `prepIgAndEscPredictData` (from `.runInitialTime`): builds `fireSense_igAndEscapePred_Covariates`. Scheduled if `whichModulesToPrepare` has `fireSense_ignitionPredict`; the module `fireSense_EscapePredict` no longer exists and is rejected.
+- `prepSpreadPredictData` (from `.runInitialTime`): builds `fireSense_SpreadCovariates`. Scheduled if `whichModulesToPrepare` has `fireSense_spreadPredict`.
 - `ageNonForest` (from `time(sim) + 1`): adds 1 to `nonForest_timeSinceDisturbance` and resets pixels burned in `rstCurrentBurn` to 0.
 - `save`: does nothing except emit a message. The module never schedules it.
 
@@ -393,7 +393,7 @@ Description of the module outputs (Table \@ref(tab:moduleOutputs-fireSense-dataP
 
 ### Links to other modules
 
-Runs after *Biomass_borealDataPrep*, *fireSense_dataPrepFit*, *fireSense_IgnitionFit* and *fireSense_SpreadFit*, and supplies *fireSense_IgnitionPredict*, *fireSense_EscapePredict* and *fireSense_SpreadPredict*.
+Runs after *Biomass_borealDataPrep*, *fireSense_dataPrepFit*, *fireSense_ignitionFit* and *fireSense_spreadFit*, and supplies *fireSense_ignitionPredict* (ignition and escape) and *fireSense_spreadPredict*.
 It is normally run as part of the [fireSense](https://github.com/PredictiveEcology/fireSense) module group.
 
 ### Getting help

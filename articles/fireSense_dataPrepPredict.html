@@ -32,7 +32,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">fireSense_dataPrepPredict</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.0.4.9006</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.0.4.9009</span>
       </span>
     </div>
 
@@ -71,9 +71,9 @@
   <div class="col-md-9 contents">
     <div class="page-header toc-ignore">
       <h1 data-toc-skip>fireSense_dataPrepPredict Manual</h1>
-            <h3 data-toc-skip class="subtitle">v.1.0.4.9006</h3>
+            <h3 data-toc-skip class="subtitle">v.1.0.4.9009</h3>
             
-            <h4 data-toc-skip class="date">Last updated: 2026-09-28</h4>
+            <h4 data-toc-skip class="date">Last updated: 2026-09-29</h4>
       
 
       <div class="hidden name"><code>fireSense_dataPrepPredict.Rmd</code></div>
@@ -104,9 +104,9 @@
 <p>Prepares, each year, the covariate tables that the fireSense <span class="citation">(<a href="#ref-Marchal:2017a">Marchal, Steve G. Cumming, et al. 2017b</a>; <a href="#ref-Marchal:2017b">Marchal, Steve G. Cumming, et al. 2017a</a>; <a href="#ref-Marchal:2019">Marchal et al. 2019</a>)</span> predict modules use:</p>
 <ul>
 <li>
-<code>fireSense_igAndEscapePred_Covariates</code> for <em>fireSense_IgnitionPredict</em> and <em>fireSense_EscapePredict</em>: fuel classes, non-forest landcover, <code>youngAge</code>, ignition climate and lightning days, aggregated by <code>igAggFactor</code>.</li>
+<code>fireSense_igAndEscapePred_Covariates</code> for <em>fireSense_ignitionPredict</em> (ignition and escape): fuel classes, non-forest landcover, <code>youngAge</code>, ignition climate and lightning days, aggregated by <code>igAggFactor</code>.</li>
 <li>
-<code>fireSense_SpreadCovariates</code> for <em>fireSense_SpreadPredict</em>: the same fuel, landcover and <code>youngAge</code> columns plus spread climate, at the resolution of <code>flammableRTM</code>.</li>
+<code>fireSense_SpreadCovariates</code> for <em>fireSense_spreadPredict</em>: the same fuel, landcover and <code>youngAge</code> columns plus spread climate, at the resolution of <code>flammableRTM</code>.</li>
 </ul>
 <p>Fuel classes come from <code>cohortData</code> and <code>pixelGroupMap</code>, grouped by the <code>fuelClassCol</code> column of <code>sppEquiv</code>.
 The covariates are built by the same <em>fireSenseUtils</em> functions that <em>fireSense_dataPrepFit</em> uses, so they match the fitted models.</p>
@@ -398,7 +398,7 @@ studyAreaWithSpreadParams
 sf
 </td>
 <td style="text-align:left;">
-The fitted SpreadFit ledger rows (from <code>fireSense_ELFs</code>; also read, undeclared, by <code>fireSense_SpreadPredict</code>), one row per fitted ELF, in the order of <code>sppEquivs</code>. Each row’s <code>params[[1]]</code> column names are the fitted formula’s terms: an ELF whose terms include <code>dom_agb_&amp;lt;class&amp;gt;</code>/<code>sec_agb_&amp;lt;class&amp;gt;</code> predicts with those classes’ AGB columns, matching what that ELF was fitted with; otherwise (an older, per-species fit) with the previous one-column-per-fuel-class covariates. Unsupplied: every ELF predicts per-fuel-class, as before this was read.
+The fitted SpreadFit ledger rows (from <code>fireSense_ELFs</code>; also read, undeclared, by <code>fireSense_spreadPredict</code>), one row per fitted ELF, in the order of <code>sppEquivs</code>. Each row’s <code>params[[1]]</code> column names are the fitted formula’s terms: an ELF whose terms include <code>dom_agb_&amp;lt;class&amp;gt;</code>/<code>sec_agb_&amp;lt;class&amp;gt;</code> predicts with those classes’ AGB columns, matching what that ELF was fitted with; otherwise (an older, per-species fit) with the previous one-column-per-fuel-class covariates. Unsupplied: every ELF predicts per-fuel-class, as before this was read.
 </td>
 <td style="text-align:left;">
 NA
@@ -711,7 +711,7 @@ NA
 NA
 </td>
 <td style="text-align:left;">
-Predict modules to prepare covariates for: <code>fireSense_IgnitionPredict</code> or <code>fireSense_EscapePredict</code> for the ignition/escape table, <code>fireSense_SpreadPredict</code> for the spread table. Defaults to all three.
+Predict modules to prepare covariates for: <code>fireSense_ignitionPredict</code> for the ignition/escape table, <code>fireSense_spreadPredict</code> for the spread table. Defaults to both.
 </td>
 </tr>
 <tr>
@@ -787,9 +787,9 @@ Should this entire module be run with caching activated? This is generally inten
 <li>
 <code>getClimateRasters</code> (from <code>.runInitialTime</code>): a supplied <code>currentClimateRasters</code> (e.g. from the <code>climateYear</code> module) is left alone. If it is absent, or this module built it for another year, takes layer <code>year&lt;Y&gt;</code> of each element of <code>projectedClimateRasters</code>, where <code>Y</code> is <code>climateYear</code> if supplied, else <code>time(sim)</code>. Stops if it does not match <code>pixelGroupMap</code>.</li>
 <li>
-<code>prepIgAndEscPredictData</code> (from <code>.runInitialTime</code>): builds <code>fireSense_igAndEscapePred_Covariates</code>. Scheduled if <code>whichModulesToPrepare</code> has <code>fireSense_IgnitionPredict</code> or <code>fireSense_EscapePredict</code>.</li>
+<code>prepIgAndEscPredictData</code> (from <code>.runInitialTime</code>): builds <code>fireSense_igAndEscapePred_Covariates</code>. Scheduled if <code>whichModulesToPrepare</code> has <code>fireSense_ignitionPredict</code>; the module <code>fireSense_EscapePredict</code> no longer exists and is rejected.</li>
 <li>
-<code>prepSpreadPredictData</code> (from <code>.runInitialTime</code>): builds <code>fireSense_SpreadCovariates</code>. Scheduled if <code>whichModulesToPrepare</code> has <code>fireSense_SpreadPredict</code>.</li>
+<code>prepSpreadPredictData</code> (from <code>.runInitialTime</code>): builds <code>fireSense_SpreadCovariates</code>. Scheduled if <code>whichModulesToPrepare</code> has <code>fireSense_spreadPredict</code>.</li>
 <li>
 <code>ageNonForest</code> (from <code>time(sim) + 1</code>): adds 1 to <code>nonForest_timeSinceDisturbance</code> and resets pixels burned in <code>rstCurrentBurn</code> to 0.</li>
 <li>
@@ -867,7 +867,7 @@ Years since last burn, used to set <code>youngAge</code> in non-forest pixels.
 <div class="section level4">
 <h4 id="links-to-other-modules">Links to other modules<a class="anchor" aria-label="anchor" href="#links-to-other-modules"></a>
 </h4>
-<p>Runs after <em>Biomass_borealDataPrep</em>, <em>fireSense_dataPrepFit</em>, <em>fireSense_IgnitionFit</em> and <em>fireSense_SpreadFit</em>, and supplies <em>fireSense_IgnitionPredict</em>, <em>fireSense_EscapePredict</em> and <em>fireSense_SpreadPredict</em>.
+<p>Runs after <em>Biomass_borealDataPrep</em>, <em>fireSense_dataPrepFit</em>, <em>fireSense_ignitionFit</em> and <em>fireSense_spreadFit</em>, and supplies <em>fireSense_ignitionPredict</em> (ignition and escape) and <em>fireSense_spreadPredict</em>.
 It is normally run as part of the <a href="https://github.com/PredictiveEcology/fireSense" class="external-link">fireSense</a> module group.</p>
 </div>
 <div class="section level4">
