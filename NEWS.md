@@ -1,6 +1,6 @@
 # fireSense_dataPrepPredict (development version)
 
-- With one fitted ELF, the covariates and `landcoverDT` are built from that ELF's groups in `nonForestedLCCGroupsList` and
+- With one fitted ELF, the covariates (and that ELF's `landcoverDT`) are built from that ELF's groups in `nonForestedLCCGroupsList` and
   `missingLCCgroupList` whenever those are present, as with several ELFs. Before, a predict-only run with one ELF used the
   module default `nonForestedLCCGroups` (`nf`) and the spread prediction failed on the fitted `nfLCC_*` terms.
 

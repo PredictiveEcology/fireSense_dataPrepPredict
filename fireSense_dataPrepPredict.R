@@ -263,7 +263,7 @@ Init <- function(sim) {
       rstLCC = rstLCC,
       flammableRTM = sim$flammableRTM,
       forestedLCC = P(sim)$forestedLCC,
-      nonForestedLCCGroups = landcoverGroups(sim)
+      nonForestedLCCGroups = sim$nonForestedLCCGroups
     )
   }
 
@@ -579,14 +579,6 @@ fuelClassRolesForELF <- function(sim, i = 1L) {
   fuelClassRolesFromTermNames(colnames(p))
 }
 
-## the non-forest groups to build `landcoverDT` with: the fitted ELFs' groups when known, else the single set
-landcoverGroups <- function(sim) {
-  g <- sim$nonForestedLCCGroupsList
-  if (!length(g)) return(sim$nonForestedLCCGroups)
-  g <- do.call(c, unname(g))
-  g[!duplicated(names(g))]
-}
-
 ELFfuelSets <- function(sim) {
   fcc <- P(sim)$fuelClassCol
   if (length(sim$sppEquivs) > 1L || length(sim$nonForestedLCCGroupsList)) {
@@ -727,7 +719,7 @@ unionLCCGroups <- function(fuelSets) {
       rstLCC = sim$rstLCC_RTM,
       flammableRTM = sim$flammableRTM,
       forestedLCC = P(sim)$forestedLCC,
-      nonForestedLCCGroups = landcoverGroups(sim)
+      nonForestedLCCGroups = sim$nonForestedLCCGroups
     )
   }
 
