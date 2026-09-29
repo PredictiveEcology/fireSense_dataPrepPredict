@@ -1,5 +1,5 @@
 ## Several fitted ELFs in one study area (the 2-ELF Mackenzie forecast, 2026-09). Each ELF's model predicts
-## over its own pixels and a blend zone around them (fireSense_SpreadPredict), so every pixel needs every
+## over its own pixels and a blend zone around them (fireSense_spreadPredict), so every pixel needs every
 ## ELF's covariates: each ELF's fuel classes and non-forest groups, made from its own sppEquiv. Columns two
 ## ELFs share have the same name and so the same content.
 ##

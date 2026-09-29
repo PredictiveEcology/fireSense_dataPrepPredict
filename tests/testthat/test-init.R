@@ -71,14 +71,14 @@ test_that("init schedules exactly the events implied by whichModulesToPrepare", 
     sort(as.data.frame(SpaDES.core::events(sim))$eventType)
   }
   ## ageNonForest and getClimateRasters are unconditional; the two prep events are not
-  expect_identical(evs("fireSense_SpreadPredict"),
+  expect_identical(evs("fireSense_spreadPredict"),
                    c("ageNonForest", "getClimateRasters", "prepSpreadPredictData"))
-  expect_identical(evs("fireSense_IgnitionPredict"),
+  expect_identical(evs("fireSense_ignitionPredict"),
                    c("ageNonForest", "getClimateRasters", "prepIgAndEscPredictData"))
   ## the ignition/escape table is shared: EscapePredict alone schedules it too
   expect_identical(evs("fireSense_EscapePredict"),
                    c("ageNonForest", "getClimateRasters", "prepIgAndEscPredictData"))
-  expect_identical(evs(c("fireSense_SpreadPredict", "fireSense_IgnitionPredict")),
+  expect_identical(evs(c("fireSense_spreadPredict", "fireSense_ignitionPredict")),
                    c("ageNonForest", "getClimateRasters", "prepIgAndEscPredictData",
                      "prepSpreadPredictData"))
   ## a Fit module name is not a Predict module name: no covariate table is prepared
@@ -89,8 +89,8 @@ test_that("the default whichModulesToPrepare is the three Predict modules doEven
   ## The default used to include `fireSense_EscapeFit`, which `doEvent` never tests for.
   md <- SpaDES.core::moduleMetadata(module = moduleName, path = modulePath)
   default <- md$parameters$default[[which(md$parameters$paramName == "whichModulesToPrepare")]]
-  expect_setequal(default, c("fireSense_IgnitionPredict", "fireSense_EscapePredict",
-                             "fireSense_SpreadPredict"))
+  expect_setequal(default, c("fireSense_ignitionPredict", "fireSense_EscapePredict",
+                             "fireSense_spreadPredict"))
 
   ## with the default, init schedules both covariate events
   sim <- SpaDES.core::spades(toyPrepSim(), events = "init", debug = FALSE)

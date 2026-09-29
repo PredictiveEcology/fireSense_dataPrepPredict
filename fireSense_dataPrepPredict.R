@@ -1,8 +1,8 @@
 defineModule(sim, list(
   name = "fireSense_dataPrepPredict",
   description = paste(
-    "Prepares, each year, the covariate tables used by fireSense_IgnitionPredict,",
-    "fireSense_EscapePredict and fireSense_SpreadPredict."),
+    "Prepares, each year, the covariate tables used by fireSense_ignitionPredict,",
+    "fireSense_EscapePredict and fireSense_spreadPredict."),
   keywords = "",
   authors = c(
     person("Ian", "Eddy", role = c("aut", "cre"), email = "ian.eddy@nrcan-rncan.gc.ca"),
@@ -10,13 +10,13 @@ defineModule(sim, list(
     person("Alex M", "Chubaty", role = "ctb", email = "achubaty@for-cast.ca")
   ),
   childModules = character(0),
-  version = list(fireSense_dataPrepPredict = "1.0.4.9006"),
+  version = list(fireSense_dataPrepPredict = "1.0.4.9007"),
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = "year",
   citation = list("citation.bib"),
   documentation = deparse(list("README.txt", "fireSense_dataPrepPredict.Rmd")),
   loadOrder = list(after = c("Biomass_borealDataPrep", "fireSense_dataPrepFit",
-                             "fireSense_IgnitionFit", "fireSense_SpreadFit")),
+                             "fireSense_ignitionFit", "fireSense_spreadFit")),
   reqdPkgs = list(
     "data.table",
     "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9062)",
@@ -60,11 +60,11 @@ defineModule(sim, list(
     defineParameter("sppEquivCol", "character", "LandR", NA, NA,
                     desc = "Column of `sppEquiv` with the species names used in `cohortData`."),
     defineParameter("whichModulesToPrepare", "character",
-                    default = c("fireSense_SpreadPredict", "fireSense_IgnitionPredict", "fireSense_EscapePredict"),
+                    default = c("fireSense_spreadPredict", "fireSense_ignitionPredict", "fireSense_EscapePredict"),
                     NA, NA,
-                    desc = paste("Predict modules to prepare covariates for: `fireSense_IgnitionPredict` or",
+                    desc = paste("Predict modules to prepare covariates for: `fireSense_ignitionPredict` or",
                                  "`fireSense_EscapePredict` for the ignition/escape table,",
-                                 "`fireSense_SpreadPredict` for the spread table. Defaults to all three.")),
+                                 "`fireSense_spreadPredict` for the spread table. Defaults to all three.")),
     defineParameter(
       ".runInitialTime", "numeric", start(sim), NA, NA, "Time of the first climate and covariate preparation events."
     ),
@@ -139,7 +139,7 @@ defineModule(sim, list(
       desc = "Table of LandR species equivalencies; must have columns `sppEquivCol` and `fuelClassCol`."),
     expectsInput("studyAreaWithSpreadParams", "sf", sourceURL = NA,
       desc = paste("The fitted SpreadFit ledger rows (from `fireSense_ELFs`; also read, undeclared, by",
-                   "`fireSense_SpreadPredict`), one row per fitted ELF, in the order of `sppEquivs`. Each",
+                   "`fireSense_spreadPredict`), one row per fitted ELF, in the order of `sppEquivs`. Each",
                    "row's `params[[1]]` column names are the fitted formula's terms: an ELF whose terms",
                    "include `dom_agb_<class>`/`sec_agb_<class>` predicts with those classes' AGB columns,",
                    "matching what that ELF was fitted with; otherwise (an older, per-species fit) with the",
@@ -178,14 +178,14 @@ doEvent.fireSense_dataPrepPredict <- function(sim, eventTime, eventType) {
       sim <- scheduleEvent(sim, time(sim) + 1, "fireSense_dataPrepPredict", "ageNonForest")
       sim <- scheduleEvent(sim, P(sim)$.runInitialTime, "fireSense_dataPrepPredict", "getClimateRasters")
 
-      if ("fireSense_IgnitionPredict" %in% P(sim)$whichModulesToPrepare |
+      if ("fireSense_ignitionPredict" %in% P(sim)$whichModulesToPrepare |
         "fireSense_EscapePredict" %in% P(sim)$whichModulesToPrepare) {
         sim <- scheduleEvent(sim, P(sim)$.runInitialTime, "fireSense_dataPrepPredict",
           "prepIgAndEscPredictData"
         )
       }
 
-      if ("fireSense_SpreadPredict" %in% P(sim)$whichModulesToPrepare) {
+      if ("fireSense_spreadPredict" %in% P(sim)$whichModulesToPrepare) {
         sim <- scheduleEvent(sim, P(sim)$.runInitialTime, "fireSense_dataPrepPredict", "prepSpreadPredictData"
         )
       }
@@ -406,7 +406,7 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
   # Coming out of the CacheGeo, this is unreliably a data.frame instead of a data.table
   if (!data.table::is.data.table(sim$sppEquiv)) data.table::setDT(sim$sppEquiv)
   ## one fuel set per fitted ELF (one, as before, when there is one ELF); the covariate tables are merged,
-  ## each ELF's columns alongside the others', for fireSense_IgnitionPredict to pick its own
+  ## each ELF's columns alongside the others', for fireSense_ignitionPredict to pick its own
   fuelSets <- ELFfuelSets(sim)
   fuelCovsCoarse <- mergeCovariateTables(lapply(fuelSets, function(fs) prepare_FuelCovsCoarse(
     cohortData = sim$cohortData,
@@ -462,7 +462,7 @@ prepare_SpreadPredict <- function(sim) {
     stop("spreadClimate is NULL; there is a problem to debug")
 
   ## one fuel set per fitted ELF (one, as before, when there is one ELF). Every ELF's covariates are made for
-  ## every pixel and the tables merged, so fireSense_SpreadPredict can apply each ELF's model wherever it
+  ## every pixel and the tables merged, so fireSense_spreadPredict can apply each ELF's model wherever it
   ## predicts, including the blend zone around its own pixels. Column names say what they hold (fuel class,
   ## non-forest LCC codes), so a column two ELFs share means the same thing in both.
   fuelSets <- ELFfuelSets(sim)
@@ -565,7 +565,7 @@ fuelClassRolesFromTermNames <- function(termNames) {
 #'
 #' @param sim A `simList`.
 #' @param i integer, the row (ELF), in the order of `sppEquivs` -- the same order
-#'   `fireSense_SpreadPredict::spreadPredictRun()` indexes `sa$params[[i]]` by.
+#'   `fireSense_spreadPredict::spreadPredictRun()` indexes `sa$params[[i]]` by.
 #' @return `list(domClass =, secClass =)`, from [fuelClassRolesFromTermNames()]; both `NA` when
 #'   `studyAreaWithSpreadParams` is absent, too short, or that ELF has no fitted parameters yet.
 fuelClassRolesForELF <- function(sim, i = 1L) {

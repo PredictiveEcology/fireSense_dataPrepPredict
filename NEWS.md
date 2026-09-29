@@ -1,5 +1,10 @@
 # fireSense_dataPrepPredict (development version)
 
+- `loadOrder` and the `whichModulesToPrepare` default and comparisons use the renamed `fireSense_ignitionFit`, `fireSense_spreadFit`,
+  `fireSense_ignitionPredict` and `fireSense_spreadPredict` (formerly `fireSense_IgnitionFit`, `fireSense_SpreadFit`,
+  `fireSense_IgnitionPredict`, `fireSense_SpreadPredict`). A project setting `whichModulesToPrepare` must use the new names.
+
+
 - `forestedLCC`, `cutoffForYoungAge`, `nonForestCanBeYoungAge`, `flammabilityThreshold`,
   `fuelClassCol` and `igAggFactor` now default to `fireSenseUtils`'s shared constants
   (`fireSenseForestedLCC`, `fireSenseYoungAgeCutoff`, `fireSenseNonForestCanBeYoungAge`,
