@@ -64,3 +64,11 @@ test_that("parameters are the expected names", {
            "sppEquivCol", "whichModulesToPrepare"))
   )
 })
+
+test_that("loadOrder names the renamed fit modules", {
+  ## moduleMetadata() does not return `loadOrder`, so read it from the parsed defineModule() call
+  parsed <- parse(file.path(moduleRoot, paste0(moduleName, ".R")), keep.source = TRUE)
+  dm <- Filter(function(e) grepl("^defineModule", paste(deparse(e), collapse = "")), as.list(parsed))
+  lo <- eval(dm[[1]][[3]]$loadOrder)
+  expect_true(all(c("fireSense_ignitionFit", "fireSense_spreadFit") %in% lo$after))
+})
