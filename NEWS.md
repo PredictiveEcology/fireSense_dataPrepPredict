@@ -1,5 +1,8 @@
 # fireSense_dataPrepPredict (development version)
 
+- `fireSense_EscapePredict` no longer exists (`fireSense_ignitionPredict` predicts ignition and escape): it is removed from the
+  `whichModulesToPrepare` default (now `fireSense_ignitionPredict` and `fireSense_spreadPredict`) and naming it stops with a message.
+
 - With one fitted ELF, the covariates (and that ELF's `landcoverDT`) are built from that ELF's groups in `nonForestedLCCGroupsList` and
   `missingLCCgroupList` whenever those are present, as with several ELFs. Before, a predict-only run with one ELF used the
   module default `nonForestedLCCGroups` (`nf`) and the spread prediction failed on the fitted `nfLCC_*` terms.

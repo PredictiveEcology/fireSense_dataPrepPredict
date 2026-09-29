@@ -1,8 +1,8 @@
 defineModule(sim, list(
   name = "fireSense_dataPrepPredict",
   description = paste(
-    "Prepares, each year, the covariate tables used by fireSense_ignitionPredict,",
-    "fireSense_EscapePredict and fireSense_spreadPredict."),
+    "Prepares, each year, the covariate tables used by fireSense_ignitionPredict",
+    "(ignition and escape) and fireSense_spreadPredict."),
   keywords = "",
   authors = c(
     person("Ian", "Eddy", role = c("aut", "cre"), email = "ian.eddy@nrcan-rncan.gc.ca"),
@@ -10,7 +10,7 @@ defineModule(sim, list(
     person("Alex M", "Chubaty", role = "ctb", email = "achubaty@for-cast.ca")
   ),
   childModules = character(0),
-  version = list(fireSense_dataPrepPredict = "1.0.4.9008"),
+  version = list(fireSense_dataPrepPredict = "1.0.4.9009"),
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = "year",
   citation = list("citation.bib"),
@@ -60,11 +60,11 @@ defineModule(sim, list(
     defineParameter("sppEquivCol", "character", "LandR", NA, NA,
                     desc = "Column of `sppEquiv` with the species names used in `cohortData`."),
     defineParameter("whichModulesToPrepare", "character",
-                    default = c("fireSense_spreadPredict", "fireSense_ignitionPredict", "fireSense_EscapePredict"),
+                    default = c("fireSense_spreadPredict", "fireSense_ignitionPredict"),
                     NA, NA,
-                    desc = paste("Predict modules to prepare covariates for: `fireSense_ignitionPredict` or",
-                                 "`fireSense_EscapePredict` for the ignition/escape table,",
-                                 "`fireSense_spreadPredict` for the spread table. Defaults to all three.")),
+                    desc = paste("Predict modules to prepare covariates for: `fireSense_ignitionPredict` for the",
+                                 "ignition/escape table, `fireSense_spreadPredict` for the spread table.",
+                                 "Defaults to both.")),
     defineParameter(
       ".runInitialTime", "numeric", start(sim), NA, NA, "Time of the first climate and covariate preparation events."
     ),
@@ -174,12 +174,14 @@ defineModule(sim, list(
 doEvent.fireSense_dataPrepPredict <- function(sim, eventTime, eventType) {
   switch(eventType,
     init = {
+      if ("fireSense_EscapePredict" %in% P(sim)$whichModulesToPrepare)
+        stop("fireSense_EscapePredict no longer exists as a module; escape covariates are prepared with ",
+             "fireSense_ignitionPredict. Remove it from parameter whichModulesToPrepare.")
       sim <- Init(sim)
       sim <- scheduleEvent(sim, time(sim) + 1, "fireSense_dataPrepPredict", "ageNonForest")
       sim <- scheduleEvent(sim, P(sim)$.runInitialTime, "fireSense_dataPrepPredict", "getClimateRasters")
 
-      if ("fireSense_ignitionPredict" %in% P(sim)$whichModulesToPrepare |
-        "fireSense_EscapePredict" %in% P(sim)$whichModulesToPrepare) {
+      if ("fireSense_ignitionPredict" %in% P(sim)$whichModulesToPrepare) {
         sim <- scheduleEvent(sim, P(sim)$.runInitialTime, "fireSense_dataPrepPredict",
           "prepIgAndEscPredictData"
         )
