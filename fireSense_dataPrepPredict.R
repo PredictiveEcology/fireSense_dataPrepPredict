@@ -10,7 +10,7 @@ defineModule(sim, list(
     person("Alex M", "Chubaty", role = "ctb", email = "achubaty@for-cast.ca")
   ),
   childModules = character(0),
-  version = list(fireSense_dataPrepPredict = "1.0.4.9007"),
+  version = list(fireSense_dataPrepPredict = "1.0.4.9008"),
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = "year",
   citation = list("citation.bib"),
@@ -263,7 +263,7 @@ Init <- function(sim) {
       rstLCC = rstLCC,
       flammableRTM = sim$flammableRTM,
       forestedLCC = P(sim)$forestedLCC,
-      nonForestedLCCGroups = sim$nonForestedLCCGroups
+      nonForestedLCCGroups = landcoverGroups(sim)
     )
   }
 
@@ -536,7 +536,9 @@ prepare_SpreadPredict <- function(sim) {
 #'
 #' With several fitted ELFs, `fireSense_dataPrepFit` supplies one species table, non-forest grouping and
 #' missing-LCC group per ELF (`sppEquivs`, `nonForestedLCCGroupsList`, `missingLCCgroupList`); each gets its
-#' own `landcoverDT`, made once and kept in `mod`. With one ELF, the single set of objects, as before.
+#' own `landcoverDT`, made once and kept in `mod`. This holds for one ELF too whenever the per-ELF lists are
+#' present (a predict-only run has only the module defaults in `nonForestedLCCGroups`); the single set of
+#' objects is used only when they are absent.
 #'
 #' @param sim A `simList`.
 #' @return list of lists, each with `sppEquiv`, `nonForestedLCCGroups`, `missingLCCgroup`, `landcoverDT`,
@@ -577,9 +579,17 @@ fuelClassRolesForELF <- function(sim, i = 1L) {
   fuelClassRolesFromTermNames(colnames(p))
 }
 
+## the non-forest groups to build `landcoverDT` with: the fitted ELFs' groups when known, else the single set
+landcoverGroups <- function(sim) {
+  g <- sim$nonForestedLCCGroupsList
+  if (!length(g)) return(sim$nonForestedLCCGroups)
+  g <- do.call(c, unname(g))
+  g[!duplicated(names(g))]
+}
+
 ELFfuelSets <- function(sim) {
   fcc <- P(sim)$fuelClassCol
-  if (length(sim$sppEquivs) > 1L) {
+  if (length(sim$sppEquivs) > 1L || length(sim$nonForestedLCCGroupsList)) {
     n <- length(sim$sppEquivs)
     if (length(sim$nonForestedLCCGroupsList) != n || length(sim$missingLCCgroupList) != n)
       stop("fireSense_dataPrepPredict: sppEquivs, nonForestedLCCGroupsList and missingLCCgroupList must have one ",
@@ -717,7 +727,7 @@ unionLCCGroups <- function(fuelSets) {
       rstLCC = sim$rstLCC_RTM,
       flammableRTM = sim$flammableRTM,
       forestedLCC = P(sim)$forestedLCC,
-      nonForestedLCCGroups = sim$nonForestedLCCGroups
+      nonForestedLCCGroups = landcoverGroups(sim)
     )
   }
 

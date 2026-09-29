@@ -55,3 +55,24 @@ test_that("mismatched per-ELF lists stop with a message", {
   o$sppEquivs <- list(sppA(), sppB()); o$nonForestedLCCGroupsList <- list(nfA); o$missingLCCgroupList <- list("grass", "wetgrs")
   expect_error(toyPrepRun(o), "one element per ELF")
 })
+
+## A predict-only run (no fireSense_dataPrepFit; parameters from the ledger) with ONE fitted ELF still
+## gets that ELF's groups in `nonForestedLCCGroupsList`; `nonForestedLCCGroups` is then only the module
+## default. The covariates must be built with the ELF's groups (fireCarbon run 4.2.2, 2026-09-29: the fit
+## had nfLCC_* terms, the covariates had `nf`, and the spread prediction failed).
+test_that("with one ELF and per-ELF lists, the list's groups build the covariates", {
+  o <- toyObjects()
+  o$landcoverDT <- NULL
+  o$nonForestedLCCGroups <- list(nf = c(16L, 19L)); o$missingLCCgroup <- "nf"   # the module defaults
+  o$sppEquivs <- list(sppA())
+  o$nonForestedLCCGroupsList <- list(nfA)
+  o$missingLCCgroupList <- list("grass")
+  one <- toyPrepRun(o)
+  ref <- oneELF(sppA, nfA, "grass")
+
+  sp <- covDF(one$fireSense_SpreadCovariates); spRef <- covDF(ref$fireSense_SpreadCovariates)
+  expect_true(all(c("wetland", "grass") %in% names(sp)))
+  expect_false("nf" %in% names(sp))
+  expect_setequal(names(sp), names(spRef))
+  for (cn in setdiff(names(spRef), "pixelID")) expect_equal(sp[[cn]], spRef[[cn]], info = cn)
+})
