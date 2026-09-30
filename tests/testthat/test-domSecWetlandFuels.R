@@ -23,11 +23,19 @@ test_that("fuelClassRolesFromTermNames() strips the prefix, and is NA/NA with no
                    list(domClass = NA_character_, secClass = NA_character_))
 })
 
+test_that("a fit that has an other_agb term stops with a message to refit, rather than dropping the term", {
+  expect_error(fuelClassRolesFromTermNames(c("b0", "MDC", "dom_agb_Pice_mar", "sec_agb_Pinu_ban", "other_agb")),
+               "other_agb.*Refit")
+  o <- toyObjects()
+  o$studyAreaWithSpreadParams <- toyLedgerRow(c("b0", "MDC", "youngAge", "dom_agb_class1", "sec_agb_class2", "other_agb"))
+  expect_error(toyPrepRun(o), "other_agb.*Refit")
+})
+
 test_that("with no studyAreaWithSpreadParams, prediction gets the previous per-fuel-class columns", {
   out <- toyPrepRun(toyObjects())
   sp <- covDF(out$fireSense_SpreadCovariates)
   expect_true(all(c("class1", "class2") %in% names(sp)))
-  expect_false(any(grepl("^dom_agb_|^sec_agb_|^other_agb$", names(sp))))
+  expect_false(any(grepl("^dom_agb_|^sec_agb_", names(sp))))
   ## rstLCC is now passed regardless of fuelCovariates: treedWetland appears (all 0: no LCC 81 here)
   expect_true("treedWetland" %in% names(sp))
   expect_true(all(sp$treedWetland == 0))
@@ -50,7 +58,8 @@ test_that("a fitted dom_agb_class2/sec_agb_class1 row builds THOSE columns, not 
   out <- toyPrepRun(o)
   sp <- covDF(out$fireSense_SpreadCovariates)
 
-  expect_true(all(c("dom_agb_class2", "sec_agb_class1", "other_agb") %in% names(sp)))
+  expect_true(all(c("dom_agb_class2", "sec_agb_class1") %in% names(sp)))
+  expect_false("other_agb" %in% names(sp))
   expect_false(any(c("class1", "class2") %in% names(sp)))
 
   ## pixel 1 (PG1): class1 (Pice_mar 2000 + Pinu_ban 1000) = 3000, class2 (Popu_tre) = 0

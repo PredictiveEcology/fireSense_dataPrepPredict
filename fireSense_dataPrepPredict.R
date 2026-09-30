@@ -499,7 +499,7 @@ prepare_SpreadPredict <- function(sim) {
       nonForest_timeSinceDisturbance = sim$nonForest_timeSinceDisturbance,
       studyAreaName = P(sim)$.studyAreaName,
       useCache = FALSE, # predict is annual, no point in caching
-      fuelCovariates = if (is.na(fs$fuelClassRoles$domClass)) "species" else "domSecOther",
+      fuelCovariates = if (is.na(fs$fuelClassRoles$domClass)) "species" else "domSecWetland",
       domClass = fs$fuelClassRoles$domClass,
       secClass = fs$fuelClassRoles$secClass
     )
@@ -552,14 +552,19 @@ prepare_SpreadPredict <- function(sim) {
 
 #' The fuel-class name after `dom_agb_`/`sec_agb_` in a fitted covariate name
 #'
-#' `fireSenseUtils::fireSenseCovariatesCreate(fuelCovariates = "domSecOther")` names those columns
+#' `fireSenseUtils::fireSenseCovariatesCreate(fuelCovariates = "domSecWetland")` names those columns
 #' `dom_agb_<domClass>`/`sec_agb_<secClass>` with the fuel class's own name unchanged (no further
 #' mangling), so recovering `domClass`/`secClass` from a fitted term name is stripping the prefix.
 #'
 #' @param termNames character vector, e.g. `colnames(sim$studyAreaWithSpreadParams$params[[1]])`.
 #' @return `list(domClass =, secClass =)`; both `NA` when `termNames` has no `dom_agb_*` term (an
 #'   older, per-species fit -- predicts with the previous one-column-per-fuel-class covariates).
+#'   Stops when `termNames` has `other_agb` (a fit made before that covariate was removed).
 fuelClassRolesFromTermNames <- function(termNames) {
+  if ("other_agb" %in% termNames)
+    stop("fireSense_dataPrepPredict: the fitted model has an `other_agb` term, a fuel covariate that no longer exists ",
+         "(fuels are now dom_agb_<class>, sec_agb_<class> and treedWetland_agb). Refit the spread model with the current ",
+         "fireSense_dataPrepFit and fireSense_spreadFit.")
   domTerm <- grep("^dom_agb_", termNames, value = TRUE)
   secTerm <- grep("^sec_agb_", termNames, value = TRUE)
   if (!length(domTerm))
