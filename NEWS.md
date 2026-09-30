@@ -1,5 +1,7 @@
 # fireSense_dataPrepPredict (development version)
 
+- reqdPkgs now lists `LandR`, `reproducible` and `SpaDES.core`, which the module calls (`LandR::.compareRas`, `postProcess`, `Cache`, `asPath`, `.suffix`, `paramCheckOtherMods`); it relied on another module attaching them. Version 1.0.4.9010.
+
 - `fireSense_EscapePredict` no longer exists (`fireSense_ignitionPredict` predicts ignition and escape): it is removed from the
   `whichModulesToPrepare` default (now `fireSense_ignitionPredict` and `fireSense_spreadPredict`) and naming it stops with a message.
 
