@@ -10,7 +10,7 @@ defineModule(sim, list(
     person("Alex M", "Chubaty", role = "ctb", email = "achubaty@for-cast.ca")
   ),
   childModules = character(0),
-  version = list(fireSense_dataPrepPredict = "1.0.4.9009"),
+  version = list(fireSense_dataPrepPredict = "1.0.4.9010"),
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = "year",
   citation = list("citation.bib"),
@@ -20,6 +20,9 @@ defineModule(sim, list(
   reqdPkgs = list(
     "data.table",
     "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9062)",
+    "PredictiveEcology/LandR@development",
+    "PredictiveEcology/reproducible@development",
+    "PredictiveEcology/SpaDES.core@development (>= 3.0.4)",
     "terra"
   ),
   parameters = rbind(
