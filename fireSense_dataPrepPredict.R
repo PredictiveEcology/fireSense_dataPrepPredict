@@ -19,7 +19,7 @@ defineModule(sim, list(
                              "fireSense_ignitionFit", "fireSense_spreadFit")),
   reqdPkgs = list(
     "data.table",
-    "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9070)",
+    "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9074)",
     "PredictiveEcology/LandR@development",
     "PredictiveEcology/reproducible@development",
     "PredictiveEcology/SpaDES.core@development (>= 3.0.4)",
@@ -413,7 +413,11 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
   ## one fuel set per fitted ELF (one, as before, when there is one ELF); the covariate tables are merged,
   ## each ELF's columns alongside the others', for fireSense_ignitionPredict to pick its own
   fuelSets <- ELFfuelSets(sim)
-  fuelCovsCoarse <- mergeCovariateTables(lapply(fuelSets, function(fs) prepare_FuelCovsCoarse(
+  fuelClassTables <- fuelClassTablesThisYear(sim, fuelSets)
+  fuelCovsCoarse <- mergeCovariateTables(lapply(seq_along(fuelSets), function(i) {
+    fs <- fuelSets[[i]]
+    prepare_FuelCovsCoarse(
+    fuelClassTable = fuelClassTables[[i]],
     cohortData = sim$cohortData,
     pixelGroupMap = sim$pixelGroupMap,
     flammableRTM = sim$flammableRTM,
@@ -430,7 +434,7 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
     studyAreaName = P(sim)$.studyAreaName,
     rasTemplate = sim$flammableRTM, fact = Par$igAggFactor,
     useCache = FALSE
-  )))
+  )}))
 
   ignitionClimateCoarse <- prepare_ignitionClimate(
     ignitionClimateList = as.list(ignitionClimate) |> setNames(names(ignitionClimate)), 
@@ -471,7 +475,9 @@ prepare_SpreadPredict <- function(sim) {
   ## predicts, including the blend zone around its own pixels. Column names say what they hold (fuel class,
   ## non-forest LCC codes), so a column two ELFs share means the same thing in both.
   fuelSets <- ELFfuelSets(sim)
-  spreadCovariates <- mergeCovariateTables(lapply(fuelSets, function(fs) {
+  fuelClassTables <- fuelClassTablesThisYear(sim, fuelSets)
+  spreadCovariates <- mergeCovariateTables(lapply(seq_along(fuelSets), function(i) {
+    fs <- fuelSets[[i]]
     ## this fits cohortData into fuel classes
     ##  if pixels are missing/absent but are able to be forested as determined by landcoverDT,
     ##  they receive 0 values - e.g. pixelGroup zero
@@ -482,6 +488,7 @@ prepare_SpreadPredict <- function(sim) {
     ## fuelCovariates = "species", or with no fitted parameters yet) predicts with the previous
     ## per-fuel-class columns.
     covs <- fireSenseUtils::fireSenseCovariatesCreate(
+      fuelClassTable = fuelClassTables[[i]],
       cohortData = sim$cohortData,
       pixelGroupMap = sim$pixelGroupMap,
       flammableRTM = sim$flammableRTM,
@@ -536,6 +543,57 @@ prepare_SpreadPredict <- function(sim) {
   return(invisible(sim))
 }
 
+
+#' The fuel-class tables for this year, one per fuel set, shared by the ignition and spread covariates
+#'
+#' `fireSenseUtils::fireSenseCovariatesCreate()` is called for ignition (through
+#' `prepare_FuelCovsCoarse()`) and for spread with the same `cohortData`, `pixelGroupMap`,
+#' `flammableRTM`, `landcoverDT`, `sppEquiv`, `requiredFuelClasses` and `cutoffForYoungAge`; they differ
+#' only in `rstLCC`, `fuelCovariates` and `domClass`/`secClass`, which act after the fuel classes are
+#' made. So the fuel classes (`fireSenseUtils::cohortsToFuelClasses(asTable = TRUE)`) are made once per
+#' year: by whichever of the two events runs first, kept in `mod` when both are being prepared, and used
+#' (and dropped) by the second. The second event uses them only if `cohortData`, `pixelGroupMap` and
+#' `flammableRTM` still sum to what they did for the first -- another module's event may run between the
+#' two -- and otherwise builds its own, as before.
+#'
+#' @param sim A `simList`.
+#' @param fuelSets as returned by `ELFfuelSets()`.
+#'
+#' @return list of `data.table`s, one per element of `fuelSets`.
+fuelClassTablesThisYear <- function(sim, fuelSets) {
+  year <- time(sim)
+  stamp <- function() {
+    cd <- sim$cohortData
+    list(NROW(cd), sum(as.numeric(cd$B), na.rm = TRUE), sum(as.numeric(cd$age), na.rm = TRUE),
+         sum(as.numeric(cd$pixelGroup), na.rm = TRUE),
+         sum(terra::values(sim$pixelGroupMap, mat = FALSE), na.rm = TRUE),
+         sum(terra::values(sim$flammableRTM, mat = FALSE), na.rm = TRUE))
+  }
+  make <- function() lapply(fuelSets, function(fs) fireSenseUtils::cohortsToFuelClasses(
+    cohortData = sim$cohortData,
+    pixelGroupMap = sim$pixelGroupMap,
+    flammableRTM = sim$flammableRTM,
+    landcoverDT = fs$landcoverDT,
+    sppEquiv = fs$sppEquiv,
+    sppEquivCol = P(sim)$sppEquivCol,
+    fuelClassCol = P(sim)$fuelClassCol,
+    requiredFuelClasses = fs$requiredFuelClasses,
+    cutoffForYoungAge = P(sim)$cutoffForYoungAge,
+    asTable = TRUE
+  ))
+  both <- all(c("fireSense_ignitionPredict", "fireSense_spreadPredict") %in% P(sim)$whichModulesToPrepare)
+  if (!both) return(make())
+
+  kept <- mod$fuelClassTables
+  if (!is.null(kept) && identical(kept$year, year)) { # the second event of this year
+    mod$fuelClassTables <- NULL
+    if (identical(kept$stamp, stamp())) return(kept$tables)
+    return(make())
+  }
+  tables <- make()
+  mod$fuelClassTables <- list(year = year, stamp = stamp(), tables = tables)
+  tables
+}
 
 #' The fuel sets to build covariates with: one per fitted ELF
 #'
