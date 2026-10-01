@@ -1,5 +1,7 @@
 # fireSense_dataPrepPredict (development version)
 
+- The fuel classes are made once per year, not twice: the ignition and spread covariates are built from the same `cohortData`, `pixelGroupMap`, `flammableRTM`, `landcoverDT`, `sppEquiv` and `cutoffForYoungAge`, so whichever event runs first makes them with `fireSenseUtils::cohortsToFuelClasses(asTable = TRUE)` and the second reuses them through `fireSenseCovariatesCreate(fuelClassTable =)`. The second event builds its own if `cohortData`, `pixelGroupMap` or `flammableRTM` changed in between. The covariates are identical. Needs the `fireSenseUtils` change that adds `asTable` and `fuelClassTable` (PredictiveEcology/fireSenseUtils#121).
+
 - The pooled `other_agb` spread covariate is gone, and `fuelCovariates = "domSecOther"` is renamed `"domSecWetland"` in the call to `fireSenseUtils::fireSenseCovariatesCreate()`: prediction builds `dom_agb_<class>`, `sec_agb_<class>` and `treedWetland_agb`. A fitted model with an `other_agb` term now stops with a message to refit, instead of being predicted without that term. Needs the `fireSenseUtils` change that renames the value (PredictiveEcology/fireSenseUtils#116).
 
 - reqdPkgs now lists `LandR`, `reproducible` and `SpaDES.core`, which the module calls (`LandR::.compareRas`, `postProcess`, `Cache`, `asPath`, `.suffix`, `paramCheckOtherMods`); it relied on another module attaching them. Version 1.0.4.9010.
