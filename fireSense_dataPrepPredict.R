@@ -508,7 +508,8 @@ prepare_SpreadPredict <- function(sim) {
       useCache = FALSE, # predict is annual, no point in caching
       fuelCovariates = if (is.na(fs$fuelClassRoles$domClass)) "species" else "domSecWetland",
       domClass = fs$fuelClassRoles$domClass,
-      secClass = fs$fuelClassRoles$secClass
+      secClass = fs$fuelClassRoles$secClass,
+      treedWetland = fs$fuelClassRoles$treedWetland
     )
     # Sanity check - make sure the nonForest pixels have no forest fuels
     nfCols <- setdiff(names(fs$landcoverDT), "pixelID")
@@ -606,7 +607,8 @@ fuelClassTablesThisYear <- function(sim, fuelSets) {
 #' @param sim A `simList`.
 #' @return list of lists, each with `sppEquiv`, `nonForestedLCCGroups`, `missingLCCgroup`, `landcoverDT`,
 #'   `requiredFuelClasses`, `rstLCC` (aligned to `flammableRTM`, for `treedWetland`/`treedWetland_agb`) and
-#'   `fuelClassRoles` (`list(domClass =, secClass =)`; `domClass = NA` predicts with per-fuel-class columns).
+#'   `fuelClassRoles` (`list(domClass =, secClass =, treedWetland =)`; `domClass = NA` predicts with
+#'   per-fuel-class columns).
 
 #' The fuel-class name after `dom_agb_`/`sec_agb_` in a fitted covariate name
 #'
@@ -615,8 +617,11 @@ fuelClassTablesThisYear <- function(sim, fuelSets) {
 #' mangling), so recovering `domClass`/`secClass` from a fitted term name is stripping the prefix.
 #'
 #' @param termNames character vector, e.g. `colnames(sim$studyAreaWithSpreadParams$params[[1]])`.
-#' @return `list(domClass =, secClass =)`; both `NA` when `termNames` has no `dom_agb_*` term (an
-#'   older, per-species fit -- predicts with the previous one-column-per-fuel-class covariates).
+#' @return `list(domClass =, secClass =, treedWetland =)`; `domClass`, `secClass` both `NA` when
+#'   `termNames` has no `dom_agb_*` term (an older, per-species fit -- predicts with the previous
+#'   one-column-per-fuel-class covariates). `treedWetland` is whether the fit has a treed-wetland term
+#'   (`treedWetland_agb`, or an older fit's `treedWetland`): `fireSense_dataPrepFit` leaves it out of an
+#'   ELF with too little treed wetland (`minCovariateProp`), and its AGB is then ordinary fuel.
 #'   Stops when `termNames` has `other_agb` (a fit made before that covariate was removed).
 fuelClassRolesFromTermNames <- function(termNames) {
   if ("other_agb" %in% termNames)
@@ -625,10 +630,12 @@ fuelClassRolesFromTermNames <- function(termNames) {
          "fireSense_dataPrepFit and fireSense_spreadFit.")
   domTerm <- grep("^dom_agb_", termNames, value = TRUE)
   secTerm <- grep("^sec_agb_", termNames, value = TRUE)
+  treedWetland <- any(c(fireSenseUtils::treedWetlandAgbTxt, fireSenseUtils::treedWetlandTxt) %in% termNames)
   if (!length(domTerm))
-    return(list(domClass = NA_character_, secClass = NA_character_))
+    return(list(domClass = NA_character_, secClass = NA_character_, treedWetland = treedWetland))
   list(domClass = sub("^dom_agb_", "", domTerm[1]),
-       secClass = if (length(secTerm)) sub("^sec_agb_", "", secTerm[1]) else NA_character_)
+       secClass = if (length(secTerm)) sub("^sec_agb_", "", secTerm[1]) else NA_character_,
+       treedWetland = treedWetland)
 }
 
 #' `fuelClassRoles` for one row of `sim$studyAreaWithSpreadParams`
@@ -636,11 +643,11 @@ fuelClassRolesFromTermNames <- function(termNames) {
 #' @param sim A `simList`.
 #' @param i integer, the row (ELF), in the order of `sppEquivs` -- the same order
 #'   `fireSense_spreadPredict::spreadPredictRun()` indexes `sa$params[[i]]` by.
-#' @return `list(domClass =, secClass =)`, from [fuelClassRolesFromTermNames()]; both `NA` when
+#' @return `list(domClass =, secClass =, treedWetland =)`, from [fuelClassRolesFromTermNames()]; `NA`, `NA`, `TRUE` when
 #'   `studyAreaWithSpreadParams` is absent, too short, or that ELF has no fitted parameters yet.
 fuelClassRolesForELF <- function(sim, i = 1L) {
   sa <- sim$studyAreaWithSpreadParams
-  noRoles <- list(domClass = NA_character_, secClass = NA_character_)
+  noRoles <- list(domClass = NA_character_, secClass = NA_character_, treedWetland = TRUE)
   if (is.null(sa) || NROW(sa) < i) return(noRoles)
   p <- sa$params[[i]]
   if (is.null(p) || !NROW(p)) return(noRoles)

@@ -15,12 +15,22 @@ toyLedgerRow <- function(termNames) {
 }
 
 test_that("fuelClassRolesFromTermNames() strips the prefix, and is NA/NA with no dom_agb_ term", {
-  expect_identical(fuelClassRolesFromTermNames(c("b0", "MDC", "dom_agb_Pice_mar", "sec_agb_Pinu_ban")),
-                   list(domClass = "Pice_mar", secClass = "Pinu_ban"))
+  expect_identical(fuelClassRolesFromTermNames(c("b0", "MDC", "dom_agb_Pice_mar", "sec_agb_Pinu_ban", "treedWetland_agb")),
+                   list(domClass = "Pice_mar", secClass = "Pinu_ban", treedWetland = TRUE))
   expect_identical(fuelClassRolesFromTermNames(c("b0", "MDC", "dom_agb_Pice_mar")),
-                   list(domClass = "Pice_mar", secClass = NA_character_))
+                   list(domClass = "Pice_mar", secClass = NA_character_, treedWetland = FALSE))
   expect_identical(fuelClassRolesFromTermNames(c("b0", "MDC", "class1", "class2")),
-                   list(domClass = NA_character_, secClass = NA_character_))
+                   list(domClass = NA_character_, secClass = NA_character_, treedWetland = FALSE))
+})
+
+test_that("treed wetland is predicted only when the fit has its term", {
+  ## a fit without treedWetland_agb (too little treed wetland, fireSense_dataPrepFit's minCovariateProp)
+  ## keeps that AGB in dom/sec, so the prediction must not move it into a column with no coefficient
+  expect_false(fuelClassRolesFromTermNames(c("dom_agb_Pice_mar", "sec_agb_Pinu_ban", "nfLCC_50"))$treedWetland)
+  ## an older per-species fit with the 0/1 indicator
+  expect_true(fuelClassRolesFromTermNames(c("class1", "treedWetland"))$treedWetland)
+  ## no fitted parameters yet: as before
+  expect_true(fuelClassRolesForELF(list(studyAreaWithSpreadParams = NULL))$treedWetland)
 })
 
 test_that("a fit that has an other_agb term stops with a message to refit, rather than dropping the term", {
