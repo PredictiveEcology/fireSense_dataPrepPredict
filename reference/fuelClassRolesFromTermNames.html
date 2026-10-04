@@ -84,13 +84,17 @@ objects is used only when they are absent.</p>
     <h2>Value</h2>
     <p>list of lists, each with <code>sppEquiv</code>, <code>nonForestedLCCGroups</code>, <code>missingLCCgroup</code>, <code>landcoverDT</code>,
 <code>requiredFuelClasses</code>, <code>rstLCC</code> (aligned to <code>flammableRTM</code>, for <code>treedWetland</code>/<code>treedWetland_agb</code>) and
-<code>fuelClassRoles</code> (<code>list(domClass =, secClass =)</code>; <code>domClass = NA</code> predicts with per-fuel-class columns).
+<code>fuelClassRoles</code> (<code>list(domClass =, secClass =, treedWetland =)</code>; <code>domClass = NA</code> predicts with
+per-fuel-class columns).
 The fuel-class name after <code>dom_agb_</code>/<code>sec_agb_</code> in a fitted covariate name</p>
 <p><code>fireSenseUtils::fireSenseCovariatesCreate(fuelCovariates = "domSecWetland")</code> names those columns
 <code>dom_agb_&lt;domClass&gt;</code>/<code>sec_agb_&lt;secClass&gt;</code> with the fuel class's own name unchanged (no further
 mangling), so recovering <code>domClass</code>/<code>secClass</code> from a fitted term name is stripping the prefix.</p>
-<p><code>list(domClass =, secClass =)</code>; both <code>NA</code> when <code>termNames</code> has no <code>dom_agb_*</code> term (an
-older, per-species fit – predicts with the previous one-column-per-fuel-class covariates).
+<p><code>list(domClass =, secClass =, treedWetland =)</code>; <code>domClass</code>, <code>secClass</code> both <code>NA</code> when
+<code>termNames</code> has no <code>dom_agb_*</code> term (an older, per-species fit – predicts with the previous
+one-column-per-fuel-class covariates). <code>treedWetland</code> is whether the fit has a treed-wetland term
+(<code>treedWetland_agb</code>, or an older fit's <code>treedWetland</code>): <code>fireSense_dataPrepFit</code> leaves it out of an
+ELF with too little treed wetland (<code>minCovariateProp</code>), and its AGB is then ordinary fuel.
 Stops when <code>termNames</code> has <code>other_agb</code> (a fit made before that covariate was removed).</p>
     </div>
 
