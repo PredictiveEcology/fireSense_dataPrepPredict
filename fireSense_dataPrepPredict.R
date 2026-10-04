@@ -19,7 +19,7 @@ defineModule(sim, list(
                              "fireSense_ignitionFit", "fireSense_spreadFit")),
   reqdPkgs = list(
     "data.table",
-    "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9074)",
+    "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9081)",
     "PredictiveEcology/LandR@development",
     "PredictiveEcology/reproducible@development",
     "PredictiveEcology/SpaDES.core@development (>= 3.0.4)",
