@@ -1,4 +1,4 @@
-# fireSense_dataPrepPredict (development version)
+# fireSense_dataPrepPredict 1.0.4.9012
 
 - A comment said `treedWetland_agb` is not on the `logMinB()` floor scale. In `domSecWetland` mode it is (`fireSenseUtils::fireSenseCovariatesCreate()` logs it like `dom_agb_*` and `sec_agb_*`); only the species-mode 0/1 `treedWetland` is not. Comment only, no behaviour change.
 
