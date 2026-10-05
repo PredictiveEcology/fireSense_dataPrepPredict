@@ -1,5 +1,7 @@
 # fireSense_dataPrepPredict (development version)
 
+- A comment said `treedWetland_agb` is not on the `logMinB()` floor scale. In `domSecWetland` mode it is (`fireSenseUtils::fireSenseCovariatesCreate()` logs it like `dom_agb_*` and `sec_agb_*`); only the species-mode 0/1 `treedWetland` is not. Comment only, no behaviour change.
+
 - Treed wetland is predicted only when the fit has its term (`treedWetland_agb`, or an older fit's `treedWetland`): `fireSense_dataPrepFit`'s new `minCovariateProp` leaves it out of ELFs with little treed wetland, whose AGB is then ordinary `dom_agb_*`/`sec_agb_*` fuel. `fuelClassRolesFromTermNames()` returns `treedWetland` and it is passed to `fireSenseUtils::fireSenseCovariatesCreate()`. Needs fireSenseUtils >= 0.2.3.9081 (PredictiveEcology/fireSenseUtils#129).
 - The fuel classes are made once per year, not twice: the ignition and spread covariates are built from the same `cohortData`, `pixelGroupMap`, `flammableRTM`, `landcoverDT`, `sppEquiv` and `cutoffForYoungAge`, so whichever event runs first makes them with `fireSenseUtils::cohortsToFuelClasses(asTable = TRUE)` and the second reuses them through `fireSenseCovariatesCreate(fuelClassTable =)`. The second event builds its own if `cohortData`, `pixelGroupMap` or `flammableRTM` changed in between. The covariates are identical. Needs the `fireSenseUtils` change that adds `asTable` and `fuelClassTable` (PredictiveEcology/fireSenseUtils#121).
 
