@@ -514,10 +514,12 @@ prepare_SpreadPredict <- function(sim) {
     # Sanity check - make sure the nonForest pixels have no forest fuels
     nfCols <- setdiff(names(fs$landcoverDT), "pixelID")
     df <- copy(covs)
-    ## treedWetland (0/1) and treedWetland_agb are not on the logMinB() floor scale the other
-    ## fuel columns are, so they are not "fuel" for this check either -- otherwise treedWetland's
-    ## 0s (never NA below) keep every row's rowSums(!is.na(fcs)) > 0, flagging every non-forest
-    ## pixel as if it had forest fuel
+    ## treedWetland (the species-mode 0/1 indicator) is not on the logMinB() floor scale the other
+    ## fuel columns are, so it is not "fuel" for this check -- otherwise its 0s (never NA below)
+    ## keep every row's rowSums(!is.na(fcs)) > 0, flagging every non-forest pixel as if it had forest
+    ## fuel. treedWetland_agb (domSecWetland mode) IS on that scale (fireSenseUtils::fireSenseCovariatesCreate()
+    ## logs it with logMinB() like dom_agb_* and sec_agb_*), but the pooled treed-wetland biomass is
+    ## also left out of this check
     fcs <- setdiff(colnames(df), c("pixelID", "youngAge", nfCols,
                                     fireSenseUtils::treedWetlandTxt, fireSenseUtils::treedWetlandAgbTxt))
     if (length(fcs)) {
