@@ -3,7 +3,8 @@
 test_that("init produces every declared output on the toy landscape", {
   sim <- toyPrepRun()
   md <- SpaDES.core::moduleMetadata(module = moduleName, path = modulePath)
-  for (obj in md$outputObjects$objectName) {
+  ## studyAreaWithSpreadParams is an output only to be restored on a cache hit; this run supplies none
+  for (obj in setdiff(md$outputObjects$objectName, "studyAreaWithSpreadParams")) {
     expect_false(is.null(sim[[obj]]), info = obj)
   }
   expect_s4_class(sim$currentClimateRasters, "SpatRaster")

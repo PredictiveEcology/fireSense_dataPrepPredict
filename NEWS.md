@@ -1,3 +1,7 @@
+# fireSense_dataPrepPredict (development version)
+
+- The spread fuel roles came from row 1 of `sim$studyAreaWithSpreadParams`, by position, but that object holds every ledger row touching the study area: a single-ELF run of 13.1 took neighbour 4.2.2's row and stopped on its `other_agb` term. Rows are now matched by `polygonID`: the simulated ELF's (`sim$.ELFind`) comes first and a missing one stops. New parameter `blendNeighbourELFs` (default `TRUE`): `FALSE` keeps only that row; `TRUE` also keeps neighbours that are fitted with the current fuel covariates, labelled in `sim$rasterToMatchLargeELF` and present in the named `sppEquivs`/`nonForestedLCCGroupsList`/`missingLCCgroupList`, and drops the rest with a warning. A single-ELF run's `rasterToMatchLargeELF` labels no neighbour, so it predicts with its own row either way. `studyAreaWithSpreadParams` is now also an output, so a cached covariate event restores the reduced rows.
+
 # fireSense_dataPrepPredict 1.0.4.9012
 
 - A comment said `treedWetland_agb` is not on the `logMinB()` floor scale. In `domSecWetland` mode it is (`fireSenseUtils::fireSenseCovariatesCreate()` logs it like `dom_agb_*` and `sec_agb_*`); only the species-mode 0/1 `treedWetland` is not. Comment only, no behaviour change.

@@ -26,6 +26,17 @@ defineModule(sim, list(
     "terra"
   ),
   parameters = rbind(
+    defineParameter("blendNeighbourELFs", "logical", TRUE, NA, NA,
+      desc = paste(
+        "`sim$studyAreaWithSpreadParams` holds every ledger row whose polygon touches the study area: the",
+        "simulated ELF (`sim$.ELFind`) and its neighbours. `FALSE` keeps only the simulated ELF's row.",
+        "`TRUE` also keeps each neighbour that `fireSense_spreadPredict` can blend: fitted with the current",
+        "fuel covariates, labelled in `sim$rasterToMatchLargeELF` and with its own `sppEquivs`,",
+        "`nonForestedLCCGroupsList` and `missingLCCgroupList` entries; any other neighbour is dropped with a",
+        "warning. A single-ELF run's `rasterToMatchLargeELF` labels no neighbour, so there `TRUE` keeps",
+        "only the simulated ELF's row too."
+      )
+    ),
     defineParameter("cutoffForYoungAge", "numeric", fireSenseUtils::fireSenseYoungAgeCutoff, NA, NA,
       desc = paste(
         "Age at and below which pixels are considered 'young'",
@@ -83,6 +94,9 @@ defineModule(sim, list(
     )
   ),
   inputObjects = bindrows(
+    expectsInput(".ELFind", "character", sourceURL = NA,
+      desc = paste("The simulated ELF (from `fireSense_ELFs`), the `polygonID` of its row in",
+                   "`studyAreaWithSpreadParams`. Unsupplied: the rows are used as they are.")),
     expectsInput("climateVariablesForFire", "list", sourceURL = NA,
       desc = paste(
         "Named list (`ignition`, `spread`) of the layer names in `currentClimateRasters`",
@@ -121,6 +135,9 @@ defineModule(sim, list(
         "'year<year>'. Only used if `currentClimateRasters` is not supplied.")),
     expectsInput("rasterToMatch", "SpatRaster", sourceURL = NA,
       desc = "Template raster for the study area."),
+    expectsInput("rasterToMatchLargeELF", "SpatRaster", sourceURL = NA,
+      desc = paste("From `fireSense_ELFs`. A neighbour ELF is blended (`blendNeighbourELFs`) only if this",
+                   "raster labels its pixels, which is how `fireSense_spreadPredict` weights each ELF.")),
     expectsInput("rstCurrentBurn", "SpatRaster", sourceURL = NA,
       desc = "Binary raster with 1 where the pixel burned this year."),
     expectsInput("rstLCC_RTM", "SpatRaster", sourceURL = NA,
@@ -142,7 +159,10 @@ defineModule(sim, list(
       desc = "Table of LandR species equivalencies; must have columns `sppEquivCol` and `fuelClassCol`."),
     expectsInput("studyAreaWithSpreadParams", "sf", sourceURL = NA,
       desc = paste("The fitted SpreadFit ledger rows (from `fireSense_ELFs`; also read, undeclared, by",
-                   "`fireSense_spreadPredict`), one row per fitted ELF, in the order of `sppEquivs`. Each",
+                   "`fireSense_spreadPredict`), one row per fitted ELF, matched to `sppEquivs` by",
+                   "`polygonID` when `sppEquivs` is named (as `fireSense_dataPrepFit` makes it), else by order.",
+                   "With `.ELFind`, reduced to the simulated ELF's row and the neighbours",
+                   "`blendNeighbourELFs` keeps (see `createsOutput`). Each",
                    "row's `params[[1]]` column names are the fitted formula's terms: an ELF whose terms",
                    "include `dom_agb_<class>`/`sec_agb_<class>` predicts with those classes' AGB columns,",
                    "matching what that ELF was fitted with; otherwise (an older, per-species fit) with the",
@@ -170,7 +190,10 @@ defineModule(sim, list(
     createsOutput("fireSense_SpreadCovariates", "data.table",
       desc = "Spread covariates; `pixelID` is the cell index of `flammableRTM`."),
     createsOutput("nonForest_timeSinceDisturbance", "SpatRaster",
-      desc = "Years since last burn, used to set `youngAge` in non-forest pixels.")
+      desc = "Years since last burn, used to set `youngAge` in non-forest pixels."),
+    createsOutput("studyAreaWithSpreadParams", "sf",
+      desc = paste("With `.ELFind`: the simulated ELF's row first, then the neighbours `blendNeighbourELFs`",
+                   "keeps; set by the covariate events, before `fireSense_spreadPredict` reads it."))
   )
 ))
 
@@ -410,6 +433,7 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
   
   # Coming out of the CacheGeo, this is unreliably a data.frame instead of a data.table
   if (!data.table::is.data.table(sim$sppEquiv)) data.table::setDT(sim$sppEquiv)
+  sim <- useOwnELFRows(sim)
   ## one fuel set per fitted ELF (one, as before, when there is one ELF); the covariate tables are merged,
   ## each ELF's columns alongside the others', for fireSense_ignitionPredict to pick its own
   fuelSets <- ELFfuelSets(sim)
@@ -470,6 +494,7 @@ prepare_SpreadPredict <- function(sim) {
   if (is.null(spreadClimate))
     stop("spreadClimate is NULL; there is a problem to debug")
 
+  sim <- useOwnELFRows(sim)
   ## one fuel set per fitted ELF (one, as before, when there is one ELF). Every ELF's covariates are made for
   ## every pixel and the tables merged, so fireSense_spreadPredict can apply each ELF's model wherever it
   ## predicts, including the blend zone around its own pixels. Column names say what they hold (fuel class,
@@ -626,7 +651,7 @@ fuelClassTablesThisYear <- function(sim, fuelSets) {
 #'   ELF with too little treed wetland (`minCovariateProp`), and its AGB is then ordinary fuel.
 #'   Stops when `termNames` has `other_agb` (a fit made before that covariate was removed).
 fuelClassRolesFromTermNames <- function(termNames) {
-  if ("other_agb" %in% termNames)
+  if (removedFuelTermTxt %in% termNames)
     stop("fireSense_dataPrepPredict: the fitted model has an `other_agb` term, a fuel covariate that no longer exists ",
          "(fuels are now dom_agb_<class>, sec_agb_<class> and treedWetland_agb). Refit the spread model with the current ",
          "fireSense_dataPrepFit and fireSense_spreadFit.")
@@ -640,10 +665,13 @@ fuelClassRolesFromTermNames <- function(termNames) {
        treedWetland = treedWetland)
 }
 
+## the pooled fuel covariate that was removed; a fit with this term cannot be predicted
+removedFuelTermTxt <- "other_agb"
+
 #' `fuelClassRoles` for one row of `sim$studyAreaWithSpreadParams`
 #'
 #' @param sim A `simList`.
-#' @param i integer, the row (ELF), in the order of `sppEquivs` -- the same order
+#' @param i integer, the row (ELF) of `sim$studyAreaWithSpreadParams` -- the same order
 #'   `fireSense_spreadPredict::spreadPredictRun()` indexes `sa$params[[i]]` by.
 #' @return `list(domClass =, secClass =, treedWetland =)`, from [fuelClassRolesFromTermNames()]; `NA`, `NA`, `TRUE` when
 #'   `studyAreaWithSpreadParams` is absent, too short, or that ELF has no fitted parameters yet.
@@ -656,6 +684,97 @@ fuelClassRolesForELF <- function(sim, i = 1L) {
   fuelClassRolesFromTermNames(colnames(p))
 }
 
+#' Why a ledger row cannot be predicted with the current fuel covariates
+#'
+#' The one definition of a usable `sim$studyAreaWithSpreadParams` row, for neighbour ELFs: it has fitted
+#' parameters and `covMinMax_spread`, and its fuel terms are the current `dom_agb_<class>`,
+#' `sec_agb_<class>` and `treedWetland_agb`: no `other_agb`, and no per-fuel-class term (a fuel class
+#' of the row's own `sppEquiv`, e.g. `Betu_pap`) from before those existed.
+#'
+#' @param row one row of `sim$studyAreaWithSpreadParams`.
+#' @param fuelClassCol the `sppEquiv` column naming the fuel classes.
+#' @return `NA` if usable, else a sentence saying why not.
+spreadParamsRowUnusable <- function(row, fuelClassCol) {
+  p <- row$params[[1]]
+  if (is.null(p) || !NROW(p)) return("it has no fitted parameters")
+  if (!"covMinMax_spread" %in% names(row) || is.null(row$covMinMax_spread[[1]]))
+    return("it has no covMinMax_spread")
+  terms <- colnames(p)
+  if (removedFuelTermTxt %in% terms)
+    return("it was fitted with `other_agb`, a fuel covariate that no longer exists")
+  se <- if ("sppEquiv" %in% names(row)) row$sppEquiv[[1]]
+  perClass <- intersect(terms, se[[fuelClassCol]])
+  if (length(perClass))
+    return(paste0("it was fitted with per-fuel-class terms (", paste(perClass, collapse = ", "),
+                  ") instead of dom_agb_<class>/sec_agb_<class>"))
+  NA_character_
+}
+
+#' The ledger rows to predict with: the simulated ELF's, then the neighbours that can be blended
+#'
+#' @param sa `sim$studyAreaWithSpreadParams`.
+#' @param ownELF character; the simulated ELF (`sim$.ELFind`).
+#' @param blend logical; the `blendNeighbourELFs` parameter.
+#' @param placeableELFs character; the ELFs `sim$rasterToMatchLargeELF` labels (see [ELFlabels()]).
+#' @param fuelInputELFs character; the ELFs with their own `sppEquivs`, `nonForestedLCCGroupsList` and
+#'   `missingLCCgroupList` entries.
+#' @param fuelClassCol passed to [spreadParamsRowUnusable()].
+#' @return `sa`'s rows: `ownELF`'s first, then the neighbours kept. Stops if `ownELF` has no row, unless
+#'   `sa` is the rows of a study area over several ELFs (`placeableELFs` names some of them), which are
+#'   returned unchanged.
+selectSpreadParamRows <- function(sa, ownELF, blend, placeableELFs, fuelInputELFs, fuelClassCol) {
+  ids <- as.character(sa[[fireSenseUtils::polygonIDTxt]])
+  own <- which(ids == ownELF)
+  if (!length(own)) {
+    if (any(ids %in% placeableELFs)) return(sa)
+    stop("fireSense_dataPrepPredict: sim$studyAreaWithSpreadParams has no row for the simulated ELF ", ownELF,
+         " (sim$.ELFind); it has ", paste(ids, collapse = ", "), ". Fit ELF ", ownELF, " first.", call. = FALSE)
+  }
+  own <- own[1]
+  keep <- integer(0)
+  if (isTRUE(blend)) {
+    for (i in setdiff(seq_along(ids), own)) {
+      why <- spreadParamsRowUnusable(sa[i, , drop = FALSE], fuelClassCol)
+      if (is.na(why) && !ids[i] %in% placeableELFs)
+        why <- "sim$rasterToMatchLargeELF does not label its pixels (a single-ELF run labels none)"
+      if (is.na(why) && !ids[i] %in% fuelInputELFs)
+        why <- "sppEquivs, nonForestedLCCGroupsList and missingLCCgroupList have no entry for it"
+      if (is.na(why)) keep <- c(keep, i)
+      else warning("fireSense_dataPrepPredict: not blending neighbour ELF ", ids[i], " into ELF ", ownELF,
+                   ": ", why, ".", call. = FALSE)
+    }
+  }
+  sa[c(own, keep), , drop = FALSE]
+}
+
+## The ELFs a raster labels: its categories, else its values (as fireSense_spreadPredict's ELFblendWeights()
+## reads `sim$rasterToMatchLargeELF`)
+ELFlabels <- function(r) {
+  if (is.null(r)) return(character(0))
+  lv <- terra::levels(r[[1]])[[1]]
+  if (is.data.frame(lv) && NCOL(lv) >= 2) return(as.character(lv[[2]]))
+  as.character(unique(terra::values(r[[1]], mat = FALSE)))
+}
+
+#' Reduce `sim$studyAreaWithSpreadParams` to the simulated ELF's row and the neighbours to blend
+#'
+#' Done in the covariate events, which run before `fireSense_spreadPredict`'s `run` each year and after
+#' `fireSense_spreadFit` writes the rows; a second call finds nothing more to drop.
+#'
+#' @param sim A `simList`.
+#' @return The `simList`, invisibly.
+useOwnELFRows <- function(sim) {
+  sa <- sim$studyAreaWithSpreadParams
+  if (is.null(sim$.ELFind) || !NROW(sa)) return(invisible(sim))
+  fuelInputELFs <- Reduce(intersect, list(names(sim$sppEquivs), names(sim$nonForestedLCCGroupsList),
+                                          names(sim$missingLCCgroupList)))
+  sim$studyAreaWithSpreadParams <- selectSpreadParamRows(
+    sa, ownELF = as.character(sim$.ELFind), blend = P(sim)$blendNeighbourELFs,
+    placeableELFs = ELFlabels(sim$rasterToMatchLargeELF), fuelInputELFs = fuelInputELFs,
+    fuelClassCol = P(sim)$fuelClassCol)
+  invisible(sim)
+}
+
 ELFfuelSets <- function(sim) {
   fcc <- P(sim)$fuelClassCol
   if (length(sim$sppEquivs) > 1L || length(sim$nonForestedLCCGroupsList)) {
@@ -663,6 +782,12 @@ ELFfuelSets <- function(sim) {
     if (length(sim$nonForestedLCCGroupsList) != n || length(sim$missingLCCgroupList) != n)
       stop("fireSense_dataPrepPredict: sppEquivs, nonForestedLCCGroupsList and missingLCCgroupList must have one ",
            "element per ELF")
+    ## the per-ELF entries for each row of studyAreaWithSpreadParams, by polygonID when they are named
+    ids <- as.character(sim$studyAreaWithSpreadParams[[fireSenseUtils::polygonIDTxt]])
+    idx <- if (length(ids) && !is.null(names(sim$sppEquivs))) match(ids, names(sim$sppEquivs)) else seq_len(n)
+    if (anyNA(idx))
+      stop("fireSense_dataPrepPredict: sppEquivs has no entry for ELF(s) ", paste(ids[is.na(idx)], collapse = ", "),
+           " of sim$studyAreaWithSpreadParams")
     if (is.null(mod$ELFrstLCC)) {
       mod$ELFrstLCC <- if (!LandR::.compareRas(sim$flammableRTM, sim$rstLCC_RTM, stopOnError = FALSE))
         reproducible::postProcess(sim$rstLCC_RTM, to = sim$flammableRTM, method = "near") else sim$rstLCC_RTM
@@ -672,10 +797,11 @@ ELFfuelSets <- function(sim) {
         makeLandcoverDT(rstLCC = mod$ELFrstLCC, flammableRTM = sim$flammableRTM,
                         forestedLCC = P(sim)$forestedLCC, nonForestedLCCGroups = g))
     }
-    return(lapply(seq_len(n), function(i) {
-      se <- data.table::as.data.table(sim$sppEquivs[[i]])
-      list(sppEquiv = se, nonForestedLCCGroups = sim$nonForestedLCCGroupsList[[i]],
-           missingLCCgroup = sim$missingLCCgroupList[[i]], landcoverDT = mod$ELFlandcoverDTs[[i]],
+    return(lapply(seq_along(idx), function(i) {
+      j <- idx[i]
+      se <- data.table::as.data.table(sim$sppEquivs[[j]])
+      list(sppEquiv = se, nonForestedLCCGroups = sim$nonForestedLCCGroupsList[[j]],
+           missingLCCgroup = sim$missingLCCgroupList[[j]], landcoverDT = mod$ELFlandcoverDTs[[j]],
            requiredFuelClasses = se[[fcc]], rstLCC = mod$ELFrstLCC,
            fuelClassRoles = fuelClassRolesForELF(sim, i))
     }))

@@ -17,7 +17,8 @@ test_that("inputs are the expected names and classes", {
   inputs <- stats::setNames(md$inputObjects$objectClass, md$inputObjects$objectName)
   expect_identical(
     inputs[order(names(inputs))],
-    c(climateVariablesForFire  = "list",
+    c(.ELFind                  = "character",
+      climateVariablesForFire  = "list",
       climateYear              = "numeric",
       cohortData               = "data.table",
       currentClimateRasters    = "SpatRaster",
@@ -31,6 +32,7 @@ test_that("inputs are the expected names and classes", {
       pixelGroupMap            = "SpatRaster",
       projectedClimateRasters  = "list",
       rasterToMatch            = "SpatRaster",
+      rasterToMatchLargeELF    = "SpatRaster",
       rstCurrentBurn           = "SpatRaster",
       rstLCC_RTM               = "SpatRaster",
       rstLCCs                  = "list",
@@ -50,7 +52,8 @@ test_that("outputs are the expected names and classes", {
     c(currentClimateRasters                = "SpatRaster",
       fireSense_igAndEscapePred_Covariates = "data.table",
       fireSense_SpreadCovariates           = "data.table",
-      nonForest_timeSinceDisturbance       = "SpatRaster")
+      nonForest_timeSinceDisturbance       = "SpatRaster",
+      studyAreaWithSpreadParams            = "sf")
   )
 })
 
@@ -58,7 +61,7 @@ test_that("parameters are the expected names", {
   md <- SpaDES.core::moduleMetadata(module = moduleName, path = modulePath)
   expect_identical(
     sort(md$parameters$paramName),
-    sort(c(".runInitialTime", ".studyAreaName", ".useCache", "cutoffForYoungAge", "dataYear",
+    sort(c(".runInitialTime", ".studyAreaName", ".useCache", "blendNeighbourELFs", "cutoffForYoungAge", "dataYear",
            "fireTimeStep", "flammabilityThreshold", "forestedLCC", "fuelClassCol",
            "igAggFactor", "nonflammableLCC", "nonForestCanBeYoungAge", "scanfiVersion",
            "sppEquivCol", "whichModulesToPrepare"))
