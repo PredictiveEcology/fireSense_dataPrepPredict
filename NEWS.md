@@ -1,3 +1,5 @@
+# fireSense_dataPrepPredict (development version)
+
 # fireSense_dataPrepPredict 1.1.0
 
 This release makes the data prepared for forecasting match the data the models were fitted on. Fuel types, land-cover groups and young-forest rules are now taken from each fitted model rather than worked out again from the forecast area, so a model is never asked to predict with inputs it was not trained on. Several errors that stopped forecasts, or quietly used the wrong data, are fixed: neighbouring regions' fits were sometimes picked up, rock was not treated as non-flammable, and climate maps from a previous year could be reused.
