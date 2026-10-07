@@ -33,7 +33,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="index.html">fireSense_dataPrepPredict</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.0.4.9012</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.1.0</span>
       </span>
     </div>
 
@@ -121,6 +121,20 @@ sourceURL
 </th>
 </tr></thead>
 <tbody>
+<tr>
+<td style="text-align:left;">
+.ELFind
+</td>
+<td style="text-align:left;">
+character
+</td>
+<td style="text-align:left;">
+The simulated ELF (from <code>fireSense_ELFs</code>), the <code>polygonID</code> of its row in <code>studyAreaWithSpreadParams</code>. Unsupplied: the rows are used as they are.
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
 <tr>
 <td style="text-align:left;">
 climateVariablesForFire
@@ -277,6 +291,20 @@ NA
 </tr>
 <tr>
 <td style="text-align:left;">
+rasterToMatchLargeELF
+</td>
+<td style="text-align:left;">
+SpatRaster
+</td>
+<td style="text-align:left;">
+From <code>fireSense_ELFs</code>. A neighbour ELF is blended (<code>blendNeighbourELFs</code>) only if this raster labels its pixels, which is how <code>fireSense_spreadPredict</code> weights each ELF.
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
 rstCurrentBurn
 </td>
 <td style="text-align:left;">
@@ -381,7 +409,7 @@ studyAreaWithSpreadParams
 sf
 </td>
 <td style="text-align:left;">
-The fitted SpreadFit ledger rows (from <code>fireSense_ELFs</code>; also read, undeclared, by <code>fireSense_spreadPredict</code>), one row per fitted ELF, in the order of <code>sppEquivs</code>. Each row’s <code>params[[1]]</code> column names are the fitted formula’s terms: an ELF whose terms include <code>dom_agb_&amp;lt;class&amp;gt;</code>/<code>sec_agb_&amp;lt;class&amp;gt;</code> predicts with those classes’ AGB columns, matching what that ELF was fitted with; otherwise (an older, per-species fit) with the previous one-column-per-fuel-class covariates. Unsupplied: every ELF predicts per-fuel-class, as before this was read.
+The fitted SpreadFit ledger rows (from <code>fireSense_ELFs</code>; also read, undeclared, by <code>fireSense_spreadPredict</code>), one row per fitted ELF, matched to <code>sppEquivs</code> by <code>polygonID</code> when <code>sppEquivs</code> is named (as <code>fireSense_dataPrepFit</code> makes it), else by order. With <code>.ELFind</code>, reduced to the simulated ELF’s row and the neighbours <code>blendNeighbourELFs</code> keeps (see <code>createsOutput</code>). Each row’s <code>params[[1]]</code> column names are the fitted formula’s terms: an ELF whose terms include <code>dom_agb_&amp;lt;class&amp;gt;</code>/<code>sec_agb_&amp;lt;class&amp;gt;</code> predicts with those classes’ AGB columns, matching what that ELF was fitted with; otherwise (an older, per-species fit) with the previous one-column-per-fuel-class covariates. Unsupplied: every ELF predicts per-fuel-class, as before this was read.
 </td>
 <td style="text-align:left;">
 NA
@@ -457,6 +485,26 @@ paramDesc
 </th>
 </tr></thead>
 <tbody>
+<tr>
+<td style="text-align:left;">
+blendNeighbourELFs
+</td>
+<td style="text-align:left;">
+logical
+</td>
+<td style="text-align:left;">
+TRUE
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+<code>sim$studyAreaWithSpreadParams</code> holds every ledger row whose polygon touches the study area: the simulated ELF (<code>sim$.ELFind</code>) and its neighbours. <code>FALSE</code> keeps only the simulated ELF’s row. <code>TRUE</code> also keeps each neighbour that <code>fireSense_spreadPredict</code> can blend: fitted with the current fuel covariates, labelled in <code>sim$rasterToMatchLargeELF</code> and with its own <code>sppEquivs</code>, <code>nonForestedLCCGroupsList</code> and <code>missingLCCgroupList</code> entries; any other neighbour is dropped with a warning. A single-ELF run’s <code>rasterToMatchLargeELF</code> labels no neighbour, so there <code>TRUE</code> keeps only the simulated ELF’s row too.
+</td>
+</tr>
 <tr>
 <td style="text-align:left;">
 cutoffForYoungAge
@@ -842,6 +890,17 @@ SpatRaster
 </td>
 <td style="text-align:left;">
 Years since last burn, used to set <code>youngAge</code> in non-forest pixels.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+studyAreaWithSpreadParams
+</td>
+<td style="text-align:left;">
+sf
+</td>
+<td style="text-align:left;">
+With <code>.ELFind</code>: the simulated ELF’s row first, then the neighbours <code>blendNeighbourELFs</code> keeps; set by the covariate events, before <code>fireSense_spreadPredict</code> reads it.
 </td>
 </tr>
 </tbody>
