@@ -17,24 +17,30 @@ test_that("inputs are the expected names and classes", {
   inputs <- stats::setNames(md$inputObjects$objectClass, md$inputObjects$objectName)
   expect_identical(
     inputs[order(names(inputs))],
-    c(climateVariablesForFire  = "list",
-      climateYear              = "character",
+    c(.ELFind                  = "character",
+      climateVariablesForFire  = "list",
+      climateYear              = "numeric",
       cohortData               = "data.table",
       currentClimateRasters    = "SpatRaster",
-      fireSense_IgnitionFitted = "fireSense_IgnitionFit",
       flammableRTM             = "SpatRaster",
       landcoverDT              = "data.table",
       lightningMaps            = "SpatRaster",
       missingLCCgroup          = "character",
+      missingLCCgroupList      = "list",
       nonForestedLCCGroups     = "list",
+      nonForestedLCCGroupsList = "list",
       pixelGroupMap            = "SpatRaster",
       projectedClimateRasters  = "list",
-      propFlammable            = "SpatRaster",
       rasterToMatch            = "SpatRaster",
+      rasterToMatchLargeELF    = "SpatRaster",
       rstCurrentBurn           = "SpatRaster",
       rstLCC_RTM               = "SpatRaster",
+      rstLCCs                  = "list",
       sppEquiv                 = "data.table",
-      standAgeMap              = "SpatRaster")
+      sppEquivs                = "list",
+      standAgeMap              = "SpatRaster",
+      studyArea                = "SpatVector",
+      studyAreaWithSpreadParams = "sf")
   )
 })
 
@@ -46,7 +52,8 @@ test_that("outputs are the expected names and classes", {
     c(currentClimateRasters                = "SpatRaster",
       fireSense_igAndEscapePred_Covariates = "data.table",
       fireSense_SpreadCovariates           = "data.table",
-      nonForest_timeSinceDisturbance       = "SpatRaster")
+      nonForest_timeSinceDisturbance       = "SpatRaster",
+      studyAreaWithSpreadParams            = "sf")
   )
 })
 
@@ -54,10 +61,17 @@ test_that("parameters are the expected names", {
   md <- SpaDES.core::moduleMetadata(module = moduleName, path = modulePath)
   expect_identical(
     sort(md$parameters$paramName),
-    sort(c(".plotInitialTime", ".plotInterval", ".runInitialTime", ".saveInitialTime",
-           ".saveInterval", ".useCache", "cutoffForYoungAge", "dataYear",
+    sort(c(".runInitialTime", ".studyAreaName", ".useCache", "blendNeighbourELFs", "cutoffForYoungAge", "dataYear",
            "fireTimeStep", "flammabilityThreshold", "forestedLCC", "fuelClassCol",
-           "igAggFactor", "nonflammableLCC", "nonForestCanBeYoungAge", "sppEquivCol",
-           "whichModulesToPrepare"))
+           "igAggFactor", "nonflammableLCC", "nonForestCanBeYoungAge", "scanfiVersion",
+           "sppEquivCol", "whichModulesToPrepare"))
   )
+})
+
+test_that("loadOrder names the renamed fit modules", {
+  ## moduleMetadata() does not return `loadOrder`, so read it from the parsed defineModule() call
+  parsed <- parse(file.path(moduleRoot, paste0(moduleName, ".R")), keep.source = TRUE)
+  dm <- Filter(function(e) grepl("^defineModule", paste(deparse(e), collapse = "")), as.list(parsed))
+  lo <- eval(dm[[1]][[3]]$loadOrder)
+  expect_true(all(c("fireSense_ignitionFit", "fireSense_spreadFit") %in% lo$after))
 })
