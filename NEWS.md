@@ -1,4 +1,8 @@
-# fireSense_dataPrepPredict (development version)
+# fireSense_dataPrepPredict 1.1.0
+
+This release makes the data prepared for forecasting match the data the models were fitted on. Fuel types, land-cover groups and young-forest rules are now taken from each fitted model rather than worked out again from the forecast area, so a model is never asked to predict with inputs it was not trained on. Several errors that stopped forecasts, or quietly used the wrong data, are fixed: neighbouring regions' fits were sometimes picked up, rock was not treated as non-flammable, and climate maps from a previous year could be reused.
+
+Each year's fuel maps are now built once instead of twice, which saves time. Settings shared across the fireSense modules now come from one place, so they no longer drift apart. Projects that list the forecast modules by name need the new lower-case names, and models fitted with the older "other fuel" covariate must be refitted.
 
 - The spread fuel roles came from row 1 of `sim$studyAreaWithSpreadParams`, by position, but that object holds every ledger row touching the study area: a single-ELF run of 13.1 took neighbour 4.2.2's row and stopped on its `other_agb` term. Rows are now matched by `polygonID`: the simulated ELF's (`sim$.ELFind`) comes first and a missing one stops. New parameter `blendNeighbourELFs` (default `TRUE`): `FALSE` keeps only that row; `TRUE` also keeps neighbours that are fitted with the current fuel covariates, labelled in `sim$rasterToMatchLargeELF` and present in the named `sppEquivs`/`nonForestedLCCGroupsList`/`missingLCCgroupList`, and drops the rest with a warning. A single-ELF run's `rasterToMatchLargeELF` labels no neighbour, so it predicts with its own row either way. `studyAreaWithSpreadParams` is now also an output, so a cached covariate event restores the reduced rows.
 
