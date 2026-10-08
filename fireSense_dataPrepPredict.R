@@ -932,10 +932,7 @@ unionLCCGroups <- function(fuelSets) {
 ## An NA `.studyAreaName` becomes a hash of `studyArea`, as in Biomass_borealDataPrep. Without a
 ## `studyArea` it stays NA (see PredictiveEcology/LandR#246).
 resolveStudyAreaName <- function(sim) {
-  if (is.na(P(sim)$.studyAreaName) && !is.null(sim$studyArea)) {
-    params(sim)[[currentModule(sim)]][[".studyAreaName"]] <- reproducible::studyAreaName(sim$studyArea)
-    message("The .studyAreaName is not supplied; derived name from the study area: ",
-            params(sim)[[currentModule(sim)]][[".studyAreaName"]])
-  }
+  if ((is.null(P(sim)$.studyAreaName) || is.na(P(sim)$.studyAreaName)) && !is.null(sim$studyArea))
+    P(sim)$.studyAreaName <- reproducible::studyAreaName(sim$studyArea, notSupplied = ".studyAreaName")
   sim
 }
