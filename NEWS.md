@@ -1,5 +1,6 @@
 # fireSense_dataPrepPredict (development version)
 
+- New parameter `vegetationYear` (integer, default `NA`: no change). When set, `Init` takes that year's `year<vegetationYear>` element of `fireSense_dataPrepFit`'s per-year lists (`cohortDatas`, `pixelGroupMaps`, `landcoverDTs`, `nonForest_timeSinceDisturbances`, `rstLCCs`, `flammableRTMs`, `standAgeMaps`, now declared as inputs) in place of the last-year objects, stops with a message if one is missing, and does not schedule `ageNonForest`, so vegetation and time since disturbance stay as in that year over all simulated years. It also replaces `dataYear` in the module's own fallbacks. For hindcasts of an observed year.
 - The message for an unset `.studyAreaName` comes from `reproducible::studyAreaName(notSupplied = ".studyAreaName")` (PredictiveEcology/reproducible#638), so it reads the same in every module that uses it: "`.studyAreaName` not supplied; using a hash of `<object>`: <hash>". With an older reproducible the name is the same and there is no message.
 
 # fireSense_dataPrepPredict 1.1.0

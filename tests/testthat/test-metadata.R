@@ -21,15 +21,20 @@ test_that("inputs are the expected names and classes", {
       climateVariablesForFire  = "list",
       climateYear              = "numeric",
       cohortData               = "data.table",
+      cohortDatas              = "list",
       currentClimateRasters    = "SpatRaster",
       flammableRTM             = "SpatRaster",
+      flammableRTMs            = "list",
       landcoverDT              = "data.table",
+      landcoverDTs             = "list",
       lightningMaps            = "SpatRaster",
       missingLCCgroup          = "character",
       missingLCCgroupList      = "list",
+      nonForest_timeSinceDisturbances = "list",
       nonForestedLCCGroups     = "list",
       nonForestedLCCGroupsList = "list",
       pixelGroupMap            = "SpatRaster",
+      pixelGroupMaps           = "list",
       projectedClimateRasters  = "list",
       rasterToMatch            = "SpatRaster",
       rasterToMatchLargeELF    = "SpatRaster",
@@ -39,6 +44,7 @@ test_that("inputs are the expected names and classes", {
       sppEquiv                 = "data.table",
       sppEquivs                = "list",
       standAgeMap              = "SpatRaster",
+      standAgeMaps             = "list",
       studyArea                = "SpatVector",
       studyAreaWithSpreadParams = "sf")
   )
@@ -64,7 +70,7 @@ test_that("parameters are the expected names", {
     sort(c(".runInitialTime", ".studyAreaName", ".useCache", "blendNeighbourELFs", "cutoffForYoungAge", "dataYear",
            "fireTimeStep", "flammabilityThreshold", "forestedLCC", "fuelClassCol",
            "igAggFactor", "nonflammableLCC", "nonForestCanBeYoungAge", "scanfiVersion",
-           "sppEquivCol", "whichModulesToPrepare"))
+           "sppEquivCol", "vegetationYear", "whichModulesToPrepare"))
   )
 })
 
