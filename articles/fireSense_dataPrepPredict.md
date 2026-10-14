@@ -433,6 +433,41 @@ Description of the module outputs (Table \@ref(tab:moduleOutputs-fireSense-dataP
  </thead>
 <tbody>
   <tr>
+   <td style="text-align:left;"> climateVariablesForFire </td>
+   <td style="text-align:left;"> list </td>
+   <td style="text-align:left;"> As the input; a single entry is expanded in `init` to `ignition` and `spread`. </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> cohortData </td>
+   <td style="text-align:left;"> data.table </td>
+   <td style="text-align:left;"> As the input; with `vegetationYear`, the `year&lt;vegetationYear&gt;` element of `cohortDatas`. </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> flammableRTM </td>
+   <td style="text-align:left;"> SpatRaster </td>
+   <td style="text-align:left;"> As the input; with `vegetationYear`, the `year&lt;vegetationYear&gt;` element of `flammableRTMs`. </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> landcoverDT </td>
+   <td style="text-align:left;"> data.table </td>
+   <td style="text-align:left;"> As the input; with `vegetationYear`, the `year&lt;vegetationYear&gt;` element of `landcoverDTs`; built in `init` if neither is supplied. </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> pixelGroupMap </td>
+   <td style="text-align:left;"> SpatRaster </td>
+   <td style="text-align:left;"> As the input; with `vegetationYear`, the `year&lt;vegetationYear&gt;` element of `pixelGroupMaps`. </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> rstLCC_RTM </td>
+   <td style="text-align:left;"> SpatRaster </td>
+   <td style="text-align:left;"> As the input; with `vegetationYear`, the `year&lt;vegetationYear&gt;` element of `rstLCCs`. </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> standAgeMap </td>
+   <td style="text-align:left;"> SpatRaster </td>
+   <td style="text-align:left;"> As the input; with `vegetationYear`, the `year&lt;vegetationYear&gt;` element of `standAgeMaps`. </td>
+  </tr>
+  <tr>
    <td style="text-align:left;"> currentClimateRasters </td>
    <td style="text-align:left;"> SpatRaster </td>
    <td style="text-align:left;"> Climate layers for the current year, one layer per climate variable. Built from `projectedClimateRasters` if not supplied. </td>
