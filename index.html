@@ -33,7 +33,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="index.html">fireSense_dataPrepPredict</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.1.0.9000</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.1.0.9001</span>
       </span>
     </div>
 
@@ -193,6 +193,90 @@ NA
 </tr>
 <tr>
 <td style="text-align:left;">
+cohortDatas
+</td>
+<td style="text-align:left;">
+list
+</td>
+<td style="text-align:left;">
+Only with <code>vegetationYear</code>: named list (<code>year&amp;lt;year&amp;gt;</code>) of <code>cohortData</code>, from <code>fireSense_dataPrepFit</code>. Its <code>year&amp;lt;vegetationYear&amp;gt;</code> element replaces <code>cohortData</code>.
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+flammableRTMs
+</td>
+<td style="text-align:left;">
+list
+</td>
+<td style="text-align:left;">
+Only with <code>vegetationYear</code>: as <code>cohortDatas</code>, for <code>flammableRTM</code>.
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+landcoverDTs
+</td>
+<td style="text-align:left;">
+list
+</td>
+<td style="text-align:left;">
+Only with <code>vegetationYear</code>: as <code>cohortDatas</code>, for <code>landcoverDT</code>.
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+nonForest_timeSinceDisturbances
+</td>
+<td style="text-align:left;">
+list
+</td>
+<td style="text-align:left;">
+Only with <code>vegetationYear</code>: as <code>cohortDatas</code>, for <code>nonForest_timeSinceDisturbance</code>.
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+pixelGroupMaps
+</td>
+<td style="text-align:left;">
+list
+</td>
+<td style="text-align:left;">
+Only with <code>vegetationYear</code>: as <code>cohortDatas</code>, for <code>pixelGroupMap</code>.
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+standAgeMaps
+</td>
+<td style="text-align:left;">
+list
+</td>
+<td style="text-align:left;">
+Only with <code>vegetationYear</code>: as <code>cohortDatas</code>, for <code>standAgeMap</code>.
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
 missingLCCgroup
 </td>
 <td style="text-align:left;">
@@ -339,7 +423,7 @@ rstLCCs
 list
 </td>
 <td style="text-align:left;">
-Optional named list of landcover <code>SpatRaster</code>s, one per data year, as produced by <code>fireSense_dataPrepFit</code>. If supplied, the last element is used as <code>rstLCC_RTM</code>.
+Optional named list of landcover <code>SpatRaster</code>s, one per data year, as produced by <code>fireSense_dataPrepFit</code>. If supplied, the last element is used as <code>rstLCC_RTM</code>, or the <code>year&amp;lt;vegetationYear&amp;gt;</code> element if <code>vegetationYear</code> is set.
 </td>
 <td style="text-align:left;">
 NA
@@ -723,6 +807,26 @@ NA
 </td>
 <td style="text-align:left;">
 Column of <code>sppEquiv</code> with the species names used in <code>cohortData</code>.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+vegetationYear
+</td>
+<td style="text-align:left;">
+integer
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+<code>NA</code>: vegetation comes from the singleton inputs (<code>cohortData</code>, <code>pixelGroupMap</code>, …) and <code>nonForest_timeSinceDisturbance</code> ages every year (<code>ageNonForest</code>). A year, e.g. <code>2020L</code>: <code>Init</code> takes that year’s element (<code>year&amp;lt;vegetationYear&amp;gt;</code>) of each per-year list made by <code>fireSense_dataPrepFit</code> (<code>cohortDatas</code>, <code>pixelGroupMaps</code>, <code>landcoverDTs</code>, <code>nonForest_timeSinceDisturbances</code>, <code>rstLCCs</code>, <code>flammableRTMs</code>, <code>standAgeMaps</code>), stops if one is missing, and does not schedule <code>ageNonForest</code>, so vegetation and time since disturbance stay as in that year. It also replaces <code>dataYear</code> in the fallbacks used when an input is not supplied. For hindcasts of an observed year.
 </td>
 </tr>
 <tr>
