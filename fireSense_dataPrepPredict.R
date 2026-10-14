@@ -73,6 +73,17 @@ defineModule(sim, list(
                     )),
     defineParameter("sppEquivCol", "character", "LandR", NA, NA,
                     desc = "Column of `sppEquiv` with the species names used in `cohortData`."),
+    defineParameter("vegetationYear", "integer", NA_integer_, NA, NA,
+      desc = paste(
+        "`NA`: vegetation comes from the singleton inputs (`cohortData`, `pixelGroupMap`, ...) and",
+        "`nonForest_timeSinceDisturbance` ages every year (`ageNonForest`). A year, e.g. `2020L`: `Init` takes",
+        "that year's element (`year<vegetationYear>`) of each per-year list made by `fireSense_dataPrepFit`",
+        "(`cohortDatas`, `pixelGroupMaps`, `landcoverDTs`, `nonForest_timeSinceDisturbances`, `rstLCCs`,",
+        "`flammableRTMs`, `standAgeMaps`), stops if one is missing, and does not schedule `ageNonForest`, so",
+        "vegetation and time since disturbance stay as in that year. It also replaces `dataYear` in the",
+        "fallbacks used when an input is not supplied. For hindcasts of an observed year."
+      )
+    ),
     defineParameter("whichModulesToPrepare", "character",
                     default = c("fireSense_spreadPredict", "fireSense_ignitionPredict"),
                     NA, NA,
@@ -111,6 +122,19 @@ defineModule(sim, list(
         "If absent, built from `projectedClimateRasters`.")),
     expectsInput("cohortData", "data.table", sourceURL = NA,
       desc = "Cohorts by `pixelGroup` (LandR)."),
+    expectsInput("cohortDatas", "list", sourceURL = NA,
+      desc = paste("Only with `vegetationYear`: named list (`year<year>`) of `cohortData`, from",
+                   "`fireSense_dataPrepFit`. Its `year<vegetationYear>` element replaces `cohortData`.")),
+    expectsInput("flammableRTMs", "list", sourceURL = NA,
+      desc = "Only with `vegetationYear`: as `cohortDatas`, for `flammableRTM`."),
+    expectsInput("landcoverDTs", "list", sourceURL = NA,
+      desc = "Only with `vegetationYear`: as `cohortDatas`, for `landcoverDT`."),
+    expectsInput("nonForest_timeSinceDisturbances", "list", sourceURL = NA,
+      desc = "Only with `vegetationYear`: as `cohortDatas`, for `nonForest_timeSinceDisturbance`."),
+    expectsInput("pixelGroupMaps", "list", sourceURL = NA,
+      desc = "Only with `vegetationYear`: as `cohortDatas`, for `pixelGroupMap`."),
+    expectsInput("standAgeMaps", "list", sourceURL = NA,
+      desc = "Only with `vegetationYear`: as `cohortDatas`, for `standAgeMap`."),
     expectsInput("missingLCCgroup", "character", sourceURL = NA,
       desc = paste(
         "Forested pixels that are absent from `cohortData` are assigned to this class.",
@@ -147,7 +171,8 @@ defineModule(sim, list(
     expectsInput("rstLCCs", "list", sourceURL = NA,
       desc = paste(
         "Optional named list of landcover `SpatRaster`s, one per data year, as produced by",
-        "`fireSense_dataPrepFit`. If supplied, the last element is used as `rstLCC_RTM`.")),
+        "`fireSense_dataPrepFit`. If supplied, the last element is used as `rstLCC_RTM`, or the",
+        "`year<vegetationYear>` element if `vegetationYear` is set.")),
     expectsInput("sppEquivs", "list", sourceURL = NA,
       desc = paste("Only with several fitted ELFs: one `sppEquiv` per ELF, from `fireSense_dataPrepFit`. Each ELF's",
                    "fuel covariates are made with its own, for every pixel.")),
@@ -204,7 +229,8 @@ doEvent.fireSense_dataPrepPredict <- function(sim, eventTime, eventType) {
         stop("fireSense_EscapePredict no longer exists as a module; escape covariates are prepared with ",
              "fireSense_ignitionPredict. Remove it from parameter whichModulesToPrepare.")
       sim <- Init(sim)
-      sim <- scheduleEvent(sim, time(sim) + 1, "fireSense_dataPrepPredict", "ageNonForest")
+      if (is.na(P(sim)$vegetationYear))
+        sim <- scheduleEvent(sim, time(sim) + P(sim)$fireTimeStep, "fireSense_dataPrepPredict", "ageNonForest")
       sim <- scheduleEvent(sim, P(sim)$.runInitialTime, "fireSense_dataPrepPredict", "getClimateRasters")
 
       if ("fireSense_ignitionPredict" %in% P(sim)$whichModulesToPrepare) {
@@ -259,6 +285,40 @@ doEvent.fireSense_dataPrepPredict <- function(sim, eventTime, eventType) {
   return(invisible(sim))
 }
 
+## The year of the default landcover, stand age and fires: `vegetationYear` when set, else `dataYear`.
+dataYearOf <- function(sim) {
+  if (is.na(P(sim)$vegetationYear)) P(sim)$dataYear else P(sim)$vegetationYear
+}
+
+## `vegetationYear`: object -> the per-year list (from fireSense_dataPrepFit) it is taken from.
+vegetationYearLists <- c(cohortData = "cohortDatas", pixelGroupMap = "pixelGroupMaps",
+                         landcoverDT = "landcoverDTs",
+                         nonForest_timeSinceDisturbance = "nonForest_timeSinceDisturbances",
+                         rstLCC_RTM = "rstLCCs", flammableRTM = "flammableRTMs",
+                         standAgeMap = "standAgeMaps")
+
+#' Take one year's vegetation from the per-year lists
+#'
+#' Sets each object in `vegetationYearLists` to the `year<vegetationYear>` element of its list; stops,
+#' naming the list and the element, if one is missing.
+#'
+#' @param sim A `simList`.
+#'
+#' @return The `simList`.
+takeVegetationYear <- function(sim) {
+  el <- paste0("year", P(sim)$vegetationYear)
+  for (obj in names(vegetationYearLists)) {
+    lst <- vegetationYearLists[[obj]]
+    if (is.null(sim[[lst]][[el]]))
+      stop("fireSense_dataPrepPredict: vegetationYear is ", P(sim)$vegetationYear, " but `", lst,
+           "` has no element `", el, "`", if (is.null(sim[[lst]])) " (it is not supplied)" else
+             paste0(" (it has: ", paste(names(sim[[lst]]), collapse = ", "), ")"),
+           ". Use a year in `dataYears` of fireSense_dataPrepFit.")
+    sim[[obj]] <- sim[[lst]][[el]]
+  }
+  sim
+}
+
 #' Initialize the module
 #'
 #' Aligns `standAgeMap` and `rstLCC_RTM` to `rasterToMatch`, builds `landcoverDT` and
@@ -269,6 +329,7 @@ doEvent.fireSense_dataPrepPredict <- function(sim, eventTime, eventType) {
 #' @return The `simList`, invisibly.
 Init <- function(sim) {
   sim <- resolveStudyAreaName(sim)
+  if (!is.na(P(sim)$vegetationYear)) sim <- takeVegetationYear(sim)
 
   # force it to be same as the other module's value
   params(sim)[[currentModule(sim)]][["igAggFactor"]] <- SpaDES.core::paramCheckOtherMods(sim, "igAggFactor")
@@ -296,7 +357,7 @@ Init <- function(sim) {
   }
 
   if (is.null(sim$nonForest_timeSinceDisturbance)) {
-    fireYears <- c(P(sim)$dataYear - P(sim)$cutoffForYoungAge):P(sim)$dataYear
+    fireYears <- c(dataYearOf(sim) - P(sim)$cutoffForYoungAge):dataYearOf(sim)
     firePolys <- fireSenseUtils::getFirePolygons(
                        fun = "sf::st_read",
                        years = fireYears,
@@ -307,7 +368,7 @@ Init <- function(sim) {
                        projectTo = sim$rasterToMatch)
 
     sim$nonForest_timeSinceDisturbance <- makeTSD(
-      year = P(sim)$dataYear,
+      year = dataYearOf(sim),
       firePolys = firePolys,
       standAgeMap = standAgeMap,
       lcc = sim$landcoverDT,
@@ -344,7 +405,9 @@ getCurrentClimate <- function(sim) {
   } else {
     currentYear <- as.numeric(sim$climateYear)
   }
-  currentYear <- as.numeric(currentYear) # drop time(sim)'s "unit" attribute
+  ## `floor()`: the climate layers are named by whole years, and time(sim) may be a fraction of a year
+  ## (several reps inside one year, `fireTimeStep` < 1). Also drops time(sim)'s "unit" attribute.
+  currentYear <- floor(as.numeric(currentYear))
 
   ## Ownership rule: a supplied `currentClimateRasters` is left alone; only an object this
   ## module built is refreshed, when the wanted year changes. In the project the `climateYear`
@@ -875,10 +938,10 @@ unionLCCGroups <- function(fuelSets) {
     } else {
       sim <- resolveStudyAreaName(sim)
       rstLCC <- Cache(makeFireSenseLCC,
-                      neededYear = P(sim)$dataYear,
+                      neededYear = dataYearOf(sim),
                       writeTo = .suffix(
                         "rstLCC.tif",
-                        paste0(P(sim)$dataYear, "_", P(sim)$.studyAreaName)
+                        paste0(dataYearOf(sim), "_", P(sim)$.studyAreaName)
                       ),
                       destinationPath = inputPath(sim),
                       maskTo = sim$studyArea,
@@ -898,7 +961,7 @@ unionLCCGroups <- function(fuelSets) {
                                rasterToMatch = sim$rasterToMatch,
                                studyArea = sim$studyArea,
                                destinationPath = dPath,
-                               startTime = P(sim)$dataYear,
+                               startTime = dataYearOf(sim),
                                userTags = c(cacheTags, "prepInputsStandAgeMap2011"))
   }
 
