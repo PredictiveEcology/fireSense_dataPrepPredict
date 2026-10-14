@@ -19,7 +19,7 @@ defineModule(sim, list(
                              "fireSense_ignitionFit", "fireSense_spreadFit")),
   reqdPkgs = list(
     "data.table",
-    "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9081)",
+    "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9093)", # dataYearElement()
     "PredictiveEcology/LandR@development",
     "PredictiveEcology/reproducible@development",
     "PredictiveEcology/SpaDES.core@development (>= 3.0.4)",
@@ -45,7 +45,8 @@ defineModule(sim, list(
     ),
     defineParameter("dataYear", "numeric", 2011, 1985, 2022,
                     paste("Year of the default landcover and stand age maps, and last year of the fires",
-                          "used to initialise `nonForest_timeSinceDisturbance`.")),
+                          "used to initialise `nonForest_timeSinceDisturbance`, when those inputs are not",
+                          "supplied.")),
     defineParameter("fireTimeStep", "numeric", 1, NA, NA, desc = "Interval between events of this module, in years."),
     defineParameter("forestedLCC", "numeric", fireSenseUtils::fireSenseForestedLCC, NA, NA,
                     "Forested landcover classes in `rstLCC_RTM`. Only used if `landcoverDT` is not supplied."),
@@ -73,17 +74,6 @@ defineModule(sim, list(
                     )),
     defineParameter("sppEquivCol", "character", "LandR", NA, NA,
                     desc = "Column of `sppEquiv` with the species names used in `cohortData`."),
-    defineParameter("vegetationYear", "integer", NA_integer_, NA, NA,
-      desc = paste(
-        "`NA`: vegetation comes from the singleton inputs (`cohortData`, `pixelGroupMap`, ...) and",
-        "`nonForest_timeSinceDisturbance` ages every year (`ageNonForest`). A year, e.g. `2020L`: `Init` takes",
-        "that year's element (`year<vegetationYear>`) of each per-year list made by `fireSense_dataPrepFit`",
-        "(`cohortDatas`, `pixelGroupMaps`, `landcoverDTs`, `nonForest_timeSinceDisturbances`, `rstLCCs`,",
-        "`flammableRTMs`, `standAgeMaps`), stops if one is missing, and does not schedule `ageNonForest`, so",
-        "vegetation and time since disturbance stay as in that year. It also replaces `dataYear` in the",
-        "fallbacks used when an input is not supplied. For hindcasts of an observed year."
-      )
-    ),
     defineParameter("whichModulesToPrepare", "character",
                     default = c("fireSense_spreadPredict", "fireSense_ignitionPredict"),
                     NA, NA,
@@ -123,18 +113,19 @@ defineModule(sim, list(
     expectsInput("cohortData", "data.table", sourceURL = NA,
       desc = "Cohorts by `pixelGroup` (LandR)."),
     expectsInput("cohortDatas", "list", sourceURL = NA,
-      desc = paste("Only with `vegetationYear`: named list (`year<year>`) of `cohortData`, from",
-                   "`fireSense_dataPrepFit`. Its `year<vegetationYear>` element replaces `cohortData`.")),
+      desc = paste("Optional: the real per-year datasets of `cohortData`, a named list (`year<year>`) from",
+                   "`fireSense_dataPrepFit`. Used only when no module simulates `cohortData` (a hindcast):",
+                   "`Init` takes the latest data year not after the start year (see `createsOutput`).")),
     expectsInput("flammableRTMs", "list", sourceURL = NA,
-      desc = "Only with `vegetationYear`: as `cohortDatas`, for `flammableRTM`."),
+      desc = "Optional: as `cohortDatas`, for `flammableRTM`."),
     expectsInput("landcoverDTs", "list", sourceURL = NA,
-      desc = "Only with `vegetationYear`: as `cohortDatas`, for `landcoverDT`."),
+      desc = "Optional: as `cohortDatas`, for `landcoverDT`."),
     expectsInput("nonForest_timeSinceDisturbances", "list", sourceURL = NA,
-      desc = "Only with `vegetationYear`: as `cohortDatas`, for `nonForest_timeSinceDisturbance`."),
+      desc = "Optional: as `cohortDatas`, for `nonForest_timeSinceDisturbance`."),
     expectsInput("pixelGroupMaps", "list", sourceURL = NA,
-      desc = "Only with `vegetationYear`: as `cohortDatas`, for `pixelGroupMap`."),
+      desc = "Optional: as `cohortDatas`, for `pixelGroupMap`."),
     expectsInput("standAgeMaps", "list", sourceURL = NA,
-      desc = "Only with `vegetationYear`: as `cohortDatas`, for `standAgeMap`."),
+      desc = "Optional: as `cohortDatas`, for `standAgeMap`."),
     expectsInput("missingLCCgroup", "character", sourceURL = NA,
       desc = paste(
         "Forested pixels that are absent from `cohortData` are assigned to this class.",
@@ -171,8 +162,8 @@ defineModule(sim, list(
     expectsInput("rstLCCs", "list", sourceURL = NA,
       desc = paste(
         "Optional named list of landcover `SpatRaster`s, one per data year, as produced by",
-        "`fireSense_dataPrepFit`. If supplied, the last element is used as `rstLCC_RTM`, or the",
-        "`year<vegetationYear>` element if `vegetationYear` is set.")),
+        "`fireSense_dataPrepFit`: as `cohortDatas`, for `rstLCC_RTM` (`.inputObjects` takes the last",
+        "element when `rstLCC_RTM` is not supplied).")),
     expectsInput("sppEquivs", "list", sourceURL = NA,
       desc = paste("Only with several fitted ELFs: one `sppEquiv` per ELF, from `fireSense_dataPrepFit`. Each ELF's",
                    "fuel covariates are made with its own, for every pixel.")),
@@ -209,18 +200,24 @@ defineModule(sim, list(
     createsOutput("climateVariablesForFire", "list",
       desc = "As the input; a single entry is expanded in `init` to `ignition` and `spread`."),
     createsOutput("cohortData", "data.table",
-      desc = "As the input; with `vegetationYear`, the `year<vegetationYear>` element of `cohortDatas`."),
+      desc = paste("The latest vegetation available. When another module simulates it (declares it as an",
+                   "output, e.g. Biomass_core in a forecast), it is that module's current state, read by every",
+                   "covariate event, and this module never replaces it. Otherwise (a hindcast: no vegetation",
+                   "module, times in a past year) `Init` sets it to the element of `cohortDatas` of the latest",
+                   "data year not after the start year (`fireSenseUtils::dataYearElement()`); if `cohortDatas`",
+                   "is not supplied, the input stands. The same rule for the other objects below, from their",
+                   "per-year lists; land cover, which no module simulates, is the latest real data year in",
+                   "every run.")),
     createsOutput("flammableRTM", "SpatRaster",
-      desc = "As the input; with `vegetationYear`, the `year<vegetationYear>` element of `flammableRTMs`."),
+      desc = "As `cohortData`, from `flammableRTMs`."),
     createsOutput("landcoverDT", "data.table",
-      desc = paste("As the input; with `vegetationYear`, the `year<vegetationYear>` element of `landcoverDTs`;",
-                   "built in `init` if neither is supplied.")),
+      desc = "As `cohortData`, from `landcoverDTs`; built in `init` if neither is supplied."),
     createsOutput("pixelGroupMap", "SpatRaster",
-      desc = "As the input; with `vegetationYear`, the `year<vegetationYear>` element of `pixelGroupMaps`."),
+      desc = "As `cohortData`, from `pixelGroupMaps`."),
     createsOutput("rstLCC_RTM", "SpatRaster",
-      desc = "As the input; with `vegetationYear`, the `year<vegetationYear>` element of `rstLCCs`."),
+      desc = "As `cohortData`, from `rstLCCs`."),
     createsOutput("standAgeMap", "SpatRaster",
-      desc = "As the input; with `vegetationYear`, the `year<vegetationYear>` element of `standAgeMaps`."),
+      desc = "As `cohortData`, from `standAgeMaps`."),
     createsOutput("currentClimateRasters", "SpatRaster",
       desc = paste(
         "Climate layers for the current year, one layer per climate variable.",
@@ -232,7 +229,8 @@ defineModule(sim, list(
     createsOutput("fireSense_SpreadCovariates", "data.table",
       desc = "Spread covariates; `pixelID` is the cell index of `flammableRTM`."),
     createsOutput("nonForest_timeSinceDisturbance", "SpatRaster",
-      desc = "Years since last burn, used to set `youngAge` in non-forest pixels."),
+      desc = paste("Years since last burn, used to set `youngAge` in non-forest pixels. At `init` as",
+                   "`cohortData`, from `nonForest_timeSinceDisturbances`; then aged by `ageNonForest`.")),
     createsOutput("studyAreaWithSpreadParams", "sf",
       desc = paste("With `.ELFind`: the simulated ELF's row first, then the neighbours `blendNeighbourELFs`",
                    "keeps; set by the covariate events, before `fireSense_spreadPredict` reads it."))
@@ -246,8 +244,7 @@ doEvent.fireSense_dataPrepPredict <- function(sim, eventTime, eventType) {
         stop("fireSense_EscapePredict no longer exists as a module; escape covariates are prepared with ",
              "fireSense_ignitionPredict. Remove it from parameter whichModulesToPrepare.")
       sim <- Init(sim)
-      if (is.na(P(sim)$vegetationYear))
-        sim <- scheduleEvent(sim, time(sim) + P(sim)$fireTimeStep, "fireSense_dataPrepPredict", "ageNonForest")
+      sim <- scheduleEvent(sim, time(sim) + P(sim)$fireTimeStep, "fireSense_dataPrepPredict", "ageNonForest")
       sim <- scheduleEvent(sim, P(sim)$.runInitialTime, "fireSense_dataPrepPredict", "getClimateRasters")
 
       if ("fireSense_ignitionPredict" %in% P(sim)$whichModulesToPrepare) {
@@ -262,10 +259,13 @@ doEvent.fireSense_dataPrepPredict <- function(sim, eventTime, eventType) {
       }
     },
     ageNonForest = {
+      ## time since disturbance is in whole years: it advances by the calendar years passed since the last
+      ## event (1 with `fireTimeStep` = 1; 0 for the steps inside one year of a hindcast, whose burns in that
+      ## year count from the next, as fireSenseUtils::youngAgeAtYear() counts them in the fit)
       sim$nonForest_timeSinceDisturbance <- ageNonForest(
         TSD = sim$nonForest_timeSinceDisturbance,
         rstCurrentBurn = sim$rstCurrentBurn,
-        timeStep = P(sim)$fireTimeStep
+        yearsElapsed = floor(as.numeric(time(sim))) - floor(as.numeric(time(sim)) - P(sim)$fireTimeStep)
       )
       sim <- scheduleEvent(
         sim, time(sim) + P(sim)$fireTimeStep,
@@ -302,38 +302,56 @@ doEvent.fireSense_dataPrepPredict <- function(sim, eventTime, eventType) {
   return(invisible(sim))
 }
 
-## The year of the default landcover, stand age and fires: `vegetationYear` when set, else `dataYear`.
-dataYearOf <- function(sim) {
-  if (is.na(P(sim)$vegetationYear)) P(sim)$dataYear else P(sim)$vegetationYear
-}
+## vegetation object -> the per-year list (from fireSense_dataPrepFit) of its real datasets
+vegetationLists <- c(cohortData = "cohortDatas", pixelGroupMap = "pixelGroupMaps",
+                     landcoverDT = "landcoverDTs",
+                     nonForest_timeSinceDisturbance = "nonForest_timeSinceDisturbances",
+                     rstLCC_RTM = "rstLCCs", flammableRTM = "flammableRTMs",
+                     standAgeMap = "standAgeMaps")
 
-## `vegetationYear`: object -> the per-year list (from fireSense_dataPrepFit) it is taken from.
-vegetationYearLists <- c(cohortData = "cohortDatas", pixelGroupMap = "pixelGroupMaps",
-                         landcoverDT = "landcoverDTs",
-                         nonForest_timeSinceDisturbance = "nonForest_timeSinceDisturbances",
-                         rstLCC_RTM = "rstLCCs", flammableRTM = "flammableRTMs",
-                         standAgeMap = "standAgeMaps")
-
-#' Take one year's vegetation from the per-year lists
+#' Take the latest vegetation available
 #'
-#' Sets each object in `vegetationYearLists` to the `year<vegetationYear>` element of its list; stops,
-#' naming the list and the element, if one is missing.
+#' One rule for every run, hindcast or forecast: each object in `vegetationLists` is the latest dataset
+#' available at `time(sim)`, among its real per-year datasets (`fireSense_dataPrepFit`'s lists, named
+#' `year<dataYear>`: the data year closest to, and not after, `floor(time(sim))`,
+#' `fireSenseUtils::dataYearElement()`, the rule the fit matches fire years to data years with) and the
+#' simulated state. An object another module simulates ([simulatedObjects()]) is dated `time(sim)`, so it
+#' is always the latest and is left as it is; so is an object with no per-year list (or one whose elements
+#' are not named by year). Called at `init`:
+#' after that the state evolves by simulation (`ageNonForest`, the vegetation modules).
 #'
 #' @param sim A `simList`.
 #'
 #' @return The `simList`.
-takeVegetationYear <- function(sim) {
-  el <- paste0("year", P(sim)$vegetationYear)
-  for (obj in names(vegetationYearLists)) {
-    lst <- vegetationYearLists[[obj]]
-    if (is.null(sim[[lst]][[el]]))
-      stop("fireSense_dataPrepPredict: vegetationYear is ", P(sim)$vegetationYear, " but `", lst,
-           "` has no element `", el, "`", if (is.null(sim[[lst]])) " (it is not supplied)" else
-             paste0(" (it has: ", paste(names(sim[[lst]]), collapse = ", "), ")"),
-           ". Use a year in `dataYears` of fireSense_dataPrepFit.")
+takeLatestVegetation <- function(sim) {
+  year <- floor(as.numeric(time(sim)))
+  simulated <- simulatedObjects(sim)
+  for (obj in setdiff(names(vegetationLists), simulated)) {
+    lst <- vegetationLists[[obj]]
+    ## no list, or one whose elements are not named by year (an unnamed `rstLCCs` of one element, as a
+    ## project may supply instead of `rstLCC_RTM`): nothing dated to choose from, the object stands
+    if (!any(grepl("[0-9]", names(sim[[lst]])))) next
+    el <- tryCatch(fireSenseUtils::dataYearElement(sim[[lst]], year), error = function(e)
+      stop("fireSense_dataPrepPredict: `", lst, "` has no element at or before ", year,
+           " (it has: ", paste(names(sim[[lst]]), collapse = ", "), "): ", conditionMessage(e), call. = FALSE))
     sim[[obj]] <- sim[[lst]][[el]]
   }
   sim
+}
+
+#' The objects another module simulates
+#'
+#' The outputs (`createsOutput`) of every module in the simulation but this one and
+#' `fireSense_dataPrepFit` (whose outputs are the last real data year): e.g. `cohortData` and
+#' `pixelGroupMap` of Biomass_core. Their current value is the simulated state at `time(sim)`.
+#'
+#' @param sim A `simList`.
+#'
+#' @return character vector of object names.
+simulatedObjects <- function(sim) {
+  deps <- SpaDES.core::depends(sim)@dependencies
+  deps <- deps[setdiff(names(deps), c(currentModule(sim), "fireSense_dataPrepFit"))]
+  unique(unlist(lapply(deps, function(d) d@outputObjects$objectName)))
 }
 
 #' Initialize the module
@@ -346,7 +364,7 @@ takeVegetationYear <- function(sim) {
 #' @return The `simList`, invisibly.
 Init <- function(sim) {
   sim <- resolveStudyAreaName(sim)
-  if (!is.na(P(sim)$vegetationYear)) sim <- takeVegetationYear(sim)
+  sim <- takeLatestVegetation(sim)
 
   # force it to be same as the other module's value
   params(sim)[[currentModule(sim)]][["igAggFactor"]] <- SpaDES.core::paramCheckOtherMods(sim, "igAggFactor")
@@ -374,7 +392,7 @@ Init <- function(sim) {
   }
 
   if (is.null(sim$nonForest_timeSinceDisturbance)) {
-    fireYears <- c(dataYearOf(sim) - P(sim)$cutoffForYoungAge):dataYearOf(sim)
+    fireYears <- c(P(sim)$dataYear - P(sim)$cutoffForYoungAge):P(sim)$dataYear
     firePolys <- fireSenseUtils::getFirePolygons(
                        fun = "sf::st_read",
                        years = fireYears,
@@ -385,7 +403,7 @@ Init <- function(sim) {
                        projectTo = sim$rasterToMatch)
 
     sim$nonForest_timeSinceDisturbance <- makeTSD(
-      year = dataYearOf(sim),
+      year = P(sim)$dataYear,
       firePolys = firePolys,
       standAgeMap = standAgeMap,
       lcc = sim$landcoverDT,
@@ -476,17 +494,20 @@ getCurrentClimate <- function(sim) {
   return(sim)
 }
 
-#' Age the time-since-disturbance raster by one year
+#' Age the time-since-disturbance raster by the years passed
 #'
 #' @param TSD `SpatRaster` of years since last burn.
 #' @param rstCurrentBurn `SpatRaster` with 1 where the pixel burned this year, or `NULL`.
 #'   Burned pixels are reset to 0.
-#' @param timeStep Not used; `TSD` always increases by 1.
+#' @param yearsElapsed integer, the calendar years passed since the last event (see the `ageNonForest`
+#'   event). `0` (another event inside the same year) returns `TSD` as it is: time since disturbance is in
+#'   whole years, and a burn counts from the next year.
 #'
 #' @return `TSD`, updated.
-ageNonForest <- function(TSD, rstCurrentBurn, timeStep) {
+ageNonForest <- function(TSD, rstCurrentBurn, yearsElapsed = 1L) {
+  if (yearsElapsed < 1) return(TSD)
   TSDvals <- as.vector(TSD)
-  TSDvals <- TSDvals + 1
+  TSDvals <- TSDvals + yearsElapsed
   if (!is.null(rstCurrentBurn)) {
     burnVals <- as.vector(rstCurrentBurn)
     unburned <- is.na(burnVals) | burnVals == 0
@@ -955,10 +976,10 @@ unionLCCGroups <- function(fuelSets) {
     } else {
       sim <- resolveStudyAreaName(sim)
       rstLCC <- Cache(makeFireSenseLCC,
-                      neededYear = dataYearOf(sim),
+                      neededYear = P(sim)$dataYear,
                       writeTo = .suffix(
                         "rstLCC.tif",
-                        paste0(dataYearOf(sim), "_", P(sim)$.studyAreaName)
+                        paste0(P(sim)$dataYear, "_", P(sim)$.studyAreaName)
                       ),
                       destinationPath = inputPath(sim),
                       maskTo = sim$studyArea,
@@ -978,7 +999,7 @@ unionLCCGroups <- function(fuelSets) {
                                rasterToMatch = sim$rasterToMatch,
                                studyArea = sim$studyArea,
                                destinationPath = dPath,
-                               startTime = dataYearOf(sim),
+                               startTime = P(sim)$dataYear,
                                userTags = c(cacheTags, "prepInputsStandAgeMap2011"))
   }
 
