@@ -1,7 +1,7 @@
 ---
 title: "fireSense_dataPrepPredict Manual"
 subtitle: "v.1.1.0.9000"
-date: "Last updated: 2026-10-08"
+date: "Last updated: 2026-10-14"
 output:
   bookdown::html_document2:
     toc: true
@@ -98,6 +98,42 @@ Table \@ref(tab:moduleInputs-fireSense-dataPrepPredict) shows the full list of m
    <td style="text-align:left;"> NA </td>
   </tr>
   <tr>
+   <td style="text-align:left;"> cohortDatas </td>
+   <td style="text-align:left;"> list </td>
+   <td style="text-align:left;"> Only with `vegetationYear`: named list (`year&lt;year&gt;`) of `cohortData`, from `fireSense_dataPrepFit`. Its `year&lt;vegetationYear&gt;` element replaces `cohortData`. </td>
+   <td style="text-align:left;"> NA </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> flammableRTMs </td>
+   <td style="text-align:left;"> list </td>
+   <td style="text-align:left;"> Only with `vegetationYear`: as `cohortDatas`, for `flammableRTM`. </td>
+   <td style="text-align:left;"> NA </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> landcoverDTs </td>
+   <td style="text-align:left;"> list </td>
+   <td style="text-align:left;"> Only with `vegetationYear`: as `cohortDatas`, for `landcoverDT`. </td>
+   <td style="text-align:left;"> NA </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> nonForest_timeSinceDisturbances </td>
+   <td style="text-align:left;"> list </td>
+   <td style="text-align:left;"> Only with `vegetationYear`: as `cohortDatas`, for `nonForest_timeSinceDisturbance`. </td>
+   <td style="text-align:left;"> NA </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> pixelGroupMaps </td>
+   <td style="text-align:left;"> list </td>
+   <td style="text-align:left;"> Only with `vegetationYear`: as `cohortDatas`, for `pixelGroupMap`. </td>
+   <td style="text-align:left;"> NA </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> standAgeMaps </td>
+   <td style="text-align:left;"> list </td>
+   <td style="text-align:left;"> Only with `vegetationYear`: as `cohortDatas`, for `standAgeMap`. </td>
+   <td style="text-align:left;"> NA </td>
+  </tr>
+  <tr>
    <td style="text-align:left;"> missingLCCgroup </td>
    <td style="text-align:left;"> character </td>
    <td style="text-align:left;"> Forested pixels that are absent from `cohortData` are assigned to this class. Must be one of the names of `nonForestedLCCGroups`. </td>
@@ -160,7 +196,7 @@ Table \@ref(tab:moduleInputs-fireSense-dataPrepPredict) shows the full list of m
   <tr>
    <td style="text-align:left;"> rstLCCs </td>
    <td style="text-align:left;"> list </td>
-   <td style="text-align:left;"> Optional named list of landcover `SpatRaster`s, one per data year, as produced by `fireSense_dataPrepFit`. If supplied, the last element is used as `rstLCC_RTM`. </td>
+   <td style="text-align:left;"> Optional named list of landcover `SpatRaster`s, one per data year, as produced by `fireSense_dataPrepFit`. If supplied, the last element is used as `rstLCC_RTM`, or the `year&lt;vegetationYear&gt;` element if `vegetationYear` is set. </td>
    <td style="text-align:left;"> NA </td>
   </tr>
   <tr>
@@ -325,6 +361,14 @@ Summary of user-visible parameters (Table \@ref(tab:moduleParams-fireSense-dataP
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> Column of `sppEquiv` with the species names used in `cohortData`. </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> vegetationYear </td>
+   <td style="text-align:left;"> integer </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> `NA`: vegetation comes from the singleton inputs (`cohortData`, `pixelGroupMap`, ...) and `nonForest_timeSinceDisturbance` ages every year (`ageNonForest`). A year, e.g. `2020L`: `Init` takes that year's element (`year&lt;vegetationYear&gt;`) of each per-year list made by `fireSense_dataPrepFit` (`cohortDatas`, `pixelGroupMaps`, `landcoverDTs`, `nonForest_timeSinceDisturbances`, `rstLCCs`, `flammableRTMs`, `standAgeMaps`), stops if one is missing, and does not schedule `ageNonForest`, so vegetation and time since disturbance stay as in that year. It also replaces `dataYear` in the fallbacks used when an input is not supplied. For hindcasts of an observed year. </td>
   </tr>
   <tr>
    <td style="text-align:left;"> whichModulesToPrepare </td>
