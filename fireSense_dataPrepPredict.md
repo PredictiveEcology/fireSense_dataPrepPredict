@@ -98,37 +98,37 @@ Table \@ref(tab:moduleInputs-fireSense-dataPrepPredict) shows the full list of m
   <tr>
    <td style="text-align:left;"> cohortDatas </td>
    <td style="text-align:left;"> list </td>
-   <td style="text-align:left;"> Only with `vegetationYear`: named list (`year&lt;year&gt;`) of `cohortData`, from `fireSense_dataPrepFit`. Its `year&lt;vegetationYear&gt;` element replaces `cohortData`. </td>
+   <td style="text-align:left;"> Optional: the real per-year datasets of `cohortData`, a named list (`year&lt;year&gt;`) from `fireSense_dataPrepFit`. Used only when no module simulates `cohortData` (a hindcast): `Init` takes the latest data year not after the start year (see `createsOutput`). </td>
    <td style="text-align:left;"> NA </td>
   </tr>
   <tr>
    <td style="text-align:left;"> flammableRTMs </td>
    <td style="text-align:left;"> list </td>
-   <td style="text-align:left;"> Only with `vegetationYear`: as `cohortDatas`, for `flammableRTM`. </td>
+   <td style="text-align:left;"> Optional: as `cohortDatas`, for `flammableRTM`. </td>
    <td style="text-align:left;"> NA </td>
   </tr>
   <tr>
    <td style="text-align:left;"> landcoverDTs </td>
    <td style="text-align:left;"> list </td>
-   <td style="text-align:left;"> Only with `vegetationYear`: as `cohortDatas`, for `landcoverDT`. </td>
+   <td style="text-align:left;"> Optional: as `cohortDatas`, for `landcoverDT`. </td>
    <td style="text-align:left;"> NA </td>
   </tr>
   <tr>
    <td style="text-align:left;"> nonForest_timeSinceDisturbances </td>
    <td style="text-align:left;"> list </td>
-   <td style="text-align:left;"> Only with `vegetationYear`: as `cohortDatas`, for `nonForest_timeSinceDisturbance`. </td>
+   <td style="text-align:left;"> Optional: as `cohortDatas`, for `nonForest_timeSinceDisturbance`. </td>
    <td style="text-align:left;"> NA </td>
   </tr>
   <tr>
    <td style="text-align:left;"> pixelGroupMaps </td>
    <td style="text-align:left;"> list </td>
-   <td style="text-align:left;"> Only with `vegetationYear`: as `cohortDatas`, for `pixelGroupMap`. </td>
+   <td style="text-align:left;"> Optional: as `cohortDatas`, for `pixelGroupMap`. </td>
    <td style="text-align:left;"> NA </td>
   </tr>
   <tr>
    <td style="text-align:left;"> standAgeMaps </td>
    <td style="text-align:left;"> list </td>
-   <td style="text-align:left;"> Only with `vegetationYear`: as `cohortDatas`, for `standAgeMap`. </td>
+   <td style="text-align:left;"> Optional: as `cohortDatas`, for `standAgeMap`. </td>
    <td style="text-align:left;"> NA </td>
   </tr>
   <tr>
@@ -194,7 +194,7 @@ Table \@ref(tab:moduleInputs-fireSense-dataPrepPredict) shows the full list of m
   <tr>
    <td style="text-align:left;"> rstLCCs </td>
    <td style="text-align:left;"> list </td>
-   <td style="text-align:left;"> Optional named list of landcover `SpatRaster`s, one per data year, as produced by `fireSense_dataPrepFit`. If supplied, the last element is used as `rstLCC_RTM`, or the `year&lt;vegetationYear&gt;` element if `vegetationYear` is set. </td>
+   <td style="text-align:left;"> Optional named list of landcover `SpatRaster`s, one per data year, as produced by `fireSense_dataPrepFit`: as `cohortDatas`, for `rstLCC_RTM` (`.inputObjects` takes the last element when `rstLCC_RTM` is not supplied). </td>
    <td style="text-align:left;"> NA </td>
   </tr>
   <tr>
@@ -286,7 +286,7 @@ Summary of user-visible parameters (Table \@ref(tab:moduleParams-fireSense-dataP
    <td style="text-align:left;"> 2011 </td>
    <td style="text-align:left;"> 1985 </td>
    <td style="text-align:left;"> 2022 </td>
-   <td style="text-align:left;"> Year of the default landcover and stand age maps, and last year of the fires used to initialise `nonForest_timeSinceDisturbance`. </td>
+   <td style="text-align:left;"> Year of the default landcover and stand age maps, and last year of the fires used to initialise `nonForest_timeSinceDisturbance`, when those inputs are not supplied. </td>
   </tr>
   <tr>
    <td style="text-align:left;"> fireTimeStep </td>
@@ -361,14 +361,6 @@ Summary of user-visible parameters (Table \@ref(tab:moduleParams-fireSense-dataP
    <td style="text-align:left;"> Column of `sppEquiv` with the species names used in `cohortData`. </td>
   </tr>
   <tr>
-   <td style="text-align:left;"> vegetationYear </td>
-   <td style="text-align:left;"> integer </td>
-   <td style="text-align:left;"> NA </td>
-   <td style="text-align:left;"> NA </td>
-   <td style="text-align:left;"> NA </td>
-   <td style="text-align:left;"> `NA`: vegetation comes from the singleton inputs (`cohortData`, `pixelGroupMap`, ...) and `nonForest_timeSinceDisturbance` ages every year (`ageNonForest`). A year, e.g. `2020L`: `Init` takes that year's element (`year&lt;vegetationYear&gt;`) of each per-year list made by `fireSense_dataPrepFit` (`cohortDatas`, `pixelGroupMaps`, `landcoverDTs`, `nonForest_timeSinceDisturbances`, `rstLCCs`, `flammableRTMs`, `standAgeMaps`), stops if one is missing, and does not schedule `ageNonForest`, so vegetation and time since disturbance stay as in that year. It also replaces `dataYear` in the fallbacks used when an input is not supplied. For hindcasts of an observed year. </td>
-  </tr>
-  <tr>
    <td style="text-align:left;"> whichModulesToPrepare </td>
    <td style="text-align:left;"> character </td>
    <td style="text-align:left;"> fireSens.... </td>
@@ -438,32 +430,32 @@ Description of the module outputs (Table \@ref(tab:moduleOutputs-fireSense-dataP
   <tr>
    <td style="text-align:left;"> cohortData </td>
    <td style="text-align:left;"> data.table </td>
-   <td style="text-align:left;"> As the input; with `vegetationYear`, the `year&lt;vegetationYear&gt;` element of `cohortDatas`. </td>
+   <td style="text-align:left;"> The latest vegetation available. When another module simulates it (declares it as an output, e.g. Biomass_core in a forecast), it is that module's current state, read by every covariate event, and this module never replaces it. Otherwise (a hindcast: no vegetation module, times in a past year) `Init` sets it to the element of `cohortDatas` of the latest data year not after the start year (`fireSenseUtils::dataYearElement()`); if `cohortDatas` is not supplied, the input stands. The same rule for the other objects below, from their per-year lists; land cover, which no module simulates, is the latest real data year in every run. </td>
   </tr>
   <tr>
    <td style="text-align:left;"> flammableRTM </td>
    <td style="text-align:left;"> SpatRaster </td>
-   <td style="text-align:left;"> As the input; with `vegetationYear`, the `year&lt;vegetationYear&gt;` element of `flammableRTMs`. </td>
+   <td style="text-align:left;"> As `cohortData`, from `flammableRTMs`. </td>
   </tr>
   <tr>
    <td style="text-align:left;"> landcoverDT </td>
    <td style="text-align:left;"> data.table </td>
-   <td style="text-align:left;"> As the input; with `vegetationYear`, the `year&lt;vegetationYear&gt;` element of `landcoverDTs`; built in `init` if neither is supplied. </td>
+   <td style="text-align:left;"> As `cohortData`, from `landcoverDTs`; built in `init` if neither is supplied. </td>
   </tr>
   <tr>
    <td style="text-align:left;"> pixelGroupMap </td>
    <td style="text-align:left;"> SpatRaster </td>
-   <td style="text-align:left;"> As the input; with `vegetationYear`, the `year&lt;vegetationYear&gt;` element of `pixelGroupMaps`. </td>
+   <td style="text-align:left;"> As `cohortData`, from `pixelGroupMaps`. </td>
   </tr>
   <tr>
    <td style="text-align:left;"> rstLCC_RTM </td>
    <td style="text-align:left;"> SpatRaster </td>
-   <td style="text-align:left;"> As the input; with `vegetationYear`, the `year&lt;vegetationYear&gt;` element of `rstLCCs`. </td>
+   <td style="text-align:left;"> As `cohortData`, from `rstLCCs`. </td>
   </tr>
   <tr>
    <td style="text-align:left;"> standAgeMap </td>
    <td style="text-align:left;"> SpatRaster </td>
-   <td style="text-align:left;"> As the input; with `vegetationYear`, the `year&lt;vegetationYear&gt;` element of `standAgeMaps`. </td>
+   <td style="text-align:left;"> As `cohortData`, from `standAgeMaps`. </td>
   </tr>
   <tr>
    <td style="text-align:left;"> currentClimateRasters </td>
@@ -483,7 +475,7 @@ Description of the module outputs (Table \@ref(tab:moduleOutputs-fireSense-dataP
   <tr>
    <td style="text-align:left;"> nonForest_timeSinceDisturbance </td>
    <td style="text-align:left;"> SpatRaster </td>
-   <td style="text-align:left;"> Years since last burn, used to set `youngAge` in non-forest pixels. </td>
+   <td style="text-align:left;"> Years since last burn, used to set `youngAge` in non-forest pixels. At `init` as `cohortData`, from `nonForest_timeSinceDisturbances`; then aged by `ageNonForest`. </td>
   </tr>
   <tr>
    <td style="text-align:left;"> studyAreaWithSpreadParams </td>
