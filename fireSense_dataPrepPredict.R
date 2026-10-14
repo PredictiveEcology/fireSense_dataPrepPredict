@@ -23,6 +23,7 @@ defineModule(sim, list(
     "PredictiveEcology/LandR@development",
     "PredictiveEcology/reproducible@development",
     "PredictiveEcology/SpaDES.core@development (>= 3.0.4)",
+    "sf",
     "terra"
   ),
   parameters = rbind(
