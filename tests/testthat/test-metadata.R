@@ -77,7 +77,7 @@ test_that("parameters are the expected names", {
     sort(c(".runInitialTime", ".studyAreaName", ".useCache", "blendNeighbourELFs", "cutoffForYoungAge", "dataYear",
            "fireTimeStep", "flammabilityThreshold", "forestedLCC", "fuelClassCol",
            "igAggFactor", "nonflammableLCC", "nonForestCanBeYoungAge", "scanfiVersion",
-           "sppEquivCol", "vegetationYear", "whichModulesToPrepare"))
+           "sppEquivCol", "whichModulesToPrepare"))
   )
 })
 

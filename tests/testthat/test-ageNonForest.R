@@ -3,7 +3,7 @@
 
 test_that("ageNonForest adds one year everywhere when nothing burned", {
   TSD <- toyRast(c(5, rep(30, 13), 5, 30))
-  out <- ageNonForest(TSD = TSD, rstCurrentBurn = NULL, timeStep = 1)
+  out <- ageNonForest(TSD = TSD, rstCurrentBurn = NULL, yearsElapsed = 1)
   expect_s4_class(out, "SpatRaster")
   ## hand-computed: every cell + 1
   expect_identical(as.vector(terra::values(out)), c(6, rep(31, 13), 6, 31))
@@ -15,7 +15,7 @@ test_that("ageNonForest resets burned pixels to zero and ages the rest", {
   TSD <- toyRast(c(5, rep(30, 13), 5, 30))
   ## cell 2 burned (1); cell 3 is NA (no burn data, i.e. did not burn); cell 16 burned
   burn <- toyRast(c(0, 1, NA, rep(0, 12), 1))
-  out <- ageNonForest(TSD = TSD, rstCurrentBurn = burn, timeStep = 1)
+  out <- ageNonForest(TSD = TSD, rstCurrentBurn = burn, yearsElapsed = 1)
   ## hand-computed: 5+1; burned -> 0; NA is unburned so 30+1; cell 15 (TSD 5, unburned) -> 6;
   ## cell 16 burned -> 0
   expect_identical(as.vector(terra::values(out)), c(6, 0, rep(31, 12), 6, 0))
@@ -30,10 +30,13 @@ test_that("ageNonForest treats NA and 0 in rstCurrentBurn identically", {
                    as.vector(terra::values(ageNonForest(TSD, allZero, 1))))
 })
 
-test_that("ageNonForest ignores timeStep, as documented", {
-  ## `timeStep` is accepted but the raster always advances by exactly one year. Asserted so
-  ## that honouring it becomes a deliberate, visible change rather than a silent one.
+test_that("ageNonForest ages by the whole years passed, and not at all inside a year", {
+  ## time since disturbance is in whole years: a step inside one year (a hindcast rep, yearsElapsed 0)
+  ## leaves it as it is, burns included -- a burn counts from the next year, as in the fit
   TSD <- toyRast(rep(10, 16))
-  expect_identical(as.vector(terra::values(ageNonForest(TSD, NULL, timeStep = 1))),
-                   as.vector(terra::values(ageNonForest(TSD, NULL, timeStep = 10))))
+  burn <- toyRast(c(1, rep(0, 15)))
+  expect_identical(as.vector(terra::values(ageNonForest(TSD, burn, yearsElapsed = 0))), rep(10, 16))
+  expect_identical(as.vector(terra::values(ageNonForest(TSD, burn, yearsElapsed = 1))), c(0, rep(11, 15)))
+  expect_identical(as.vector(terra::values(ageNonForest(TSD, NULL, yearsElapsed = 2))), rep(12, 16))
+  expect_identical(as.vector(terra::values(ageNonForest(TSD, NULL))), rep(11, 16))
 })
