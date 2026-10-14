@@ -55,10 +55,17 @@ test_that("outputs are the expected names and classes", {
   outputs <- stats::setNames(md$outputObjects$objectClass, md$outputObjects$objectName)
   expect_identical(
     outputs[order(names(outputs))],
-    c(currentClimateRasters                = "SpatRaster",
+    c(climateVariablesForFire              = "list",
+      cohortData                           = "data.table",
+      currentClimateRasters                = "SpatRaster",
       fireSense_igAndEscapePred_Covariates = "data.table",
       fireSense_SpreadCovariates           = "data.table",
+      flammableRTM                         = "SpatRaster",
+      landcoverDT                          = "data.table",
       nonForest_timeSinceDisturbance       = "SpatRaster",
+      pixelGroupMap                        = "SpatRaster",
+      rstLCC_RTM                           = "SpatRaster",
+      standAgeMap                          = "SpatRaster",
       studyAreaWithSpreadParams            = "sf")
   )
 })

@@ -100,3 +100,29 @@ test_that("vegetationYear works with decimal simulated times (several reps insid
   ## the ignition table is built for the last step
   expect_gt(NROW(sim$fireSense_igAndEscapePred_Covariates), 0L)
 })
+
+test_that("a cached init restores the vegetation it took from the per-year lists", {
+  ## `init` cached: a cache hit restores only the objects declared `createsOutput`, so every object
+  ## `Init` sets (here those of `vegetationYear`) must be one, else it reverts to what was supplied.
+  cachePath <- withr::local_tempdir()
+  runInit <- function() {
+    sim <- SpaDES.core::simInit(
+      times = list(start = 2001, end = 2001, timeunit = "year"),
+      modules = moduleName,
+      params = stats::setNames(list(list(igAggFactor = 2, vegetationYear = 2002L, .useCache = "init")), moduleName),
+      objects = yearLists(),
+      paths = utils::modifyList(testPaths, list(cachePath = cachePath)))
+    SpaDES.core::spades(sim, debug = FALSE)
+  }
+  first <- runInit()
+  second <- runInit()
+  expect_true(any(grepl("init", reproducible::showCache(cachePath)$tagValue)))
+  for (sim in list(first, second)) {
+    expect_identical(max(sim$cohortData$B), 5000L)
+    expect_identical(as.vector(terra::values(sim$flammableRTM)), c(rep(1, 14), 0, 0))
+    expect_identical(as.vector(terra::values(sim$nonForest_timeSinceDisturbance))[9], 3)
+    expect_identical(sim$landcoverDT, yearLists()$landcoverDTs$year2002)
+  }
+  expect_false(is.null(second$pixelGroupMap))
+  expect_identical(terra::values(second$pixelGroupMap), terra::values(yearLists()$pixelGroupMaps$year2002))
+})

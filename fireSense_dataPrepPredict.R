@@ -204,6 +204,23 @@ defineModule(sim, list(
         "at `start(sim)`."))
   ),
   outputObjects = bindrows(
+    ## Also `expectsInput`. A cached `init` restores only the objects declared here, so each object `Init`
+    ## sets must be listed, else a cache hit leaves the supplied (or no) value in its place.
+    createsOutput("climateVariablesForFire", "list",
+      desc = "As the input; a single entry is expanded in `init` to `ignition` and `spread`."),
+    createsOutput("cohortData", "data.table",
+      desc = "As the input; with `vegetationYear`, the `year<vegetationYear>` element of `cohortDatas`."),
+    createsOutput("flammableRTM", "SpatRaster",
+      desc = "As the input; with `vegetationYear`, the `year<vegetationYear>` element of `flammableRTMs`."),
+    createsOutput("landcoverDT", "data.table",
+      desc = paste("As the input; with `vegetationYear`, the `year<vegetationYear>` element of `landcoverDTs`;",
+                   "built in `init` if neither is supplied.")),
+    createsOutput("pixelGroupMap", "SpatRaster",
+      desc = "As the input; with `vegetationYear`, the `year<vegetationYear>` element of `pixelGroupMaps`."),
+    createsOutput("rstLCC_RTM", "SpatRaster",
+      desc = "As the input; with `vegetationYear`, the `year<vegetationYear>` element of `rstLCCs`."),
+    createsOutput("standAgeMap", "SpatRaster",
+      desc = "As the input; with `vegetationYear`, the `year<vegetationYear>` element of `standAgeMaps`."),
     createsOutput("currentClimateRasters", "SpatRaster",
       desc = paste(
         "Climate layers for the current year, one layer per climate variable.",
