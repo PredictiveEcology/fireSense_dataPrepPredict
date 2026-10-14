@@ -114,8 +114,8 @@ defineModule(sim, list(
       desc = "Cohorts by `pixelGroup` (LandR)."),
     expectsInput("cohortDatas", "list", sourceURL = NA,
       desc = paste("Optional: the real per-year datasets of `cohortData`, a named list (`year<year>`) from",
-                   "`fireSense_dataPrepFit`. `Init` takes the latest not after `start(sim)` (see",
-                   "`createsOutput`), unless another module simulates `cohortData`.")),
+                   "`fireSense_dataPrepFit`. Used only when no module simulates `cohortData` (a hindcast):",
+                   "`Init` takes the latest data year not after the start year (see `createsOutput`).")),
     expectsInput("flammableRTMs", "list", sourceURL = NA,
       desc = "Optional: as `cohortDatas`, for `flammableRTM`."),
     expectsInput("landcoverDTs", "list", sourceURL = NA,
@@ -200,12 +200,14 @@ defineModule(sim, list(
     createsOutput("climateVariablesForFire", "list",
       desc = "As the input; a single entry is expanded in `init` to `ignition` and `spread`."),
     createsOutput("cohortData", "data.table",
-      desc = paste("The vegetation of `start(sim)`: the element of `cohortDatas` of the latest data year not",
-                   "after it (`fireSenseUtils::dataYearElement()`), unless another module simulates it",
-                   "(declares it as an output, e.g. Biomass_core) or `cohortDatas` is not supplied, when the",
-                   "input stands. The same rule for the other objects below, from their per-year lists, so a",
-                   "hindcast (no vegetation module, times in a past data year) predicts with that year's data",
-                   "and a forecast with the simulated vegetation.")),
+      desc = paste("The latest vegetation available. When another module simulates it (declares it as an",
+                   "output, e.g. Biomass_core in a forecast), it is that module's current state, read by every",
+                   "covariate event, and this module never replaces it. Otherwise (a hindcast: no vegetation",
+                   "module, times in a past year) `Init` sets it to the element of `cohortDatas` of the latest",
+                   "data year not after the start year (`fireSenseUtils::dataYearElement()`); if `cohortDatas`",
+                   "is not supplied, the input stands. The same rule for the other objects below, from their",
+                   "per-year lists; land cover, which no module simulates, is the latest real data year in",
+                   "every run.")),
     createsOutput("flammableRTM", "SpatRaster",
       desc = "As `cohortData`, from `flammableRTMs`."),
     createsOutput("landcoverDT", "data.table",
@@ -307,7 +309,7 @@ vegetationLists <- c(cohortData = "cohortDatas", pixelGroupMap = "pixelGroupMaps
                      rstLCC_RTM = "rstLCCs", flammableRTM = "flammableRTMs",
                      standAgeMap = "standAgeMaps")
 
-#' Take the latest vegetation available at `start(sim)`
+#' Take the latest vegetation available
 #'
 #' One rule for every run, hindcast or forecast: each object in `vegetationLists` is the latest dataset
 #' available at `time(sim)`, among its real per-year datasets (`fireSense_dataPrepFit`'s lists, named
