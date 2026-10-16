@@ -35,7 +35,7 @@ defineModule(sim, list(
         "fuel covariates, labelled in `sim$rasterToMatchLargeELF` and with its own `sppEquivs`,",
         "`nonForestedLCCGroupsList` and `missingLCCgroupList` entries; any other neighbour is dropped with a",
         "warning. A single-ELF run's `rasterToMatchLargeELF` labels no neighbour, so there `TRUE` keeps",
-        "only the simulated ELF's row too."
+        "only the simulated ELF's row too, and says so in one message instead of a warning per neighbour."
       )
     ),
     defineParameter("cutoffForYoungAge", "numeric", fireSenseUtils::fireSenseYoungAgeCutoff, NA, NA,
@@ -835,10 +835,20 @@ selectSpreadParamRows <- function(sa, ownELF, blend, placeableELFs, fuelInputELF
   own <- own[1]
   keep <- integer(0)
   if (isTRUE(blend)) {
-    for (i in setdiff(seq_along(ids), own)) {
+    neighbours <- setdiff(seq_along(ids), own)
+    ## A single-ELF run's rasterToMatchLargeELF labels no ELF, so no neighbour can be blended: that is
+    ## expected, and said once below, not a warning per neighbour.
+    if (!any(ids %in% placeableELFs)) {
+      if (length(neighbours))
+        message("fireSense_dataPrepPredict: single-ELF run of ELF ", ownELF, ": not blending neighbour ELF(s) ",
+                paste(ids[neighbours], collapse = ", "), " (sim$rasterToMatchLargeELF labels no ELF). ",
+                "Set blendNeighbourELFs = FALSE to skip this message.")
+      neighbours <- integer(0)
+    }
+    for (i in neighbours) {
       why <- spreadParamsRowUnusable(sa[i, , drop = FALSE], fuelClassCol)
       if (is.na(why) && !ids[i] %in% placeableELFs)
-        why <- "sim$rasterToMatchLargeELF does not label its pixels (a single-ELF run labels none)"
+        why <- "sim$rasterToMatchLargeELF does not label its pixels"
       if (is.na(why) && !ids[i] %in% fuelInputELFs)
         why <- "sppEquivs, nonForestedLCCGroupsList and missingLCCgroupList have no entry for it"
       if (is.na(why)) keep <- c(keep, i)

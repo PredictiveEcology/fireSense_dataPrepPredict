@@ -45,14 +45,25 @@ test_that("a neighbour fitted with per-fuel-class terms is dropped with a warnin
   expect_identical(out$polygonID, "13.1")
 })
 
-test_that("a usable neighbour that cannot be placed or has no fuel inputs is dropped with a warning", {
+test_that("a single-ELF run drops its neighbours with one message, not a warning each", {
   ## a single-ELF run: sim$rasterToMatchLargeELF labels only core and buffer, not ELFs
-  expect_warning(
-    out <- selectSpreadParamRows(threeRows()[2:3, ], ownELF = "13.1", blend = TRUE,
-                                 placeableELFs = c("1", "2"), fuelInputELFs = c("13.1", "14.3"),
-                                 fuelClassCol = "FuelClass"),
-    "14\\.3.*rasterToMatchLargeELF")
+  expect_no_warning(expect_message(
+    out <- selectSpreadParamRows(threeRows(), ownELF = "13.1", blend = TRUE,
+                                 placeableELFs = c("1", "2"),
+                                 fuelInputELFs = c("4.2.2", "13.1", "14.3"), fuelClassCol = "FuelClass"),
+    "single-ELF.*4\\.2\\.2.*14\\.3"))
   expect_identical(out$polygonID, "13.1")
+  msgs <- testthat::capture_messages(
+    selectSpreadParamRows(threeRows(), ownELF = "13.1", blend = TRUE, placeableELFs = c("1", "2"),
+                          fuelInputELFs = c("4.2.2", "13.1", "14.3"), fuelClassCol = "FuelClass"))
+  expect_length(msgs, 1L)
+  ## no neighbour, nothing to say
+  expect_no_message(expect_no_warning(
+    selectSpreadParamRows(threeRows()[2, ], ownELF = "13.1", blend = TRUE, placeableELFs = c("1", "2"),
+                          fuelInputELFs = "13.1", fuelClassCol = "FuelClass")))
+})
+
+test_that("a labelled neighbour that cannot be blended is still dropped with a warning", {
   expect_warning(
     out <- selectSpreadParamRows(threeRows()[2:3, ], ownELF = "13.1", blend = TRUE,
                                  placeableELFs = c("13.1", "14.3"), fuelInputELFs = character(0),
