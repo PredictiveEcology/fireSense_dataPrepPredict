@@ -45,8 +45,8 @@ toySppEquiv <- function() {
 
 toyLandcoverDT <- function() {
   data.table::data.table(pixelID = 1:15,
-                         wetland = as.integer(1:15 %in% c(9, 10, 15)),
-                         grass   = as.integer(1:15 %in% c(11, 12)))
+                         nfLCC_wetland = as.integer(1:15 %in% c(9, 10, 15)),
+                         nfLCC_grass   = as.integer(1:15 %in% c(11, 12)))
 }
 
 ## climate: layer `year<Y>` of MDC is (Y - 2000) * 100 + cell number, so both the year that
@@ -69,8 +69,8 @@ toyObjects <- function() {
     cohortData = toyCohortData(),
     sppEquiv = toySppEquiv(),
     landcoverDT = toyLandcoverDT(),
-    nonForestedLCCGroups = list(wetland = 19L, grass = 16L),
-    missingLCCgroup = "grass",
+    nonForestedLCCGroups = list(nfLCC_wetland = 19L, nfLCC_grass = 16L),
+    missingLCCgroup = "nfLCC_grass",
     ## years since fire: 30 everywhere except the wetland cell 15 and the forest cell 1
     nonForest_timeSinceDisturbance = toyRast(c(5, rep(30, 13), 5, 30)),
     standAgeMap = toyRast(50),

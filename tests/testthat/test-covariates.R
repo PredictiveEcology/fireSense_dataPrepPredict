@@ -14,7 +14,7 @@ test_that("prepSpreadPredictData builds one row per flammable pixel with this ye
   ## the declared column order: pixelID, the climate layers, youngAge, then the fuels
   expect_identical(names(df)[1:3], c("pixelID", "MDC", "youngAge"))
   expect_setequal(names(df), c("pixelID", "MDC", "youngAge", "class1", "class2",
-                               "wetland", "grass", "treedWetland"))
+                               "nfLCC_wetland", "nfLCC_grass", "treedWetland"))
 
   ## hand-computed: spread climate is MDC, and toy MDC for 2001 is 100 + cellNumber, so a
   ## value of 100 + pixelID proves both the right variable and the right year were taken
@@ -22,12 +22,12 @@ test_that("prepSpreadPredictData builds one row per flammable pixel with this ye
 
   ## hand-computed from the toy map: cells 9, 10, 15 are wetland, but 15 is also young (below), and a
   ## young pixel is nothing else (fireSenseUtils >= 0.2.3.9048), so its wetland value is 0.
-  expect_identical(which(df$wetland == 1L), c(9L, 10L))
+  expect_identical(which(df$nfLCC_wetland == 1L), c(9L, 10L))
   ## grass is 11 and 12 from the map, PLUS 13 and 14: those two are forested landcover (210)
   ## with no cohort in `pixelGroupMap`, and `missingLCCgroup` is "grass", so the module
   ## assigns them there. That is the documented behaviour of `missingLCCgroup`
   ## (metadata l.106-109), not an accident, so it is asserted as correct.
-  expect_identical(which(df$grass == 1L), c(11L, 12L, 13L, 14L))
+  expect_identical(which(df$nfLCC_grass == 1L), c(11L, 12L, 13L, 14L))
 
   ## hand-computed: youngAge is set where max cohort age <= cutoffForYoungAge (pixel group 3,
   ## cells 5 and 6, whose only cohort is 10 years old) and in non-forest pixels burned within
@@ -60,7 +60,7 @@ test_that("spread fuel classes follow the sppEquiv fuel column (regression pin)"
 test_that("non-forest pixels never carry forest fuel (the module's own sanity check)", {
   sim <- toyPrepRun()
   df <- covDF(sim$fireSense_SpreadCovariates)
-  nonForest <- df$wetland == 1L | df$grass == 1L
+  nonForest <- df$nfLCC_wetland == 1L | df$nfLCC_grass == 1L
   baseline <- min(df$class1)
   expect_true(all(df$class1[nonForest] == baseline))
   expect_true(all(df$class2[nonForest] == min(df$class2)))
@@ -71,25 +71,28 @@ test_that("prepIgAndEscPredictData aggregates to the igAggFactor grid", {
   df <- covDF(sim$fireSense_igAndEscapePred_Covariates)
 
   ## igAggFactor 2 over a 4 x 4 grid gives a 2 x 2 grid, i.e. four coarse cells; the fourth
-  ## contains the non-flammable pixel 16 and drops out, leaving three rows
-  expect_identical(df$pixelID, 1:3)
+  ## holds the non-flammable pixel 16 but keeps its row, with 16 counted as no cover
+  ## (fireSenseUtils >= 0.2.3.9111, fuelCovsToCoarse())
+  expect_identical(df$pixelID, 1:4)
   ## the year column carries time(sim), not the layer index
   expect_identical(unique(df$year), 2001)
-  expect_setequal(names(df), c("pixelID", "MDC", "youngAge", "wetland", "grass",
+  expect_setequal(names(df), c("pixelID", "MDC", "youngAge", "nfLCC_wetland", "nfLCC_grass",
                                "class1", "class2", "year", "lightningDays"))
   ## `ignitions` belongs to the Fit table and is dropped here
   expect_false("ignitions" %in% names(df))
 
   ## hand-computed: coarse cell 1 is fine cells 1, 2, 5, 6, whose MDC is 101, 102, 105, 106,
-  ## mean 103.5; coarse cell 2 is 3, 4, 7, 8 -> 105.5; coarse cell 3 is 9, 10, 13, 14 -> 111.5
-  expect_equal(df$MDC, c(103.5, 105.5, 111.5))
+  ## mean 103.5; coarse cell 2 is 3, 4, 7, 8 -> 105.5; coarse cell 3 is 9, 10, 13, 14 -> 111.5;
+  ## coarse cell 4 is 11, 12, 15, 16 -> 113.5
+  expect_equal(df$MDC, c(103.5, 105.5, 111.5, 113.5))
   ## hand-computed: youngAge is the mean over the coarse cell; cells 5 and 6 of four are
-  ## young in coarse cell 1 -> 0.5; none in coarse cell 2; none in coarse cell 3 (cell 15 is
-  ## in coarse cell 4, which is dropped)
-  expect_equal(df$youngAge, c(0.5, 0, 0))
+  ## young in coarse cell 1 -> 0.5; none in coarse cell 2; none in coarse cell 3; in coarse
+  ## cell 4 only 15 is young (16 has no cover) -> 0.25
+  expect_equal(df$youngAge, c(0.5, 0, 0, 0.25))
   ## hand-computed: coarse cell 3 covers wetlands 9, 10 and grasses 11? no -- fine cells
-  ## 9, 10, 13, 14: 9 and 10 are wetland -> 0.5 wetland
-  expect_equal(df$wetland, c(0, 0, 0.5))
+  ## 9, 10, 13, 14: 9 and 10 are wetland -> 0.5 wetland; coarse cell 4: 15 is young, so not
+  ## wetland -> 0
+  expect_equal(df$nfLCC_wetland, c(0, 0, 0.5, 0))
 })
 
 test_that("igAggFactor 1 leaves the ignition covariates at flammableRTM resolution", {
@@ -99,7 +102,7 @@ test_that("igAggFactor 1 leaves the ignition covariates at flammableRTM resoluti
   expect_identical(df$pixelID, 1:15)
   expect_equal(df$MDC, 100 + 1:15)
   ## 15 is wetland but also young, and a young pixel is nothing else
-  expect_identical(which(df$wetland == 1), c(9L, 10L))
+  expect_identical(which(df$nfLCC_wetland == 1), c(9L, 10L))
 })
 
 test_that("a different ignition climate variable selects a different layer", {
@@ -112,7 +115,7 @@ test_that("a different ignition climate variable selects a different layer", {
   sp <- covDF(sim$fireSense_SpreadCovariates)
   expect_true("Tmax" %in% names(ig))
   expect_false("MDC" %in% names(ig))
-  expect_equal(ig$Tmax, c(-103.5, -105.5, -111.5))
+  expect_equal(ig$Tmax, c(-103.5, -105.5, -111.5, -113.5))
   ## and the spread table is unaffected
   expect_identical(sp$MDC, 100 + 1:15)
 })
@@ -135,7 +138,7 @@ test_that("the covariate tables advance with simulation time", {
 
   ## the final year is 2003, so MDC is 300 + pixelID
   expect_identical(sp$MDC, 300 + 1:15)
-  expect_equal(ig$MDC, c(303.5, 305.5, 311.5))
+  expect_equal(ig$MDC, c(303.5, 305.5, 311.5, 313.5))
   expect_identical(unique(ig$year), 2003)
 })
 
