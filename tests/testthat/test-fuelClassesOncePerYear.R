@@ -42,8 +42,8 @@ test_that("with two ELFs the covariates are unchanged and each ELF's fuel classe
   o$sppEquivs <- list(
     data.table::data.table(LandR = c("Pice_mar", "Pinu_ban", "Popu_tre"), FuelClass = c("conifer", "conifer", "decid")),
     data.table::data.table(LandR = c("Pice_mar", "Pinu_ban", "Popu_tre"), FuelClass = c("Pice_mar", "Pinu_ban", "decid")))
-  o$nonForestedLCCGroupsList <- list(list(wetland = 19L, grass = 16L), list(wetgrs = c(16L, 19L)))
-  o$missingLCCgroupList <- list("grass", "wetgrs")
+  o$nonForestedLCCGroupsList <- list(list(nfLCC_wetland = 19L, nfLCC_grass = 16L), list(nfLCC_wetgrs = c(16L, 19L)))
+  o$missingLCCgroupList <- list("nfLCC_grass", "nfLCC_wetgrs")
   n <- 0L
   both <- local({
     nn <- countFuelClassCalls(res <- toyPrepRun(o))

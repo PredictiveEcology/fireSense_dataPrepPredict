@@ -90,13 +90,13 @@ test_that("two ELFs with different fitted roles each build their own dom/sec col
                                             FuelClass = c("conifer", "conifer", "decid"))
   sppB <- function() data.table::data.table(LandR = c("Pice_mar", "Pinu_ban", "Popu_tre"),
                                             FuelClass = c("Pice_mar", "Pinu_ban", "decid"))
-  nfA <- list(wetland = 19L, grass = 16L); nfB <- list(wetgrs = c(16L, 19L))
+  nfA <- list(nfLCC_wetland = 19L, nfLCC_grass = 16L); nfB <- list(nfLCC_wetgrs = c(16L, 19L))
 
   o <- toyObjects()
   o$landcoverDT <- NULL
   o$sppEquivs <- list(sppA(), sppB())
   o$nonForestedLCCGroupsList <- list(nfA, nfB)
-  o$missingLCCgroupList <- list("grass", "wetgrs")
+  o$missingLCCgroupList <- list("nfLCC_grass", "nfLCC_wetgrs")
   o$studyAreaWithSpreadParams <- rbind(
     toyLedgerRow(c("b0", "MDC", "youngAge", "dom_agb_conifer", "sec_agb_decid")),
     toyLedgerRow(c("b0", "MDC", "youngAge", "Pice_mar", "Pinu_ban", "decid"))
