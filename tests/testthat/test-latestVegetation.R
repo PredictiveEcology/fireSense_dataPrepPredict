@@ -1,9 +1,10 @@
-## One rule for the vegetation a run predicts with: at init, each vegetation object is the latest
-## dataset available at start(sim) -- the element of fireSense_dataPrepFit's per-year lists of the data
-## year closest to and not after floor(start(sim)) (fireSenseUtils::dataYearElement(), the rule the fit
-## matches fire years to data years with), unless another module simulates the object (declares it as
-## an output), when the simulated state is the latest. A hindcast is then a run with no vegetation
-## module and times in a past data year; a forecast predicts with Biomass_core's vegetation as before.
+## The vegetation a run predicts with: at init, each vegetation object is the latest dataset available
+## at start(sim), unless another module simulates the object (declares it as an output), when the
+## simulated state is the latest. A hindcast is a run with no vegetation module and times in a past
+## year: it takes the element of fireSense_dataPrepFit's per-year lists of the data year strictly before
+## floor(start(sim)), as the fit pairs a fire year with its vegetation (SCANFI of year Y already shows
+## Y's burns). A forecast predicts with Biomass_core's vegetation as before, and the objects no module
+## simulates take the data year not after floor(start(sim)).
 ##
 ## The singletons in `toyObjects()` are the decoy ("last year", what a run without lists uses). Year
 ## 2002 differs from them in: cohort biomass (Pice_mar in pixel group 1 is 5000, not 2000),
@@ -47,7 +48,7 @@ yearLists <- function() {
 }
 
 ## a hindcast job: no vegetation module, reps as steps of 0.001 year inside one past data year
-hindcast <- function(objs = yearLists(), start = 2002, end = start + 0.0025, ...) {
+hindcast <- function(objs = yearLists(), start = 2003, end = start + 0.0025, ...) {
   toyPrepRun(objs, params = list(fireTimeStep = 0.001, ...), times = list(start = start, end = end))
 }
 
@@ -93,7 +94,7 @@ forecast <- function(start = 2003, end = 2005) {
   SpaDES.core::spades(sim, debug = FALSE)
 }
 
-test_that("a hindcast takes the data year closest to and not after start(sim) from every per-year list", {
+test_that("a hindcast takes the data year strictly before start(sim) from every per-year list", {
   sim <- hindcast()
   df <- covDF(sim$fireSense_SpreadCovariates)
   ## year 2002's flammableRTM has 14 flammable cells, the singleton 15
@@ -109,8 +110,12 @@ test_that("a hindcast takes the data year closest to and not after start(sim) fr
   expect_identical(as.vector(terra::values(sim$nonForest_timeSinceDisturbance))[9], 3)
   expect_identical(max(sim$cohortData$B), 5000L)
   expect_identical(sim$landcoverDT, yearLists()$landcoverDTs$year2002)
-  ## 2002.5 is still 2002's; a year after the last data year takes the last
-  expect_identical(max(hindcast(start = 2002.5, end = 2002.5025)$cohortData$B), 5000L)
+  ## 2003.5 still takes 2002's; a hindcast of a data year does not see that year's data (2002 takes
+  ## 2001's decoys); a year after the last data year takes the last
+  expect_identical(max(hindcast(start = 2003.5, end = 2003.5025)$cohortData$B), 5000L)
+  sim2002 <- hindcast(start = 2002)
+  expect_identical(max(sim2002$cohortData$B), 2000L)
+  expect_identical(sim2002$landcoverDT, yearLists()$landcoverDTs$year2001)
   objs <- yearLists()
   objs$projectedClimateRasters <- toyClimate(2001:2010)
   expect_identical(max(hindcast(objs, start = 2010, end = 2010.0025)$cohortData$B), 6000L)
@@ -125,9 +130,9 @@ test_that("vegetation and time since disturbance stay static over the steps insi
   expect_identical(sum(done$eventType == "prepIgAndEscPredictData"), 3L)
   expect_true("ageNonForest" %in% done$eventType)
   expect_identical(as.vector(terra::values(sim$nonForest_timeSinceDisturbance))[9], 3)
-  ## the climate layer is that of the calendar year (2002) at every step; MDC 2002 is 200 + cell
+  ## the climate layer is that of the calendar year (2003) at every step; MDC 2003 is 300 + cell
   df <- covDF(sim$fireSense_SpreadCovariates)
-  expect_identical(df$MDC, 200 + 1:14)
+  expect_identical(df$MDC, 300 + 1:14)
   expect_identical(which(df$youngAge == 1), c(5L, 6L, 9L))
   expect_gt(NROW(sim$fireSense_igAndEscapePred_Covariates), 0L)
 })
@@ -146,13 +151,13 @@ test_that("a forecast predicts with the simulated vegetation, newer than any rea
   expect_identical(as.vector(terra::values(sim$nonForest_timeSinceDisturbance))[9], 6)
 })
 
-test_that("a run in the first data year with no vegetation module behaves as before: that year, TSD ages", {
+test_that("a run with no vegetation module from the second data year takes the first's; TSD ages", {
   ## year 2001's elements are the decoys, so this is what a run without lists gave
-  sim <- toyPrepRun(yearLists(), times = list(start = 2001, end = 2003))
+  sim <- toyPrepRun(yearLists(), times = list(start = 2002, end = 2003))
   expect_identical(max(sim$cohortData$B), 2000L)
   expect_true("ageNonForest" %in% as.data.frame(SpaDES.core::completed(sim))$eventType)
-  ## TSD of cell 15 is 5 at 2001, aged in 2002 and 2003
-  expect_identical(as.vector(terra::values(sim$nonForest_timeSinceDisturbance))[15], 7)
+  ## TSD of cell 15 is 5 in 2001's data, aged in 2003
+  expect_identical(as.vector(terra::values(sim$nonForest_timeSinceDisturbance))[15], 6)
 })
 
 test_that("without per-year lists the supplied objects stand; a start before the first data year stops", {
@@ -164,7 +169,9 @@ test_that("without per-year lists the supplied objects stand; a start before the
   ## a list not named by year (toyObjects' one-element rstLCCs) is not a dated dataset either
   objs$rstLCCs <- list(toyLCC())
   expect_identical(terra::values(hindcast(objs)$rstLCC_RTM), terra::values(toyLCC()))
-  expect_error(hindcast(start = 1999, end = 1999.001), "cohortDatas.*at or before 1999")
+  expect_error(hindcast(start = 1999, end = 1999.001), "cohortDatas.*before 1999")
+  ## nor does a hindcast of the first data year: no vegetation before it
+  expect_error(hindcast(start = 2001, end = 2001.001), "cohortDatas.*before 2001")
 })
 
 test_that("a cached init restores the vegetation it took from the per-year lists", {
@@ -173,7 +180,7 @@ test_that("a cached init restores the vegetation it took from the per-year lists
   cachePath <- withr::local_tempdir()
   runInit <- function() {
     sim <- SpaDES.core::simInit(
-      times = list(start = 2002, end = 2002, timeunit = "year"),
+      times = list(start = 2003, end = 2003, timeunit = "year"),
       modules = moduleName,
       params = stats::setNames(list(list(igAggFactor = 2, .useCache = "init")), moduleName),
       objects = yearLists(),

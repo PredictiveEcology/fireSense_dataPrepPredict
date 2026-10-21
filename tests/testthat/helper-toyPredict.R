@@ -37,7 +37,9 @@ toyInputsP <- function(...) {
     rstLCC_RTM = lcc,
     ## supplying rstLCCs takes the `suppliedElsewhere("rstLCCs", ...)` branch of
     ## .inputObjects(), so nothing is downloaded
-    rstLCCs = list(year2001 = lcc),
+    ## data year 2000: a hindcast takes the land cover strictly before its year, so runs from
+    ## 2001 need an earlier one
+    rstLCCs = list(year2000 = lcc),
     flammableRTM = toyRastP(as.integer(toyLCCvalsP() != 20L), "flammable"),
     standAgeMap = toyRastP(rep(80L, 16), "standAge"),
     nonForest_timeSinceDisturbance = toyRastP(rep(30L, 16), "TSD"),

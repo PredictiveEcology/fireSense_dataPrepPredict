@@ -10,7 +10,7 @@ defineModule(sim, list(
     person("Alex M", "Chubaty", role = "ctb", email = "achubaty@for-cast.ca")
   ),
   childModules = character(0),
-  version = list(fireSense_dataPrepPredict = "1.1.0.9004"),
+  version = list(fireSense_dataPrepPredict = "1.1.0.9005"),
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = "year",
   citation = list("citation.bib"),
@@ -19,7 +19,7 @@ defineModule(sim, list(
                              "fireSense_ignitionFit", "fireSense_spreadFit")),
   reqdPkgs = list(
     "data.table",
-    "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9093)", # dataYearElement()
+    "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9099)", # dataYearElement(before =)
     "PredictiveEcology/LandR@development",
     "PredictiveEcology/reproducible@development",
     "PredictiveEcology/SpaDES.core@development (>= 3.0.4)",
@@ -116,7 +116,7 @@ defineModule(sim, list(
     expectsInput("cohortDatas", "list", sourceURL = NA,
       desc = paste("Optional: the real per-year datasets of `cohortData`, a named list (`year<year>`) from",
                    "`fireSense_dataPrepFit`. Used only when no module simulates `cohortData` (a hindcast):",
-                   "`Init` takes the latest data year not after the start year (see `createsOutput`).")),
+                   "`Init` takes the latest data year before the start year (see `createsOutput`).")),
     expectsInput("flammableRTMs", "list", sourceURL = NA,
       desc = "Optional: as `cohortDatas`, for `flammableRTM`."),
     expectsInput("landcoverDTs", "list", sourceURL = NA,
@@ -205,10 +205,12 @@ defineModule(sim, list(
                    "output, e.g. Biomass_core in a forecast), it is that module's current state, read by every",
                    "covariate event, and this module never replaces it. Otherwise (a hindcast: no vegetation",
                    "module, times in a past year) `Init` sets it to the element of `cohortDatas` of the latest",
-                   "data year not after the start year (`fireSenseUtils::dataYearElement()`); if `cohortDatas`",
-                   "is not supplied, the input stands. The same rule for the other objects below, from their",
-                   "per-year lists; land cover, which no module simulates, is the latest real data year in",
-                   "every run.")),
+                   "data year strictly before the start year, as the fit pairs a fire year with its vegetation",
+                   "(`fireSenseUtils::dataYearElement(before = TRUE)`): SCANFI of year Y already shows Y's",
+                   "burns. In a forecast, objects no module simulates take the latest data year not after the",
+                   "start year, so an NRV run from 2020 uses 2020's land cover. If `cohortDatas` is not",
+                   "supplied, the input stands. The same rule for the other objects below, from their per-year",
+                   "lists.")),
     createsOutput("flammableRTM", "SpatRaster",
       desc = "As `cohortData`, from `flammableRTMs`."),
     createsOutput("landcoverDT", "data.table",
@@ -312,12 +314,15 @@ vegetationLists <- c(cohortData = "cohortDatas", pixelGroupMap = "pixelGroupMaps
 
 #' Take the latest vegetation available
 #'
-#' One rule for every run, hindcast or forecast: each object in `vegetationLists` is the latest dataset
-#' available at `time(sim)`, among its real per-year datasets (`fireSense_dataPrepFit`'s lists, named
-#' `year<dataYear>`: the data year closest to, and not after, `floor(time(sim))`,
-#' `fireSenseUtils::dataYearElement()`, the rule the fit matches fire years to data years with) and the
-#' simulated state. An object another module simulates ([simulatedObjects()]) is dated `time(sim)`, so it
-#' is always the latest and is left as it is; so is an object with no per-year list (or one whose elements
+#' Each object in `vegetationLists` is the latest dataset available at `time(sim)`, among its real
+#' per-year datasets (`fireSense_dataPrepFit`'s lists, named `year<dataYear>`) and the simulated state.
+#' In a hindcast (no module simulates `cohortData`) the data year is the latest strictly before
+#' `floor(time(sim))`, the rule the fit pairs a fire year with its vegetation by
+#' (`fireSenseUtils::dataYearElement(before = TRUE)`): SCANFI of year Y already shows year Y's burns, so
+#' a hindcast of a SCANFI year would otherwise see the fires it predicts. In a forecast the objects no
+#' module simulates (land cover, flammability) take the data year closest to and not after
+#' `floor(time(sim))`, so an NRV run from 2020 uses 2020's data. An object another module simulates
+#' ([simulatedObjects()]) is dated `time(sim)`, so it is always the latest and is left as it is; so is an object with no per-year list (or one whose elements
 #' are not named by year). Called at `init`:
 #' after that the state evolves by simulation (`ageNonForest`, the vegetation modules).
 #'
@@ -327,13 +332,14 @@ vegetationLists <- c(cohortData = "cohortDatas", pixelGroupMap = "pixelGroupMaps
 takeLatestVegetation <- function(sim) {
   year <- floor(as.numeric(time(sim)))
   simulated <- simulatedObjects(sim)
+  hindcast <- !"cohortData" %in% simulated
   for (obj in setdiff(names(vegetationLists), simulated)) {
     lst <- vegetationLists[[obj]]
     ## no list, or one whose elements are not named by year (an unnamed `rstLCCs` of one element, as a
     ## project may supply instead of `rstLCC_RTM`): nothing dated to choose from, the object stands
     if (!any(grepl("[0-9]", names(sim[[lst]])))) next
-    el <- tryCatch(fireSenseUtils::dataYearElement(sim[[lst]], year), error = function(e)
-      stop("fireSense_dataPrepPredict: `", lst, "` has no element at or before ", year,
+    el <- tryCatch(fireSenseUtils::dataYearElement(sim[[lst]], year, before = hindcast), error = function(e)
+      stop("fireSense_dataPrepPredict: `", lst, "` has no element ", if (hindcast) "before " else "at or before ", year,
            " (it has: ", paste(names(sim[[lst]]), collapse = ", "), "): ", conditionMessage(e), call. = FALSE))
     sim[[obj]] <- sim[[lst]][[el]]
   }
