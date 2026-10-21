@@ -25,8 +25,8 @@ yearLists <- function() {
   tsd[9] <- 3
   tsd3 <- toyRast(c(5, rep(30, 13), 5, 30))
   tsd3[9] <- 4
-  lcDT <- data.table::data.table(pixelID = 1:14, wetland = as.integer(1:14 %in% c(9, 10)),
-                                 grass = as.integer(1:14 %in% c(11, 12)))
+  lcDT <- data.table::data.table(pixelID = 1:14, nfLCC_wetland = as.integer(1:14 %in% c(9, 10)),
+                                 nfLCC_grass = as.integer(1:14 %in% c(11, 12)))
 
   lists <- list(cohortDatas = perYear(decoy$cohortData),
                 pixelGroupMaps = perYear(decoy$pixelGroupMap),
@@ -101,7 +101,7 @@ test_that("a hindcast takes the data year strictly before start(sim) from every 
   expect_identical(df$pixelID, 1:14)
   ## year 2002's TSD: wetland cell 9 burned 3 y ago, so it is young (and so not wetland)
   expect_identical(which(df$youngAge == 1), c(5L, 6L, 9L))
-  expect_identical(which(df$wetland == 1L), 10L)
+  expect_identical(which(df$nfLCC_wetland == 1L), 10L)
   ## year 2002's cohorts: pixel group 1 has more class1 biomass than the singleton's
   base <- covDF(toyPrepRun()$fireSense_SpreadCovariates)
   expect_gt(df$class1[1], base$class1[1])

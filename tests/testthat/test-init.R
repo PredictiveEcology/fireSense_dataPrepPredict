@@ -38,13 +38,13 @@ test_that("Init builds landcoverDT from rstLCC_RTM when it is not supplied", {
   sim$landcoverDT <- NULL
   sim <- SpaDES.core::spades(sim, events = "init", debug = FALSE)
   dt <- covDF(sim$landcoverDT)
-  expect_identical(sort(names(dt)), c("grass", "pixelID", "wetland"))
+  expect_identical(sort(names(dt)), c("nfLCC_grass", "nfLCC_wetland", "pixelID"))
   ## only the 15 flammable pixels, in cell order
   expect_identical(dt$pixelID, 1:15)
-  expect_identical(which(dt$wetland == 1L), c(9L, 10L, 15L))
-  expect_identical(which(dt$grass == 1L), c(11L, 12L))
+  expect_identical(which(dt$nfLCC_wetland == 1L), c(9L, 10L, 15L))
+  expect_identical(which(dt$nfLCC_grass == 1L), c(11L, 12L))
   ## no pixel is in two groups at once
-  expect_true(all(dt$wetland + dt$grass <= 1L))
+  expect_true(all(dt$nfLCC_wetland + dt$nfLCC_grass <= 1L))
 })
 
 test_that("Init realigns landcover with nearest neighbour, keeping the class codes", {
@@ -60,9 +60,9 @@ test_that("Init realigns landcover with nearest neighbour, keeping the class cod
   dt <- covDF(sim$landcoverDT)
 
   expect_identical(dt$pixelID, 1:15)
-  expect_identical(sort(names(dt)), c("grass", "pixelID", "wetland"))
-  expect_identical(which(dt$wetland == 1L), c(9L, 10L, 15L))
-  expect_identical(which(dt$grass == 1L), c(11L, 12L))
+  expect_identical(sort(names(dt)), c("nfLCC_grass", "nfLCC_wetland", "pixelID"))
+  expect_identical(which(dt$nfLCC_wetland == 1L), c(9L, 10L, 15L))
+  expect_identical(which(dt$nfLCC_grass == 1L), c(11L, 12L))
 })
 
 test_that("init schedules exactly the events implied by whichModulesToPrepare", {

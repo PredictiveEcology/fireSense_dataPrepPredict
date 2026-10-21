@@ -12,7 +12,7 @@ sppA <- function() data.table::data.table(LandR = c("Pice_mar", "Pinu_ban", "Pop
                                           FuelClass = c("conifer", "conifer", "decid"))
 sppB <- function() data.table::data.table(LandR = c("Pice_mar", "Pinu_ban", "Popu_tre"),
                                           FuelClass = c("Pice_mar", "Pinu_ban", "decid"))
-nfA <- list(wetland = 19L, grass = 16L); nfB <- list(wetgrs = c(16L, 19L))
+nfA <- list(nfLCC_wetland = 19L, nfLCC_grass = 16L); nfB <- list(nfLCC_wetgrs = c(16L, 19L))
 
 oneELF <- function(spp, nf, missing) {
   o <- toyObjects()
@@ -26,9 +26,9 @@ test_that("with two ELFs, the covariates are both ELFs' own, side by side", {
   o$landcoverDT <- NULL
   o$sppEquivs <- list(sppA(), sppB())
   o$nonForestedLCCGroupsList <- list(nfA, nfB)
-  o$missingLCCgroupList <- list("grass", "wetgrs")
+  o$missingLCCgroupList <- list("nfLCC_grass", "nfLCC_wetgrs")
   both <- toyPrepRun(o)
-  a <- oneELF(sppA, nfA, "grass"); b <- oneELF(sppB, nfB, "wetgrs")
+  a <- oneELF(sppA, nfA, "nfLCC_grass"); b <- oneELF(sppB, nfB, "nfLCC_wetgrs")
 
   sp <- covDF(both$fireSense_SpreadCovariates)
   spA <- covDF(a$fireSense_SpreadCovariates); spB <- covDF(b$fireSense_SpreadCovariates)
@@ -36,7 +36,7 @@ test_that("with two ELFs, the covariates are both ELFs' own, side by side", {
   expect_identical(sp$pixelID, spA$pixelID)
   for (cn in setdiff(names(spA), "pixelID")) expect_equal(sp[[cn]], spA[[cn]], info = cn)
   for (cn in setdiff(names(spB), "pixelID")) expect_equal(sp[[cn]], spB[[cn]], info = cn)
-  expect_true(all(c("conifer", "Pice_mar", "Pinu_ban", "decid", "wetland", "grass", "wetgrs") %in% names(sp)))
+  expect_true(all(c("conifer", "Pice_mar", "Pinu_ban", "decid", "nfLCC_wetland", "nfLCC_grass", "nfLCC_wetgrs") %in% names(sp)))
 
   ## ignition covariates: the same union, each ELF's layers as in its own run
   ig <- as.data.frame(both$fireSense_igAndEscapePred_Covariates)
@@ -52,7 +52,7 @@ test_that("with two ELFs, the covariates are both ELFs' own, side by side", {
 
 test_that("mismatched per-ELF lists stop with a message", {
   o <- toyObjects()
-  o$sppEquivs <- list(sppA(), sppB()); o$nonForestedLCCGroupsList <- list(nfA); o$missingLCCgroupList <- list("grass", "wetgrs")
+  o$sppEquivs <- list(sppA(), sppB()); o$nonForestedLCCGroupsList <- list(nfA); o$missingLCCgroupList <- list("nfLCC_grass", "nfLCC_wetgrs")
   expect_error(toyPrepRun(o), "one element per ELF")
 })
 
@@ -66,12 +66,12 @@ test_that("with one ELF and per-ELF lists, the list's groups build the covariate
   o$nonForestedLCCGroups <- list(nf = c(16L, 19L)); o$missingLCCgroup <- "nf"   # the module defaults
   o$sppEquivs <- list(sppA())
   o$nonForestedLCCGroupsList <- list(nfA)
-  o$missingLCCgroupList <- list("grass")
+  o$missingLCCgroupList <- list("nfLCC_grass")
   one <- toyPrepRun(o)
-  ref <- oneELF(sppA, nfA, "grass")
+  ref <- oneELF(sppA, nfA, "nfLCC_grass")
 
   sp <- covDF(one$fireSense_SpreadCovariates); spRef <- covDF(ref$fireSense_SpreadCovariates)
-  expect_true(all(c("wetland", "grass") %in% names(sp)))
+  expect_true(all(c("nfLCC_wetland", "nfLCC_grass") %in% names(sp)))
   expect_false("nf" %in% names(sp))
   expect_setequal(names(sp), names(spRef))
   for (cn in setdiff(names(spRef), "pixelID")) expect_equal(sp[[cn]], spRef[[cn]], info = cn)

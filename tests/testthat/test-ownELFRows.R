@@ -103,10 +103,10 @@ test_that("with ELF-labelled rasterToMatchLargeELF and per-ELF inputs, TRUE blen
   o$studyAreaWithSpreadParams <- threeRows()
   ## named by polygonID, in ledger order, as fireSense_dataPrepFit makes them
   o$sppEquivs <- list("4.2.2" = toySppEquiv(), "13.1" = toySppEquiv(), "14.3" = sppB)
-  o$nonForestedLCCGroupsList <- list("4.2.2" = list(wetland = 19L, grass = 16L),
-                                     "13.1" = list(wetland = 19L, grass = 16L),
-                                     "14.3" = list(wetgrs = c(16L, 19L)))
-  o$missingLCCgroupList <- list("4.2.2" = "grass", "13.1" = "grass", "14.3" = "wetgrs")
+  o$nonForestedLCCGroupsList <- list("4.2.2" = list(nfLCC_wetland = 19L, nfLCC_grass = 16L),
+                                     "13.1" = list(nfLCC_wetland = 19L, nfLCC_grass = 16L),
+                                     "14.3" = list(nfLCC_wetgrs = c(16L, 19L)))
+  o$missingLCCgroupList <- list("4.2.2" = "nfLCC_grass", "13.1" = "nfLCC_grass", "14.3" = "nfLCC_wetgrs")
   elf <- toyRast(rep(c(1, 2), each = 8))
   levels(elf) <- data.frame(value = 1:2, ELFind = c("13.1", "14.3"))
   o$rasterToMatchLargeELF <- elf
@@ -115,5 +115,5 @@ test_that("with ELF-labelled rasterToMatchLargeELF and per-ELF inputs, TRUE blen
   sp <- covDF(out$fireSense_SpreadCovariates)
   ## each ELF's own fitted roles and non-forest groups
   expect_true(all(c("dom_agb_class1", "sec_agb_class2", "dom_agb_class2", "sec_agb_class1",
-                    "wetland", "grass", "wetgrs") %in% names(sp)))
+                    "nfLCC_wetland", "nfLCC_grass", "nfLCC_wetgrs") %in% names(sp)))
 })

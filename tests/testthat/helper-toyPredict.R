@@ -43,7 +43,7 @@ toyInputsP <- function(...) {
     flammableRTM = toyRastP(as.integer(toyLCCvalsP() != 20L), "flammable"),
     standAgeMap = toyRastP(rep(80L, 16), "standAge"),
     nonForest_timeSinceDisturbance = toyRastP(rep(30L, 16), "TSD"),
-    nonForestedLCCGroups = list(herb = 50L),
+    nonForestedLCCGroups = list(nfLCC_herb = 50L),
     sppEquiv = data.table::data.table(LandR = "Pice_mar", FuelClass = "BlkSprc"),
     cohortData = data.table::data.table(pixelGroup = 1L,
                                         speciesCode = factor("Pice_mar"),

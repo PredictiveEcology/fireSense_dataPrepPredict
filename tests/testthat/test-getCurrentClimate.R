@@ -134,7 +134,7 @@ test_that("a currentClimateRasters supplied every year is left alone and reaches
     expect_identical(covDF(sim$fireSense_SpreadCovariates)$MDC, 5000 + (y - 2000) * 100 + 1:15)
     ## the 2 x 2 aggregate of the supplied layer, as in test-covariates.R
     expect_equal(covDF(sim$fireSense_igAndEscapePred_Covariates)$MDC,
-                 5000 + (y - 2000) * 100 + c(3.5, 5.5, 11.5))
+                 5000 + (y - 2000) * 100 + c(3.5, 5.5, 11.5, 13.5))
     expect_identical(unique(covDF(sim$fireSense_igAndEscapePred_Covariates)$year), as.numeric(y))
   }
 })
