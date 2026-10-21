@@ -1,7 +1,7 @@
 ---
 title: "fireSense_dataPrepPredict Manual"
-subtitle: "v.1.1.0.9004"
-date: "Last updated: 2026-10-14"
+subtitle: "v.1.1.0.9006"
+date: "Last updated: 2026-10-21"
 output:
   bookdown::html_document2:
     toc: true
@@ -98,7 +98,7 @@ Table \@ref(tab:moduleInputs-fireSense-dataPrepPredict) shows the full list of m
   <tr>
    <td style="text-align:left;"> cohortDatas </td>
    <td style="text-align:left;"> list </td>
-   <td style="text-align:left;"> Optional: the real per-year datasets of `cohortData`, a named list (`year&lt;year&gt;`) from `fireSense_dataPrepFit`. Used only when no module simulates `cohortData` (a hindcast): `Init` takes the latest data year not after the start year (see `createsOutput`). </td>
+   <td style="text-align:left;"> Optional: the real per-year datasets of `cohortData`, a named list (`year&lt;year&gt;`) from `fireSense_dataPrepFit`. Used only when no module simulates `cohortData` (a hindcast): `Init` takes the latest data year before the start year (see `createsOutput`). </td>
    <td style="text-align:left;"> NA </td>
   </tr>
   <tr>
@@ -261,6 +261,7 @@ Summary of user-visible parameters (Table \@ref(tab:moduleParams-fireSense-dataP
    <th style="text-align:left;"> min </th>
    <th style="text-align:left;"> max </th>
    <th style="text-align:left;"> paramDesc </th>
+   <th style="text-align:left;"> cacheKey </th>
   </tr>
  </thead>
 <tbody>
@@ -270,7 +271,8 @@ Summary of user-visible parameters (Table \@ref(tab:moduleParams-fireSense-dataP
    <td style="text-align:left;"> TRUE </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
-   <td style="text-align:left;"> `sim$studyAreaWithSpreadParams` holds every ledger row whose polygon touches the study area: the simulated ELF (`sim$.ELFind`) and its neighbours. `FALSE` keeps only the simulated ELF's row. `TRUE` also keeps each neighbour that `fireSense_spreadPredict` can blend: fitted with the current fuel covariates, labelled in `sim$rasterToMatchLargeELF` and with its own `sppEquivs`, `nonForestedLCCGroupsList` and `missingLCCgroupList` entries; any other neighbour is dropped with a warning. A single-ELF run's `rasterToMatchLargeELF` labels no neighbour, so there `TRUE` keeps only the simulated ELF's row too. </td>
+   <td style="text-align:left;"> `sim$studyAreaWithSpreadParams` holds every ledger row whose polygon touches the study area: the simulated ELF (`sim$.ELFind`) and its neighbours. `FALSE` keeps only the simulated ELF's row. `TRUE` also keeps each neighbour that `fireSense_spreadPredict` can blend: fitted with the current fuel covariates, labelled in `sim$rasterToMatchLargeELF` and with its own `sppEquivs`, `nonForestedLCCGroupsList` and `missingLCCgroupList` entries; any other neighbour is dropped with a warning. A single-ELF run's `rasterToMatchLargeELF` labels no neighbour, so there `TRUE` keeps only the simulated ELF's row too, and says so in one message instead of a warning per neighbour. </td>
+   <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
    <td style="text-align:left;"> cutoffForYoungAge </td>
@@ -279,6 +281,7 @@ Summary of user-visible parameters (Table \@ref(tab:moduleParams-fireSense-dataP
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> Age at and below which pixels are considered 'young' (i.e., `age &lt;= cutoffForYoungAge`). </td>
+   <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
    <td style="text-align:left;"> dataYear </td>
@@ -287,6 +290,7 @@ Summary of user-visible parameters (Table \@ref(tab:moduleParams-fireSense-dataP
    <td style="text-align:left;"> 1985 </td>
    <td style="text-align:left;"> 2022 </td>
    <td style="text-align:left;"> Year of the default landcover and stand age maps, and last year of the fires used to initialise `nonForest_timeSinceDisturbance`, when those inputs are not supplied. </td>
+   <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
    <td style="text-align:left;"> fireTimeStep </td>
@@ -295,6 +299,7 @@ Summary of user-visible parameters (Table \@ref(tab:moduleParams-fireSense-dataP
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> Interval between events of this module, in years. </td>
+   <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
    <td style="text-align:left;"> forestedLCC </td>
@@ -303,6 +308,7 @@ Summary of user-visible parameters (Table \@ref(tab:moduleParams-fireSense-dataP
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> Forested landcover classes in `rstLCC_RTM`. Only used if `landcoverDT` is not supplied. </td>
+   <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
    <td style="text-align:left;"> flammabilityThreshold </td>
@@ -311,6 +317,7 @@ Summary of user-visible parameters (Table \@ref(tab:moduleParams-fireSense-dataP
    <td style="text-align:left;"> 0 </td>
    <td style="text-align:left;"> 1 </td>
    <td style="text-align:left;"> Minimum proportion of flammable pixels for an upscaled pixel to be flammable, when building the default landcover. </td>
+   <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
    <td style="text-align:left;"> fuelClassCol </td>
@@ -319,6 +326,7 @@ Summary of user-visible parameters (Table \@ref(tab:moduleParams-fireSense-dataP
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> Column of `sppEquiv` that defines the fuel classes, for both ignition and spread. </td>
+   <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
    <td style="text-align:left;"> igAggFactor </td>
@@ -327,6 +335,7 @@ Summary of user-visible parameters (Table \@ref(tab:moduleParams-fireSense-dataP
    <td style="text-align:left;"> 1 </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> Aggregation factor for the ignition and escape covariates. Overwritten in `init` by the value set in other modules. </td>
+   <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
    <td style="text-align:left;"> nonflammableLCC </td>
@@ -335,6 +344,7 @@ Summary of user-visible parameters (Table \@ref(tab:moduleParams-fireSense-dataP
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> Non-flammable landcover classes, used to create `flammableRTM` and the default landcover if not supplied. The default, `fireSenseUtils::fireSenseNonflammableLCC`, is no data, water, rock, snow/ice and barren land. </td>
+   <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
    <td style="text-align:left;"> nonForestCanBeYoungAge </td>
@@ -343,6 +353,7 @@ Summary of user-visible parameters (Table \@ref(tab:moduleParams-fireSense-dataP
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> Should burned non-forest pixels be `youngAge` until `cutoffForYoungAge`? </td>
+   <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
    <td style="text-align:left;"> scanfiVersion </td>
@@ -351,6 +362,7 @@ Summary of user-visible parameters (Table \@ref(tab:moduleParams-fireSense-dataP
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> SCANFI land-cover version for non-forest land cover, when this module builds its own landcover (only used if `rstLCC_RTM`/`rstLCCs` is not supplied). </td>
+   <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
    <td style="text-align:left;"> sppEquivCol </td>
@@ -359,6 +371,7 @@ Summary of user-visible parameters (Table \@ref(tab:moduleParams-fireSense-dataP
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> Column of `sppEquiv` with the species names used in `cohortData`. </td>
+   <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
    <td style="text-align:left;"> whichModulesToPrepare </td>
@@ -367,6 +380,7 @@ Summary of user-visible parameters (Table \@ref(tab:moduleParams-fireSense-dataP
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> Predict modules to prepare covariates for: `fireSense_ignitionPredict` for the ignition/escape table, `fireSense_spreadPredict` for the spread table. Defaults to both. </td>
+   <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
    <td style="text-align:left;"> .runInitialTime </td>
@@ -375,6 +389,7 @@ Summary of user-visible parameters (Table \@ref(tab:moduleParams-fireSense-dataP
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> Time of the first climate and covariate preparation events. </td>
+   <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
    <td style="text-align:left;"> .studyAreaName </td>
@@ -383,6 +398,7 @@ Summary of user-visible parameters (Table \@ref(tab:moduleParams-fireSense-dataP
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> Human-readable name for the study area used. </td>
+   <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
    <td style="text-align:left;"> .useCache </td>
@@ -391,6 +407,7 @@ Summary of user-visible parameters (Table \@ref(tab:moduleParams-fireSense-dataP
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> Should this entire module be run with caching activated? This is generally intended for data-type modules, where stochasticity and time are not relevant </td>
+   <td style="text-align:left;"> TRUE </td>
   </tr>
 </tbody>
 </table>
@@ -430,7 +447,7 @@ Description of the module outputs (Table \@ref(tab:moduleOutputs-fireSense-dataP
   <tr>
    <td style="text-align:left;"> cohortData </td>
    <td style="text-align:left;"> data.table </td>
-   <td style="text-align:left;"> The latest vegetation available. When another module simulates it (declares it as an output, e.g. Biomass_core in a forecast), it is that module's current state, read by every covariate event, and this module never replaces it. Otherwise (a hindcast: no vegetation module, times in a past year) `Init` sets it to the element of `cohortDatas` of the latest data year not after the start year (`fireSenseUtils::dataYearElement()`); if `cohortDatas` is not supplied, the input stands. The same rule for the other objects below, from their per-year lists; land cover, which no module simulates, is the latest real data year in every run. </td>
+   <td style="text-align:left;"> The latest vegetation available. When another module simulates it (declares it as an output, e.g. Biomass_core in a forecast), it is that module's current state, read by every covariate event, and this module never replaces it. Otherwise (a hindcast: no vegetation module, times in a past year) `Init` sets it to the element of `cohortDatas` of the latest data year strictly before the start year, as the fit pairs a fire year with its vegetation (`fireSenseUtils::dataYearElement(before = TRUE)`): SCANFI of year Y already shows Y's burns. In a forecast, objects no module simulates take the latest data year not after the start year, so an NRV run from 2020 uses 2020's land cover. If `cohortDatas` is not supplied, the input stands. The same rule for the other objects below, from their per-year lists. </td>
   </tr>
   <tr>
    <td style="text-align:left;"> flammableRTM </td>
