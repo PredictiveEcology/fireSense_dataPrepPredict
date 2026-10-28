@@ -199,7 +199,7 @@ cohortDatas
 list
 </td>
 <td style="text-align:left;">
-Optional: the real per-year datasets of <code>cohortData</code>, a named list (<code>year&amp;lt;year&amp;gt;</code>) from <code>fireSense_dataPrepFit</code>. Used only when no module simulates <code>cohortData</code> (a hindcast): <code>Init</code> takes the latest data year not after the start year (see <code>createsOutput</code>).
+Optional: the real per-year datasets of <code>cohortData</code>, a named list (<code>year&amp;lt;year&amp;gt;</code>) from <code>fireSense_dataPrepFit</code>. Used only when no module simulates <code>cohortData</code> (a hindcast): <code>Init</code> takes the latest data year before the start year (see <code>createsOutput</code>).
 </td>
 <td style="text-align:left;">
 NA
@@ -567,6 +567,9 @@ max
 <th style="text-align:left;">
 paramDesc
 </th>
+<th style="text-align:left;">
+cacheKey
+</th>
 </tr></thead>
 <tbody>
 <tr>
@@ -586,7 +589,10 @@ NA
 NA
 </td>
 <td style="text-align:left;">
-<code>sim$studyAreaWithSpreadParams</code> holds every ledger row whose polygon touches the study area: the simulated ELF (<code>sim$.ELFind</code>) and its neighbours. <code>FALSE</code> keeps only the simulated ELF’s row. <code>TRUE</code> also keeps each neighbour that <code>fireSense_spreadPredict</code> can blend: fitted with the current fuel covariates, labelled in <code>sim$rasterToMatchLargeELF</code> and with its own <code>sppEquivs</code>, <code>nonForestedLCCGroupsList</code> and <code>missingLCCgroupList</code> entries; any other neighbour is dropped with a warning. A single-ELF run’s <code>rasterToMatchLargeELF</code> labels no neighbour, so there <code>TRUE</code> keeps only the simulated ELF’s row too.
+<code>sim$studyAreaWithSpreadParams</code> holds every ledger row whose polygon touches the study area: the simulated ELF (<code>sim$.ELFind</code>) and its neighbours. <code>FALSE</code> keeps only the simulated ELF’s row. <code>TRUE</code> also keeps each neighbour that <code>fireSense_spreadPredict</code> can blend: fitted with the current fuel covariates, labelled in <code>sim$rasterToMatchLargeELF</code> and with its own <code>sppEquivs</code>, <code>nonForestedLCCGroupsList</code> and <code>missingLCCgroupList</code> entries; any other neighbour is dropped with a warning. A single-ELF run’s <code>rasterToMatchLargeELF</code> labels no neighbour, so there <code>TRUE</code> keeps only the simulated ELF’s row too, and says so in one message instead of a warning per neighbour.
+</td>
+<td style="text-align:left;">
+TRUE
 </td>
 </tr>
 <tr>
@@ -608,6 +614,9 @@ NA
 <td style="text-align:left;">
 Age at and below which pixels are considered ‘young’ (i.e., <code>age &amp;lt;= cutoffForYoungAge</code>).
 </td>
+<td style="text-align:left;">
+TRUE
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -627,6 +636,9 @@ numeric
 </td>
 <td style="text-align:left;">
 Year of the default landcover and stand age maps, and last year of the fires used to initialise <code>nonForest_timeSinceDisturbance</code>, when those inputs are not supplied.
+</td>
+<td style="text-align:left;">
+TRUE
 </td>
 </tr>
 <tr>
@@ -648,6 +660,9 @@ NA
 <td style="text-align:left;">
 Interval between events of this module, in years.
 </td>
+<td style="text-align:left;">
+TRUE
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -667,6 +682,9 @@ NA
 </td>
 <td style="text-align:left;">
 Forested landcover classes in <code>rstLCC_RTM</code>. Only used if <code>landcoverDT</code> is not supplied.
+</td>
+<td style="text-align:left;">
+TRUE
 </td>
 </tr>
 <tr>
@@ -688,6 +706,9 @@ numeric
 <td style="text-align:left;">
 Minimum proportion of flammable pixels for an upscaled pixel to be flammable, when building the default landcover.
 </td>
+<td style="text-align:left;">
+TRUE
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -707,6 +728,9 @@ NA
 </td>
 <td style="text-align:left;">
 Column of <code>sppEquiv</code> that defines the fuel classes, for both ignition and spread.
+</td>
+<td style="text-align:left;">
+TRUE
 </td>
 </tr>
 <tr>
@@ -728,6 +752,9 @@ NA
 <td style="text-align:left;">
 Aggregation factor for the ignition and escape covariates. Overwritten in <code>init</code> by the value set in other modules.
 </td>
+<td style="text-align:left;">
+TRUE
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -747,6 +774,9 @@ NA
 </td>
 <td style="text-align:left;">
 Non-flammable landcover classes, used to create <code>flammableRTM</code> and the default landcover if not supplied. The default, <code><a href="https://rdrr.io/pkg/fireSenseUtils/man/fireSenseNonflammableLCC.html" class="external-link">fireSenseUtils::fireSenseNonflammableLCC</a></code>, is no data, water, rock, snow/ice and barren land.
+</td>
+<td style="text-align:left;">
+TRUE
 </td>
 </tr>
 <tr>
@@ -768,6 +798,9 @@ NA
 <td style="text-align:left;">
 Should burned non-forest pixels be <code>youngAge</code> until <code>cutoffForYoungAge</code>?
 </td>
+<td style="text-align:left;">
+TRUE
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -787,6 +820,9 @@ NA
 </td>
 <td style="text-align:left;">
 SCANFI land-cover version for non-forest land cover, when this module builds its own landcover (only used if <code>rstLCC_RTM</code>/<code>rstLCCs</code> is not supplied).
+</td>
+<td style="text-align:left;">
+TRUE
 </td>
 </tr>
 <tr>
@@ -808,6 +844,9 @@ NA
 <td style="text-align:left;">
 Column of <code>sppEquiv</code> with the species names used in <code>cohortData</code>.
 </td>
+<td style="text-align:left;">
+TRUE
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -827,6 +866,9 @@ NA
 </td>
 <td style="text-align:left;">
 Predict modules to prepare covariates for: <code>fireSense_ignitionPredict</code> for the ignition/escape table, <code>fireSense_spreadPredict</code> for the spread table. Defaults to both.
+</td>
+<td style="text-align:left;">
+TRUE
 </td>
 </tr>
 <tr>
@@ -848,6 +890,9 @@ NA
 <td style="text-align:left;">
 Time of the first climate and covariate preparation events.
 </td>
+<td style="text-align:left;">
+TRUE
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -868,6 +913,9 @@ NA
 <td style="text-align:left;">
 Human-readable name for the study area used.
 </td>
+<td style="text-align:left;">
+TRUE
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -887,6 +935,9 @@ NA
 </td>
 <td style="text-align:left;">
 Should this entire module be run with caching activated? This is generally intended for data-type modules, where stochasticity and time are not relevant
+</td>
+<td style="text-align:left;">
+TRUE
 </td>
 </tr>
 </tbody>
@@ -951,7 +1002,7 @@ cohortData
 data.table
 </td>
 <td style="text-align:left;">
-The latest vegetation available. When another module simulates it (declares it as an output, e.g. Biomass_core in a forecast), it is that module’s current state, read by every covariate event, and this module never replaces it. Otherwise (a hindcast: no vegetation module, times in a past year) <code>Init</code> sets it to the element of <code>cohortDatas</code> of the latest data year not after the start year (<code><a href="https://rdrr.io/pkg/fireSenseUtils/man/dataYearFor.html" class="external-link">fireSenseUtils::dataYearElement()</a></code>); if <code>cohortDatas</code> is not supplied, the input stands. The same rule for the other objects below, from their per-year lists; land cover, which no module simulates, is the latest real data year in every run.
+The latest vegetation available. When another module simulates it (declares it as an output, e.g. Biomass_core in a forecast), it is that module’s current state, read by every covariate event, and this module never replaces it. Otherwise (a hindcast: no vegetation module, times in a past year) <code>Init</code> sets it to the element of <code>cohortDatas</code> of the latest data year strictly before the start year, as the fit pairs a fire year with its vegetation (<code>fireSenseUtils::dataYearElement(before = TRUE)</code>): SCANFI of year Y already shows Y’s burns. In a forecast, objects no module simulates take the latest data year not after the start year, so an NRV run from 2020 uses 2020’s land cover. If <code>cohortDatas</code> is not supplied, the input stands. The same rule for the other objects below, from their per-year lists.
 </td>
 </tr>
 <tr>
