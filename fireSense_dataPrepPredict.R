@@ -10,7 +10,7 @@ defineModule(sim, list(
     person("Alex M", "Chubaty", role = "ctb", email = "achubaty@for-cast.ca")
   ),
   childModules = character(0),
-  version = list(fireSense_dataPrepPredict = "1.1.0.9006"),
+  version = list(fireSense_dataPrepPredict = "1.1.0.9007"),
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = "year",
   citation = list("citation.bib"),
@@ -19,7 +19,7 @@ defineModule(sim, list(
                              "fireSense_ignitionFit", "fireSense_spreadFit")),
   reqdPkgs = list(
     "data.table",
-    "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9111)", # fuelCovsToCoarse() keeps part-flammable coarse cells
+    "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9129)", # fuelCovsToCoarse() hands back the static it used (#191)
     "PredictiveEcology/LandR@development",
     "PredictiveEcology/reproducible@development",
     "PredictiveEcology/SpaDES.core@development (>= 3.0.4)",
