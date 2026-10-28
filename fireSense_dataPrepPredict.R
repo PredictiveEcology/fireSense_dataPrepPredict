@@ -546,9 +546,12 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
   ## each ELF's columns alongside the others', for fireSense_ignitionPredict to pick its own
   fuelSets <- ELFfuelSets(sim)
   fuelClassTables <- fuelClassTablesThisYear(sim, fuelSets)
+  ## the part of the coarse covariates that does not change from year to year, one per fuel set; the call
+  ## hands back the one it used (rebuilt if land cover or flammableRTM changed)
+  if (is.null(mod$fuelCovsStatic)) mod$fuelCovsStatic <- vector("list", length(fuelSets))
   fuelCovsCoarse <- mergeCovariateTables(lapply(seq_along(fuelSets), function(i) {
     fs <- fuelSets[[i]]
-    prepare_FuelCovsCoarse(
+    coarse <- prepare_FuelCovsCoarse(
     fuelClassTable = fuelClassTables[[i]],
     cohortData = sim$cohortData,
     pixelGroupMap = sim$pixelGroupMap,
@@ -565,8 +568,12 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
     nonForestCanBeYoungAge = P(sim)$nonForestCanBeYoungAge,
     studyAreaName = P(sim)$.studyAreaName,
     rasTemplate = sim$flammableRTM, fact = Par$igAggFactor,
+    static = mod$fuelCovsStatic[[i]],
     useCache = FALSE
-  )}))
+  )
+    mod$fuelCovsStatic[i] <- list(attr(coarse, "static"))
+    coarse
+  }))
 
   ignitionClimateCoarse <- prepare_ignitionClimate(
     ignitionClimateList = as.list(ignitionClimate) |> setNames(names(ignitionClimate)), 
