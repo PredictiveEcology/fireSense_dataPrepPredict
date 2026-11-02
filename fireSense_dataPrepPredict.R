@@ -45,10 +45,12 @@ defineModule(sim, list(
         "(i.e., `age <= cutoffForYoungAge`)."
       )
     ),
-    defineParameter("dataYear", "numeric", 2011, 1985, 2022,
+    defineParameter("dataYear", "numeric", 2020, 1985, 2025,
                     paste("Year of the default landcover and stand age maps, and last year of the fires",
                           "used to initialise `nonForest_timeSinceDisturbance`, when those inputs are not",
-                          "supplied.")),
+                          "supplied (as in a run without `fireSense_dataPrepFit`). The same parameter as in",
+                          "Biomass_core, Biomass_borealDataPrep, Biomass_speciesData and burnSummaries (2020);",
+                          "a module with another value is an error. Set it for all with `.globals = list(dataYear = )`.")),
     defineParameter("fireTimeStep", "numeric", 1, NA, NA, desc = "Interval between events of this module, in years."),
     defineParameter("fitFileSuffix", "character", "", NA, NA,
                     paste("The ledger to predict from, in a run without `fireSense_dataPrepFit` (`.inputObjects` then",
@@ -1070,6 +1072,8 @@ predictInputsFromLedger <- function(sim) {
 .inputObjects <- function(sim) {
   cacheTags <- c(currentModule(sim), "otherFunctions:.inputObjects")
   dPath <- asPath(inputPath(sim), 1)
+  ## the same data year as the vegetation modules (Biomass_core, Biomass_borealDataPrep, ...)
+  SpaDES.core::paramCheckOtherMods(sim, "dataYear", ifSetButDifferent = "error")
   message(currentModule(sim), ": using dataPath '", dPath, "'.")
 
   ## A run without fireSense_dataPrepFit only predicts: the stored fits, and the species, fuel and climate
