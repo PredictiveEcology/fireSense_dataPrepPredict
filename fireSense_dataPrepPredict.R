@@ -891,8 +891,11 @@ ELFlabels <- function(r) {
 useOwnELFRows <- function(sim) {
   sa <- sim$studyAreaWithSpreadParams
   if (is.null(sim$.ELFind) || !NROW(sa)) return(invisible(sim))
-  fuelInputELFs <- Reduce(intersect, list(names(sim$sppEquivs), names(sim$nonForestedLCCGroupsList),
-                                          names(sim$missingLCCgroupList)))
+  fuelInputELFs <- c(Reduce(intersect, list(names(sim$sppEquivs), names(sim$nonForestedLCCGroupsList),
+                                            names(sim$missingLCCgroupList))),
+                     as.character(sa[[fireSenseUtils::polygonIDTxt]])[
+                       vapply(seq_len(NROW(sa)), function(i) all(lengths(
+                         lapply(ledgerFuelCols, function(col) ledgerRowFuel(sa, i, col))) > 0L), logical(1))])
   sim$studyAreaWithSpreadParams <- selectSpreadParamRows(
     sa, ownELF = as.character(sim$.ELFind), blend = P(sim)$blendNeighbourELFs,
     placeableELFs = ELFlabels(sim$rasterToMatchLargeELF), fuelInputELFs = fuelInputELFs,
@@ -900,6 +903,30 @@ useOwnELFRows <- function(sim) {
   invisible(sim)
 }
 
+## The fuel inputs a ledger row carries, as fireSense_spreadFit writes them (list-columns of the same names
+## as the `sim` objects they come from); `sppEquiv` and `nonForestedLCCGroups` are what a row needs to be predicted with
+ledgerFuelCols <- c("sppEquiv", "nonForestedLCCGroups")
+
+#' One ledger row's fuel input
+#'
+#' @param sa `sim$studyAreaWithSpreadParams`.
+#' @param i row number.
+#' @param col one of `ledgerFuelCols` or `"missingLCCgroup"`.
+#' @return the row's entry of that column, `NULL` if the column is absent or the entry empty.
+ledgerRowFuel <- function(sa, i, col) {
+  v <- if (col %in% names(sa)) sa[[col]][[i]]
+  if (length(v)) v
+}
+
+#' The fuel inputs to predict with, one set per ledger row kept
+#'
+#' Each row's `sppEquiv`, `nonForestedLCCGroups` and `missingLCCgroup` come from the row itself (the ledger
+#' row is the source of truth, and the only one that has the ELF `fireSense_spreadFit` has just written);
+#' `sim$sppEquivs`, `sim$nonForestedLCCGroupsList` and `sim$missingLCCgroupList`, named by polygonID, are the
+#' fallback for a row without them.
+#'
+#' @param sim A `simList`.
+#' @return a list with one element per fuel set.
 ELFfuelSets <- function(sim) {
   fcc <- P(sim)$fuelClassCol
   if (length(sim$sppEquivs) > 1L || length(sim$nonForestedLCCGroupsList)) {
@@ -907,26 +934,41 @@ ELFfuelSets <- function(sim) {
     if (length(sim$nonForestedLCCGroupsList) != n || length(sim$missingLCCgroupList) != n)
       stop("fireSense_dataPrepPredict: sppEquivs, nonForestedLCCGroupsList and missingLCCgroupList must have one ",
            "element per ELF")
-    ## the per-ELF entries for each row of studyAreaWithSpreadParams, by polygonID when they are named
-    ids <- as.character(sim$studyAreaWithSpreadParams[[fireSenseUtils::polygonIDTxt]])
+    ## each row of studyAreaWithSpreadParams: its own columns, else the per-ELF entry of the same polygonID
+    sa <- sim$studyAreaWithSpreadParams
+    ids <- as.character(sa[[fireSenseUtils::polygonIDTxt]])
     idx <- if (length(ids) && !is.null(names(sim$sppEquivs))) match(ids, names(sim$sppEquivs)) else seq_len(n)
-    if (anyNA(idx))
-      stop("fireSense_dataPrepPredict: sppEquivs has no entry for ELF(s) ", paste(ids[is.na(idx)], collapse = ", "),
-           " of sim$studyAreaWithSpreadParams")
+    rowIn <- function(i, col, lst) {
+      v <- ledgerRowFuel(sa, i, col)
+      if (is.null(v) && !is.na(idx[i])) lst[[idx[i]]] else v
+    }
+    inputs <- lapply(seq_along(idx), function(i)
+      list(sppEquiv = rowIn(i, "sppEquiv", sim$sppEquivs),
+           nonForestedLCCGroups = rowIn(i, "nonForestedLCCGroups", sim$nonForestedLCCGroupsList),
+           missingLCCgroup = rowIn(i, "missingLCCgroup", sim$missingLCCgroupList)))
+    noInput <- vapply(inputs, function(x) is.null(x$sppEquiv) || is.null(x$nonForestedLCCGroups), logical(1))
+    if (any(noInput))
+      stop("fireSense_dataPrepPredict: sppEquivs has no entry for ELF(s) ", paste(ids[noInput], collapse = ", "),
+           " of sim$studyAreaWithSpreadParams, and its ledger row has no sppEquiv and nonForestedLCCGroups")
     if (is.null(mod$ELFrstLCC)) {
       mod$ELFrstLCC <- if (!LandR::.compareRas(sim$flammableRTM, sim$rstLCC_RTM, stopOnError = FALSE))
         reproducible::postProcess(sim$rstLCC_RTM, to = sim$flammableRTM, method = "near") else sim$rstLCC_RTM
     }
-    if (is.null(mod$ELFlandcoverDTs)) {
-      mod$ELFlandcoverDTs <- lapply(sim$nonForestedLCCGroupsList, function(g)
-        makeLandcoverDT(rstLCC = mod$ELFrstLCC, flammableRTM = sim$flammableRTM,
-                        forestedLCC = P(sim)$forestedLCC, nonForestedLCCGroups = g))
+    ## one landcoverDT per distinct nonForestedLCCGroups, whichever source the rows' groups come from
+    landcoverDTfor <- function(g) {
+      hit <- Find(function(e) identical(e$groups, g), mod$ELFlandcoverDTs)
+      if (is.null(hit)) {
+        hit <- list(groups = g, landcoverDT = makeLandcoverDT(rstLCC = mod$ELFrstLCC, flammableRTM = sim$flammableRTM,
+                                                              forestedLCC = P(sim)$forestedLCC, nonForestedLCCGroups = g))
+        mod$ELFlandcoverDTs <- c(mod$ELFlandcoverDTs, list(hit))
+      }
+      hit$landcoverDT
     }
-    return(lapply(seq_along(idx), function(i) {
-      j <- idx[i]
-      se <- data.table::as.data.table(sim$sppEquivs[[j]])
-      list(sppEquiv = se, nonForestedLCCGroups = sim$nonForestedLCCGroupsList[[j]],
-           missingLCCgroup = sim$missingLCCgroupList[[j]], landcoverDT = mod$ELFlandcoverDTs[[j]],
+    return(lapply(seq_along(inputs), function(i) {
+      x <- inputs[[i]]
+      se <- data.table::as.data.table(x$sppEquiv)
+      list(sppEquiv = se, nonForestedLCCGroups = x$nonForestedLCCGroups,
+           missingLCCgroup = x$missingLCCgroup, landcoverDT = landcoverDTfor(x$nonForestedLCCGroups),
            requiredFuelClasses = se[[fcc]], rstLCC = mod$ELFrstLCC,
            fuelClassRoles = fuelClassRolesForELF(sim, i))
     }))
