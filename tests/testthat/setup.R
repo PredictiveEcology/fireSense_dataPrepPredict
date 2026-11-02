@@ -48,3 +48,4 @@ testPaths <- local({
   }
   paths
 })
+

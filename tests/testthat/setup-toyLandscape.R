@@ -83,7 +83,10 @@ toyObjects <- function() {
       r <- c(toyRast(1:16), toyRast(1001:1016))
       names(r) <- c("lightningDays", "lightningDensity")
       r
-    }
+    },
+    ## supplied, as NULL: predict without stored fits (one fuel set), and do not read the SpreadFit
+    ## ledger from Google Drive (test-predictInputsFromLedger.R tests that read)
+    studyAreaWithSpreadParams = NULL
   )
 }
 

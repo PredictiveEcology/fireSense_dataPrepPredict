@@ -18,6 +18,7 @@ defineModule(sim, list(
   loadOrder = list(after = c("Biomass_borealDataPrep", "fireSense_dataPrepFit",
                              "fireSense_ignitionFit", "fireSense_spreadFit")),
   reqdPkgs = list(
+    "PredictiveEcology/climateData@development", # latestHistoricalYear()
     "data.table",
     "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9129)", # fuelCovsToCoarse() hands back the static it used (#191)
     "PredictiveEcology/LandR@development",
@@ -44,11 +45,18 @@ defineModule(sim, list(
         "(i.e., `age <= cutoffForYoungAge`)."
       )
     ),
-    defineParameter("dataYear", "numeric", 2011, 1985, 2022,
+    defineParameter("dataYear", "numeric", 2020, 1985, 2025,
                     paste("Year of the default landcover and stand age maps, and last year of the fires",
                           "used to initialise `nonForest_timeSinceDisturbance`, when those inputs are not",
-                          "supplied.")),
+                          "supplied (as in a run without `fireSense_dataPrepFit`). The same parameter as in",
+                          "Biomass_core, Biomass_borealDataPrep, Biomass_speciesData and burnSummaries (2020);",
+                          "a module with another value is an error. Set it for all with `.globals = list(dataYear = )`.")),
     defineParameter("fireTimeStep", "numeric", 1, NA, NA, desc = "Interval between events of this module, in years."),
+    defineParameter("fitFileSuffix", "character", "", NA, NA,
+                    paste("The ledger to predict from, in a run without `fireSense_dataPrepFit` (`.inputObjects` then",
+                          "reads the stored fits itself): the text after the model tag in the ledger file names.",
+                          "The same parameter of `fireSense_ELFs`, `fireSense_dataPrepFit`, `fireSense_spreadFit` and",
+                          "`fireSense_ignitionFit`; set it for all with `.globals = list(fitFileSuffix = ...)`.")),
     defineParameter("forestedLCC", "numeric", fireSenseUtils::fireSenseForestedLCC, NA, NA,
                     "Forested landcover classes in `rstLCC_RTM`. Only used if `landcoverDT` is not supplied."),
     defineParameter("flammabilityThreshold", "numeric", fireSenseUtils::fireSenseFlammabilityThreshold, 0, 1,
@@ -75,6 +83,13 @@ defineModule(sim, list(
                     )),
     defineParameter("sppEquivCol", "character", "LandR", NA, NA,
                     desc = "Column of `sppEquiv` with the species names used in `cohortData`."),
+    defineParameter("spreadFitFilename", "character", "latest", NA, NA,
+                    paste("As in `fireSense_dataPrepFit`: the SpreadFit ledger file in `spreadFitGoogleDriveFolder`;",
+                          "`\"latest\"` takes each ELF's fit from the most recent file that has it. Read only in a",
+                          "run without `fireSense_dataPrepFit`.")),
+    defineParameter("spreadFitGoogleDriveFolder", "character", fireSenseUtils::spreadFitLedgerFolder(), NA, NA,
+                    paste("As in `fireSense_dataPrepFit`: the Google Drive folder of the SpreadFit ledger",
+                          "(`fireSenseUtils::spreadFitLedgerFolder()`). Read only in a run without `fireSense_dataPrepFit`.")),
     defineParameter("whichModulesToPrepare", "character",
                     default = c("fireSense_spreadPredict", "fireSense_ignitionPredict"),
                     NA, NA,
@@ -99,10 +114,17 @@ defineModule(sim, list(
     expectsInput(".ELFind", "character", sourceURL = NA,
       desc = paste("The simulated ELF (from `fireSense_ELFs`), the `polygonID` of its row in",
                    "`studyAreaWithSpreadParams`. Unsupplied: the rows are used as they are.")),
+    expectsInput("climateVariables", "list", sourceURL = NA,
+      desc = paste(
+        "The climate layers canClimateData prepares (`climateData::climateLayers()`). Unsupplied (no",
+        "`fireSense_dataPrepFit`), `.inputObjects` asks for the stored fits' variables: historical climate",
+        "for the simulated years up to `climateData::latestHistoricalYear()`, projected for canClimateData's",
+        "`projectedClimateYears`.")),
     expectsInput("climateVariablesForFire", "list", sourceURL = NA,
       desc = paste(
         "Named list (`ignition`, `spread`) of the layer names in `currentClimateRasters`",
-        "used by each process. A length-one list is used for both. Default is 'MDC' for both.")),
+        "used by each process. A length-one list is used for both. Unsupplied: the stored fits' variables",
+        "when `.inputObjects` reads the SpreadFit ledger (no `fireSense_dataPrepFit`), else 'MDC' for both.")),
     expectsInput("climateYear", "numeric", sourceURL = NA,
       desc = paste(
         "Optional year (e.g. 2009) used instead of `time(sim)` to build `currentClimateRasters`.",
@@ -142,7 +164,8 @@ defineModule(sim, list(
     expectsInput("lightningMaps", "SpatRaster", sourceURL = NA,
       desc = paste(
         "Lightning layers: lightningDays, lightningDensity, positiveCG, positiveCGdensity.",
-        "Only `lightningDays` is used.")),
+        "Only `lightningDays` is used. Unsupplied: `fireSenseUtils::prepare_LightningData()`, as",
+        "`fireSense_dataPrepFit` makes it.")),
     expectsInput("pixelGroupMap", "SpatRaster", sourceURL = NA,
       desc = "Map of the `pixelGroup`s in `cohortData`."),
     expectsInput("projectedClimateRasters", "list", sourceURL = NA,
@@ -175,7 +198,7 @@ defineModule(sim, list(
     expectsInput("sppEquiv", "data.table", sourceURL = NA,
       desc = "Table of LandR species equivalencies; must have columns `sppEquivCol` and `fuelClassCol`."),
     expectsInput("studyAreaWithSpreadParams", "sf", sourceURL = NA,
-      desc = paste("The fitted SpreadFit ledger rows (from `fireSense_ELFs`; also read, undeclared, by",
+      desc = paste("The fitted SpreadFit ledger rows (from `fireSense_dataPrepFit`, else read by `.inputObjects`; also read, undeclared, by",
                    "`fireSense_spreadPredict`), one row per fitted ELF, matched to `sppEquivs` by",
                    "`polygonID` when `sppEquivs` is named (as `fireSense_dataPrepFit` makes it), else by order.",
                    "With `.ELFind`, reduced to the simulated ELF's row and the neighbours",
@@ -183,7 +206,9 @@ defineModule(sim, list(
                    "row's `params[[1]]` column names are the fitted formula's terms: an ELF whose terms",
                    "include `dom_agb_<class>`/`sec_agb_<class>` predicts with those classes' AGB columns,",
                    "matching what that ELF was fitted with; otherwise (an older, per-species fit) with the",
-                   "previous one-column-per-fuel-class covariates. Unsupplied: every ELF predicts",
+                   "previous one-column-per-fuel-class covariates. Unsupplied (a run without",
+                   "`fireSense_dataPrepFit`), `.inputObjects` reads it from the SpreadFit ledger",
+                   "(`predictInputsFromLedger()`). Supplied as `NULL`: no stored fits, and every ELF predicts",
                    "per-fuel-class, as before this was read.")),
     expectsInput("standAgeMap", "SpatRaster", sourceURL = NA,
       desc = "Stand age (years) at `start(sim)`."),
@@ -234,9 +259,24 @@ defineModule(sim, list(
     createsOutput("nonForest_timeSinceDisturbance", "SpatRaster",
       desc = paste("Years since last burn, used to set `youngAge` in non-forest pixels. At `init` as",
                    "`cohortData`, from `nonForest_timeSinceDisturbances`; then aged by `ageNonForest`.")),
+    createsOutput("climateVariables", "list",
+                  desc = "Set by `.inputObjects` when unsupplied (see `expectsInput`), for canClimateData."),
+    createsOutput("ignitionFitRTM", "SpatRaster",
+                  desc = paste("Unless `fireSense_dataPrepFit` (or a user) supplies it: the coarse grid",
+                               "(`igAggFactor`) of `fireSense_igAndEscapePred_Covariates`, whose `pixelID`s are its",
+                               "cells; `fireSense_ignitionPredict` predicts on it. Set with those covariates.")),
+    createsOutput("lightningMaps", "SpatRaster", desc = "Set by `.inputObjects` when unsupplied (see `expectsInput`)."),
+    createsOutput("sppEquivs", "list",
+                  desc = "Set by `.inputObjects` from the SpreadFit ledger in a run without `fireSense_dataPrepFit`."),
+    createsOutput("nonForestedLCCGroupsList", "list",
+                  desc = "Set by `.inputObjects` from the SpreadFit ledger in a run without `fireSense_dataPrepFit`."),
+    createsOutput("missingLCCgroupList", "list",
+                  desc = "Set by `.inputObjects` from the SpreadFit ledger in a run without `fireSense_dataPrepFit`."),
     createsOutput("studyAreaWithSpreadParams", "sf",
       desc = paste("With `.ELFind`: the simulated ELF's row first, then the neighbours `blendNeighbourELFs`",
-                   "keeps; set by the covariate events, before `fireSense_spreadPredict` reads it."))
+                   "keeps; set by the covariate events, before `fireSense_spreadPredict` reads it. In a run",
+                   "without `fireSense_dataPrepFit` (prediction only), `.inputObjects` reads it from the SpreadFit",
+                   "ledger first: the rows whose polygons intersect `studyArea` (`fireSenseUtils::readSpreadFitLedger()`)."))
   )
 ))
 
@@ -580,6 +620,11 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
     fact = P(sim)$igAggFactor,
     useCache = FALSE)
   
+  ## the coarse grid of these covariates (their `pixelID`s), which fireSense_ignitionPredict predicts on;
+  ## fireSense_dataPrepFit makes it for the fit, from the same template, when it is in the run
+  if (!suppliedElsewhere("ignitionFitRTM", sim, where = c("user", "otherModules")))
+    sim$ignitionFitRTM <- terra::setValues(terra::rast(fuelCovsCoarse, nlyrs = 1), 1)
+
   yrLab <- paste0("year", time(sim))
   ignitionClimateCoarseList <- Map(r = ignitionClimateCoarse, function(r) r |> setNames(yrLab))
   sim$fireSense_igAndEscapePred_Covariates <- 
@@ -828,7 +873,8 @@ spreadParamsRowUnusable <- function(row, fuelClassCol) {
 #' The ledger rows to predict with: the simulated ELF's, then the neighbours that can be blended
 #'
 #' @param sa `sim$studyAreaWithSpreadParams`.
-#' @param ownELF character; the simulated ELF (`sim$.ELFind`).
+#' @param ownELF character; the simulated ELF (`sim$.ELFind`), or ELFs: over a `studyAreaLarge`,
+#'   `fireSense_ELFs` makes `.ELFind` all the ELFs it covers, and each keeps its row.
 #' @param blend logical; the `blendNeighbourELFs` parameter.
 #' @param placeableELFs character; the ELFs `sim$rasterToMatchLargeELF` labels (see [ELFlabels()]).
 #' @param fuelInputELFs character; the ELFs with their own `sppEquivs`, `nonForestedLCCGroupsList` and
@@ -839,13 +885,15 @@ spreadParamsRowUnusable <- function(row, fuelClassCol) {
 #'   returned unchanged.
 selectSpreadParamRows <- function(sa, ownELF, blend, placeableELFs, fuelInputELFs, fuelClassCol) {
   ids <- as.character(sa[[fireSenseUtils::polygonIDTxt]])
-  own <- which(ids == ownELF)
+  own <- which(ids %in% ownELF)
+  ownELF <- paste(ownELF, collapse = ", ")                   # for the messages
   if (!length(own)) {
     if (any(ids %in% placeableELFs)) return(sa)
     stop("fireSense_dataPrepPredict: sim$studyAreaWithSpreadParams has no row for the simulated ELF ", ownELF,
          " (sim$.ELFind); it has ", paste(ids, collapse = ", "), ". Fit ELF ", ownELF, " first.", call. = FALSE)
   }
-  own <- own[1]
+  ## one row per simulated ELF; was `own[1]`, which kept only the first of several (a studyAreaLarge)
+  own <- own[!duplicated(ids[own])]
   keep <- integer(0)
   if (isTRUE(blend)) {
     neighbours <- setdiff(seq_along(ids), own)
@@ -974,10 +1022,49 @@ unionLCCGroups <- function(fuelSets) {
   g[!duplicated(names(g))]
 }
 
+#' The stored fits and their inputs, in a run that only predicts
+#'
+#' Without `fireSense_dataPrepFit`, nothing else reads the SpreadFit ledger for this study area. Sets
+#' `studyAreaWithSpreadParams` (the ledger rows whose polygons intersect `studyArea`), the per-ELF
+#' `sppEquivs`, `nonForestedLCCGroupsList` and `missingLCCgroupList`, and, unless supplied,
+#' `climateVariablesForFire` (the fits' climate variables) and `climateVariables` (their layers, for
+#' canClimateData). Stops when the ledger has no fit for the study area.
+#'
+#' @param sim A `simList`.
+#'
+#' @return The `simList`.
+predictInputsFromLedger <- function(sim) {
+  sfx <- SpaDES.core::paramCheckOtherMods(sim, "fitFileSuffix", ifSetButDifferent = "error")
+  sa <- sim$studyArea
+  if (inherits(sa, "SpatVector")) sa <- sf::st_as_sf(sa)
+  rows <- fireSenseUtils::readSpreadFitLedger(P(sim)$spreadFitFilename, P(sim)$spreadFitGoogleDriveFolder,
+                                              domain = sa, destinationPath = inputPath(sim), fitFileSuffix = sfx)
+  if (!NROW(rows))
+    stop("fireSense_dataPrepPredict: the SpreadFit ledger with fitFileSuffix \"", sfx, "\" has no stored fit ",
+         "for this study area, so there is nothing to predict from. Use a fitFileSuffix whose ledger has one, ",
+         "or fit first (fireSense_dataPrepFit and fireSense_spreadFit with doFit = NA).", call. = FALSE)
+  sim$studyAreaWithSpreadParams <- rows
+  ins <- fireSenseUtils::spreadFitLedgerInputs(rows, sppEquivCol = P(sim)$sppEquivCol,
+                                               fuelClassCol = P(sim)$fuelClassCol, studyArea = sim$studyArea)
+  lists <- fireSenseUtils::spreadFitLedgerInputLists(ins)
+  for (nm in c("sppEquivs", "nonForestedLCCGroupsList", "missingLCCgroupList")) sim[[nm]] <- lists[[nm]]
+  fitClimVars <- fireSenseUtils::spreadFitClimateVariables(ins)
+  if (!suppliedElsewhere("climateVariablesForFire", sim))
+    sim$climateVariablesForFire <- fireSenseUtils::addFitClimateVariablesForFire(
+      fireSenseUtils::defaultClimateVariablesForFire, fitClimVars)
+  if (!suppliedElsewhere("climateVariables", sim, where = c("sim", "user"))) {
+    yrs <- seq(floor(start(sim)), floor(end(sim)))
+    sim$climateVariables <- fireSenseUtils::fireClimateLayers(
+      sim$climateVariablesForFire, historicalYears = yrs[yrs <= climateData::latestHistoricalYear()],
+      projectedYears = fireSenseUtils::canClimateProjectedYears(sim))
+  }
+  sim
+}
+
 #' Supply default inputs
 #'
-#' Defaults for `climateVariablesForFire`, `rstLCC_RTM`, `standAgeMap`,
-#' `flammableRTM` and `landcoverDT`.
+#' The stored fits, in a run without `fireSense_dataPrepFit` ([predictInputsFromLedger()]), lightning, and
+#' defaults for `climateVariablesForFire`, `rstLCC_RTM`, `standAgeMap`, `flammableRTM` and `landcoverDT`.
 #'
 #' @param sim A `simList`.
 #'
@@ -985,7 +1072,18 @@ unionLCCGroups <- function(fuelSets) {
 .inputObjects <- function(sim) {
   cacheTags <- c(currentModule(sim), "otherFunctions:.inputObjects")
   dPath <- asPath(inputPath(sim), 1)
+  ## the same data year as the vegetation modules (Biomass_core, Biomass_borealDataPrep, ...)
+  SpaDES.core::paramCheckOtherMods(sim, "dataYear", ifSetButDifferent = "error")
   message(currentModule(sim), ": using dataPath '", dPath, "'.")
+
+  ## A run without fireSense_dataPrepFit only predicts: the stored fits, and the species, fuel and climate
+  ## inputs they need, come from the SpreadFit ledger, as fireSense_dataPrepFit's Init() takes them.
+  if (!suppliedElsewhere("studyAreaWithSpreadParams", sim))
+    sim <- predictInputsFromLedger(sim)
+
+  ## only the ignition covariates use lightning
+  if ("fireSense_ignitionPredict" %in% P(sim)$whichModulesToPrepare && !suppliedElsewhere("lightningMaps", sim))
+    sim$lightningMaps <- fireSenseUtils::prepare_LightningData(sim$rasterToMatch, P(sim)$igAggFactor, dPath = dPath)
 
   if (!suppliedElsewhere("climateVariablesForFire", sim)) {
     sim$climateVariablesForFire <- list(

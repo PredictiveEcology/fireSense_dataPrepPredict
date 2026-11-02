@@ -47,7 +47,9 @@ toyInputsP <- function(...) {
     sppEquiv = data.table::data.table(LandR = "Pice_mar", FuelClass = "BlkSprc"),
     cohortData = data.table::data.table(pixelGroup = 1L,
                                         speciesCode = factor("Pice_mar"),
-                                        age = 80L, B = 3000L)
+                                        age = 80L, B = 3000L),
+    ## supplied, as NULL: no stored fits, and the SpreadFit ledger is not read (see setup-toyLandscape.R)
+    studyAreaWithSpreadParams = NULL
   )
   utils::modifyList(out, list(...))
 }
