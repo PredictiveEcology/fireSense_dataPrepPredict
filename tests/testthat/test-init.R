@@ -3,8 +3,11 @@
 test_that("init produces every declared output on the toy landscape", {
   sim <- toyPrepRun()
   md <- SpaDES.core::moduleMetadata(module = moduleName, path = modulePath)
-  ## studyAreaWithSpreadParams is an output only to be restored on a cache hit; this run supplies none
-  for (obj in setdiff(md$outputObjects$objectName, "studyAreaWithSpreadParams")) {
+  ## studyAreaWithSpreadParams is an output only to be restored on a cache hit; this run supplies none.
+  ## The others are set only when .inputObjects reads the SpreadFit ledger, which this run does not.
+  fromLedger <- c("studyAreaWithSpreadParams", "climateVariables", "sppEquivs", "nonForestedLCCGroupsList",
+                  "missingLCCgroupList")
+  for (obj in setdiff(md$outputObjects$objectName, fromLedger)) {
     expect_false(is.null(sim[[obj]]), info = obj)
   }
   expect_s4_class(sim$currentClimateRasters, "SpatRaster")

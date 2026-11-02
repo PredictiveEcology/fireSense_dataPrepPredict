@@ -204,7 +204,9 @@ defineModule(sim, list(
                    "row's `params[[1]]` column names are the fitted formula's terms: an ELF whose terms",
                    "include `dom_agb_<class>`/`sec_agb_<class>` predicts with those classes' AGB columns,",
                    "matching what that ELF was fitted with; otherwise (an older, per-species fit) with the",
-                   "previous one-column-per-fuel-class covariates. Unsupplied: every ELF predicts",
+                   "previous one-column-per-fuel-class covariates. Unsupplied (a run without",
+                   "`fireSense_dataPrepFit`), `.inputObjects` reads it from the SpreadFit ledger",
+                   "(`predictInputsFromLedger()`). Supplied as `NULL`: no stored fits, and every ELF predicts",
                    "per-fuel-class, as before this was read.")),
     expectsInput("standAgeMap", "SpatRaster", sourceURL = NA,
       desc = "Stand age (years) at `start(sim)`."),
@@ -257,6 +259,10 @@ defineModule(sim, list(
                    "`cohortData`, from `nonForest_timeSinceDisturbances`; then aged by `ageNonForest`.")),
     createsOutput("climateVariables", "list",
                   desc = "Set by `.inputObjects` when unsupplied (see `expectsInput`), for canClimateData."),
+    createsOutput("ignitionFitRTM", "SpatRaster",
+                  desc = paste("Unless `fireSense_dataPrepFit` (or a user) supplies it: the coarse grid",
+                               "(`igAggFactor`) of `fireSense_igAndEscapePred_Covariates`, whose `pixelID`s are its",
+                               "cells; `fireSense_ignitionPredict` predicts on it. Set with those covariates.")),
     createsOutput("lightningMaps", "SpatRaster", desc = "Set by `.inputObjects` when unsupplied (see `expectsInput`)."),
     createsOutput("sppEquivs", "list",
                   desc = "Set by `.inputObjects` from the SpreadFit ledger in a run without `fireSense_dataPrepFit`."),
@@ -612,6 +618,11 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
     fact = P(sim)$igAggFactor,
     useCache = FALSE)
   
+  ## the coarse grid of these covariates (their `pixelID`s), which fireSense_ignitionPredict predicts on;
+  ## fireSense_dataPrepFit makes it for the fit, from the same template, when it is in the run
+  if (!suppliedElsewhere("ignitionFitRTM", sim, where = c("user", "otherModules")))
+    sim$ignitionFitRTM <- terra::setValues(terra::rast(fuelCovsCoarse), 1)
+
   yrLab <- paste0("year", time(sim))
   ignitionClimateCoarseList <- Map(r = ignitionClimateCoarse, function(r) r |> setNames(yrLab))
   sim$fireSense_igAndEscapePred_Covariates <- 
@@ -1063,7 +1074,8 @@ predictInputsFromLedger <- function(sim) {
   if (!suppliedElsewhere("studyAreaWithSpreadParams", sim))
     sim <- predictInputsFromLedger(sim)
 
-  if (!suppliedElsewhere("lightningMaps", sim))
+  ## only the ignition covariates use lightning
+  if ("fireSense_ignitionPredict" %in% P(sim)$whichModulesToPrepare && !suppliedElsewhere("lightningMaps", sim))
     sim$lightningMaps <- fireSenseUtils::prepare_LightningData(sim$rasterToMatch, P(sim)$igAggFactor, dPath = dPath)
 
   if (!suppliedElsewhere("climateVariablesForFire", sim)) {

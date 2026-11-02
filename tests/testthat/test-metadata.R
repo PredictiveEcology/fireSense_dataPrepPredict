@@ -18,6 +18,7 @@ test_that("inputs are the expected names and classes", {
   expect_identical(
     inputs[order(names(inputs))],
     c(.ELFind                  = "character",
+      climateVariables         = "list",
       climateVariablesForFire  = "list",
       climateYear              = "numeric",
       cohortData               = "data.table",
@@ -55,16 +56,22 @@ test_that("outputs are the expected names and classes", {
   outputs <- stats::setNames(md$outputObjects$objectClass, md$outputObjects$objectName)
   expect_identical(
     outputs[order(names(outputs))],
-    c(climateVariablesForFire              = "list",
+    c(climateVariables                     = "list",
+      climateVariablesForFire              = "list",
       cohortData                           = "data.table",
       currentClimateRasters                = "SpatRaster",
       fireSense_igAndEscapePred_Covariates = "data.table",
       fireSense_SpreadCovariates           = "data.table",
       flammableRTM                         = "SpatRaster",
+      ignitionFitRTM                       = "SpatRaster",
       landcoverDT                          = "data.table",
+      lightningMaps                        = "SpatRaster",
+      missingLCCgroupList                  = "list",
       nonForest_timeSinceDisturbance       = "SpatRaster",
+      nonForestedLCCGroupsList             = "list",
       pixelGroupMap                        = "SpatRaster",
       rstLCC_RTM                           = "SpatRaster",
+      sppEquivs                            = "list",
       standAgeMap                          = "SpatRaster",
       studyAreaWithSpreadParams            = "sf")
   )
@@ -75,9 +82,9 @@ test_that("parameters are the expected names", {
   expect_identical(
     sort(md$parameters$paramName),
     sort(c(".runInitialTime", ".studyAreaName", ".useCache", "blendNeighbourELFs", "cutoffForYoungAge", "dataYear",
-           "fireTimeStep", "flammabilityThreshold", "forestedLCC", "fuelClassCol",
+           "fireTimeStep", "fitFileSuffix", "flammabilityThreshold", "forestedLCC", "fuelClassCol",
            "igAggFactor", "nonflammableLCC", "nonForestCanBeYoungAge", "scanfiVersion",
-           "sppEquivCol", "whichModulesToPrepare"))
+           "spreadFitFilename", "spreadFitGoogleDriveFolder", "sppEquivCol", "whichModulesToPrepare"))
   )
 })
 
