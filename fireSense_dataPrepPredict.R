@@ -871,7 +871,8 @@ spreadParamsRowUnusable <- function(row, fuelClassCol) {
 #' The ledger rows to predict with: the simulated ELF's, then the neighbours that can be blended
 #'
 #' @param sa `sim$studyAreaWithSpreadParams`.
-#' @param ownELF character; the simulated ELF (`sim$.ELFind`).
+#' @param ownELF character; the simulated ELF (`sim$.ELFind`), or ELFs: over a `studyAreaLarge`,
+#'   `fireSense_ELFs` makes `.ELFind` all the ELFs it covers, and each keeps its row.
 #' @param blend logical; the `blendNeighbourELFs` parameter.
 #' @param placeableELFs character; the ELFs `sim$rasterToMatchLargeELF` labels (see [ELFlabels()]).
 #' @param fuelInputELFs character; the ELFs with their own `sppEquivs`, `nonForestedLCCGroupsList` and
@@ -882,13 +883,15 @@ spreadParamsRowUnusable <- function(row, fuelClassCol) {
 #'   returned unchanged.
 selectSpreadParamRows <- function(sa, ownELF, blend, placeableELFs, fuelInputELFs, fuelClassCol) {
   ids <- as.character(sa[[fireSenseUtils::polygonIDTxt]])
-  own <- which(ids == ownELF)
+  own <- which(ids %in% ownELF)
+  ownELF <- paste(ownELF, collapse = ", ")                   # for the messages
   if (!length(own)) {
     if (any(ids %in% placeableELFs)) return(sa)
     stop("fireSense_dataPrepPredict: sim$studyAreaWithSpreadParams has no row for the simulated ELF ", ownELF,
          " (sim$.ELFind); it has ", paste(ids, collapse = ", "), ". Fit ELF ", ownELF, " first.", call. = FALSE)
   }
-  own <- own[1]
+  ## one row per simulated ELF; was `own[1]`, which kept only the first of several (a studyAreaLarge)
+  own <- own[!duplicated(ids[own])]
   keep <- integer(0)
   if (isTRUE(blend)) {
     neighbours <- setdiff(seq_along(ids), own)

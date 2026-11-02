@@ -79,6 +79,20 @@ test_that("a missing own row stops with a message naming the ELF", {
                "13\\.1")
 })
 
+## Over a studyAreaLarge, fireSense_ELFs makes `.ELFind` every ELF it covers; `which(ids == ownELF)` then
+## recycled the vector and kept the first ELF only (2026-11-02).
+test_that("several simulated ELFs (.ELFind of a studyAreaLarge) each keep their row, neighbours as before", {
+  sel <- function(own, blend) selectSpreadParamRows(threeRows(), ownELF = own, blend = blend,
+                                                     placeableELFs = c("4.2.2", "13.1", "14.3"),
+                                                     fuelInputELFs = c("4.2.2", "13.1", "14.3"),
+                                                     fuelClassCol = "FuelClass")
+  expect_identical(sel(c("14.3", "13.1"), blend = FALSE)$polygonID, c("13.1", "14.3"))
+  ## the neighbour fitted with `other_agb` is still dropped, with its warning
+  expect_warning(out <- sel(c("14.3", "13.1"), blend = TRUE), "4\\.2\\.2.*other_agb")
+  expect_identical(out$polygonID, c("13.1", "14.3"))
+  expect_error(sel(c("9.9", "9.8"), blend = FALSE) |> suppressWarnings(), NA)   # placeable rows: all kept
+})
+
 test_that("prediction uses the simulated ELF's row when a neighbour's row comes first", {
   ## the user-visible symptom: on development this stopped with "the fitted model has an `other_agb` term"
   o <- toyObjects()
