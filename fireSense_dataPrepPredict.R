@@ -621,7 +621,7 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
   ## the coarse grid of these covariates (their `pixelID`s), which fireSense_ignitionPredict predicts on;
   ## fireSense_dataPrepFit makes it for the fit, from the same template, when it is in the run
   if (!suppliedElsewhere("ignitionFitRTM", sim, where = c("user", "otherModules")))
-    sim$ignitionFitRTM <- terra::setValues(terra::rast(fuelCovsCoarse), 1)
+    sim$ignitionFitRTM <- terra::setValues(terra::rast(fuelCovsCoarse, nlyrs = 1), 1)
 
   yrLab <- paste0("year", time(sim))
   ignitionClimateCoarseList <- Map(r = ignitionClimateCoarse, function(r) r |> setNames(yrLab))
