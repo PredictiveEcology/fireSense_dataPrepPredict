@@ -73,7 +73,7 @@
       <h1 data-toc-skip>fireSense_dataPrepPredict Manual</h1>
             <h3 data-toc-skip class="subtitle">v.1.1.0.9007</h3>
             
-            <h4 data-toc-skip class="date">Last updated: 2026-10-28</h4>
+            <h4 data-toc-skip class="date">Last updated: 2026-11-03</h4>
       
 
       <div class="hidden name"><code>fireSense_dataPrepPredict.Rmd</code></div>
@@ -154,13 +154,27 @@ NA
 </tr>
 <tr>
 <td style="text-align:left;">
+climateVariables
+</td>
+<td style="text-align:left;">
+list
+</td>
+<td style="text-align:left;">
+The climate layers canClimateData prepares (<code><a href="https://rdrr.io/pkg/climateData/man/climateLayers.html" class="external-link">climateData::climateLayers()</a></code>). Unsupplied (no <code>fireSense_dataPrepFit</code>), <code>.inputObjects</code> asks for the stored fits’ variables: historical climate for the simulated years up to <code><a href="https://rdrr.io/pkg/climateData/man/latestHistoricalYear.html" class="external-link">climateData::latestHistoricalYear()</a></code>, projected for canClimateData’s <code>projectedClimateYears</code>.
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
 climateVariablesForFire
 </td>
 <td style="text-align:left;">
 list
 </td>
 <td style="text-align:left;">
-Named list (<code>ignition</code>, <code>spread</code>) of the layer names in <code>currentClimateRasters</code> used by each process. A length-one list is used for both. Default is ‘MDC’ for both.
+Named list (<code>ignition</code>, <code>spread</code>) of the layer names in <code>currentClimateRasters</code> used by each process. A length-one list is used for both. Unsupplied: the stored fits’ variables when <code>.inputObjects</code> reads the SpreadFit ledger (no <code>fireSense_dataPrepFit</code>), else ‘MDC’ for both.
 </td>
 <td style="text-align:left;">
 NA
@@ -342,7 +356,7 @@ lightningMaps
 SpatRaster
 </td>
 <td style="text-align:left;">
-Lightning layers: lightningDays, lightningDensity, positiveCG, positiveCGdensity. Only <code>lightningDays</code> is used.
+Lightning layers: lightningDays, lightningDensity, positiveCG, positiveCGdensity. Only <code>lightningDays</code> is used. Unsupplied: <code><a href="https://rdrr.io/pkg/fireSenseUtils/man/prepare_LightningData.html" class="external-link">fireSenseUtils::prepare_LightningData()</a></code>, as <code>fireSense_dataPrepFit</code> makes it.
 </td>
 <td style="text-align:left;">
 NA
@@ -510,7 +524,7 @@ studyAreaWithSpreadParams
 sf
 </td>
 <td style="text-align:left;">
-The fitted SpreadFit ledger rows (from <code>fireSense_ELFs</code>; also read, undeclared, by <code>fireSense_spreadPredict</code>), one row per fitted ELF, matched to <code>sppEquivs</code> by <code>polygonID</code> when <code>sppEquivs</code> is named (as <code>fireSense_dataPrepFit</code> makes it), else by order. With <code>.ELFind</code>, reduced to the simulated ELF’s row and the neighbours <code>blendNeighbourELFs</code> keeps (see <code>createsOutput</code>). Each row’s <code>params[[1]]</code> column names are the fitted formula’s terms: an ELF whose terms include <code>dom_agb_&amp;lt;class&amp;gt;</code>/<code>sec_agb_&amp;lt;class&amp;gt;</code> predicts with those classes’ AGB columns, matching what that ELF was fitted with; otherwise (an older, per-species fit) with the previous one-column-per-fuel-class covariates. Unsupplied: every ELF predicts per-fuel-class, as before this was read.
+The fitted SpreadFit ledger rows (from <code>fireSense_dataPrepFit</code>, else read by <code>.inputObjects</code>; also read, undeclared, by <code>fireSense_spreadPredict</code>), one row per fitted ELF, matched to <code>sppEquivs</code> by <code>polygonID</code> when <code>sppEquivs</code> is named (as <code>fireSense_dataPrepFit</code> makes it), else by order. With <code>.ELFind</code>, reduced to the simulated ELF’s row and the neighbours <code>blendNeighbourELFs</code> keeps (see <code>createsOutput</code>). Each row’s <code>params[[1]]</code> column names are the fitted formula’s terms: an ELF whose terms include <code>dom_agb_&amp;lt;class&amp;gt;</code>/<code>sec_agb_&amp;lt;class&amp;gt;</code> predicts with those classes’ AGB columns, matching what that ELF was fitted with; otherwise (an older, per-species fit) with the previous one-column-per-fuel-class covariates. Unsupplied (a run without <code>fireSense_dataPrepFit</code>), <code>.inputObjects</code> reads it from the SpreadFit ledger (<code><a href="../reference/predictInputsFromLedger.html">predictInputsFromLedger()</a></code>). Supplied as <code>NULL</code>: no stored fits, and every ELF predicts per-fuel-class, as before this was read.
 </td>
 <td style="text-align:left;">
 NA
@@ -643,16 +657,16 @@ dataYear
 numeric
 </td>
 <td style="text-align:left;">
-2011
+2020
 </td>
 <td style="text-align:left;">
 1985
 </td>
 <td style="text-align:left;">
-2022
+2025
 </td>
 <td style="text-align:left;">
-Year of the default landcover and stand age maps, and last year of the fires used to initialise <code>nonForest_timeSinceDisturbance</code>, when those inputs are not supplied.
+Year of the default landcover and stand age maps, and last year of the fires used to initialise <code>nonForest_timeSinceDisturbance</code>, when those inputs are not supplied (as in a run without <code>fireSense_dataPrepFit</code>). The same parameter as in Biomass_core, Biomass_borealDataPrep, Biomass_speciesData and burnSummaries (2020); a module with another value is an error. Set it for all with <code>.globals = list(dataYear = )</code>.
 </td>
 <td style="text-align:left;">
 TRUE
@@ -676,6 +690,28 @@ NA
 </td>
 <td style="text-align:left;">
 Interval between events of this module, in years.
+</td>
+<td style="text-align:left;">
+TRUE
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+fitFileSuffix
+</td>
+<td style="text-align:left;">
+character
+</td>
+<td style="text-align:left;">
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+The ledger to predict from, in a run without <code>fireSense_dataPrepFit</code> (<code>.inputObjects</code> then reads the stored fits itself): the text after the model tag in the ledger file names. The same parameter of <code>fireSense_ELFs</code>, <code>fireSense_dataPrepFit</code>, <code>fireSense_spreadFit</code> and <code>fireSense_ignitionFit</code>; set it for all with <code>.globals = list(fitFileSuffix = ...)</code>.
 </td>
 <td style="text-align:left;">
 TRUE
@@ -860,6 +896,52 @@ NA
 </td>
 <td style="text-align:left;">
 Column of <code>sppEquiv</code> with the species names used in <code>cohortData</code>.
+</td>
+<td style="text-align:left;">
+TRUE
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+spreadFitFilename
+</td>
+<td style="text-align:left;">
+character
+</td>
+<td style="text-align:left;">
+latest
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+As in <code>fireSense_dataPrepFit</code>: the SpreadFit ledger file in <code>spreadFitGoogleDriveFolder</code>; <code>"latest"</code> takes each ELF’s fit from the most recent file that has it. Read only in a run without <code>fireSense_dataPrepFit</code>.
+</td>
+<td style="text-align:left;">
+TRUE
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+spreadFitGoogleDriveFolder
+</td>
+<td style="text-align:left;">
+character
+</td>
+<td style="text-align:left;">
+<a href="https://" class="external-link uri">https://</a>….
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+As in <code>fireSense_dataPrepFit</code>: the Google Drive folder of the SpreadFit ledger (<code><a href="https://rdrr.io/pkg/fireSenseUtils/man/fitLedgerFolders.html" class="external-link">fireSenseUtils::spreadFitLedgerFolder()</a></code>). Read only in a run without <code>fireSense_dataPrepFit</code>.
 </td>
 <td style="text-align:left;">
 TRUE
@@ -1123,13 +1205,79 @@ Years since last burn, used to set <code>youngAge</code> in non-forest pixels. A
 </tr>
 <tr>
 <td style="text-align:left;">
+climateVariables
+</td>
+<td style="text-align:left;">
+list
+</td>
+<td style="text-align:left;">
+Set by <code>.inputObjects</code> when unsupplied (see <code>expectsInput</code>), for canClimateData.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+ignitionFitRTM
+</td>
+<td style="text-align:left;">
+SpatRaster
+</td>
+<td style="text-align:left;">
+Unless <code>fireSense_dataPrepFit</code> (or a user) supplies it: the coarse grid (<code>igAggFactor</code>) of <code>fireSense_igAndEscapePred_Covariates</code>, whose <code>pixelID</code>s are its cells; <code>fireSense_ignitionPredict</code> predicts on it. Set with those covariates.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+lightningMaps
+</td>
+<td style="text-align:left;">
+SpatRaster
+</td>
+<td style="text-align:left;">
+Set by <code>.inputObjects</code> when unsupplied (see <code>expectsInput</code>).
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+sppEquivs
+</td>
+<td style="text-align:left;">
+list
+</td>
+<td style="text-align:left;">
+Set by <code>.inputObjects</code> from the SpreadFit ledger in a run without <code>fireSense_dataPrepFit</code>.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+nonForestedLCCGroupsList
+</td>
+<td style="text-align:left;">
+list
+</td>
+<td style="text-align:left;">
+Set by <code>.inputObjects</code> from the SpreadFit ledger in a run without <code>fireSense_dataPrepFit</code>.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+missingLCCgroupList
+</td>
+<td style="text-align:left;">
+list
+</td>
+<td style="text-align:left;">
+Set by <code>.inputObjects</code> from the SpreadFit ledger in a run without <code>fireSense_dataPrepFit</code>.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
 studyAreaWithSpreadParams
 </td>
 <td style="text-align:left;">
 sf
 </td>
 <td style="text-align:left;">
-With <code>.ELFind</code>: the simulated ELF’s row first, then the neighbours <code>blendNeighbourELFs</code> keeps; set by the covariate events, before <code>fireSense_spreadPredict</code> reads it.
+With <code>.ELFind</code>: the simulated ELF’s row first, then the neighbours <code>blendNeighbourELFs</code> keeps; set by the covariate events, before <code>fireSense_spreadPredict</code> reads it. In a run without <code>fireSense_dataPrepFit</code> (prediction only), <code>.inputObjects</code> reads it from the SpreadFit ledger first: the rows whose polygons intersect <code>studyArea</code> (<code>fireSenseUtils::readSpreadFitLedger()</code>).
 </td>
 </tr>
 </tbody>
