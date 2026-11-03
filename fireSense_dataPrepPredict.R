@@ -20,7 +20,7 @@ defineModule(sim, list(
   reqdPkgs = list(
     "PredictiveEcology/climateData@development", # latestHistoricalYear()
     "data.table",
-    "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9129)", # fuelCovsToCoarse() hands back the static it used (#191)
+    "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9142)", # 9142: readSpreadFitLedger() and the other predict-only helpers (#206); fuelCovsToCoarse() hands back the static it used (#191)
     "PredictiveEcology/LandR@development",
     "PredictiveEcology/reproducible@development",
     "PredictiveEcology/SpaDES.core@development (>= 3.0.4)",
