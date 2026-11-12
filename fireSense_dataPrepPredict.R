@@ -875,7 +875,7 @@ spreadParamsRowUnusable <- function(row, fuelClassCol) {
 #' The ledger rows to predict with: the simulated ELF's, then the neighbours that can be blended
 #'
 #' @param sa `sim$studyAreaWithSpreadParams`.
-#' @param ownELF character; the simulated ELF (`sim$.ELFind`), or ELFs: over a `studyAreaLarge`,
+#' @param ownELF character; the simulated ELF (`sim$.ELFind`), or ELFs: over a `studyArea_fireSense`,
 #'   `fireSense_ELFs` makes `.ELFind` all the ELFs it covers, and each keeps its row.
 #' @param blend logical; the `blendNeighbourELFs` parameter.
 #' @param placeableELFs character; the ELFs `sim$rasterToMatchLargeELF` labels (see [ELFlabels()]).
@@ -894,7 +894,7 @@ selectSpreadParamRows <- function(sa, ownELF, blend, placeableELFs, fuelInputELF
     stop("fireSense_dataPrepPredict: sim$studyAreaWithSpreadParams has no row for the simulated ELF ", ownELF,
          " (sim$.ELFind); it has ", paste(ids, collapse = ", "), ". Fit ELF ", ownELF, " first.", call. = FALSE)
   }
-  ## one row per simulated ELF; was `own[1]`, which kept only the first of several (a studyAreaLarge)
+  ## one row per simulated ELF; was `own[1]`, which kept only the first of several (a studyArea_fireSense)
   own <- own[!duplicated(ids[own])]
   keep <- integer(0)
   if (isTRUE(blend)) {

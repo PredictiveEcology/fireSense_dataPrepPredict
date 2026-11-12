@@ -79,9 +79,9 @@ test_that("a missing own row stops with a message naming the ELF", {
                "13\\.1")
 })
 
-## Over a studyAreaLarge, fireSense_ELFs makes `.ELFind` every ELF it covers; `which(ids == ownELF)` then
+## Over a studyArea_fireSense, fireSense_ELFs makes `.ELFind` every ELF it covers; `which(ids == ownELF)` then
 ## recycled the vector and kept the first ELF only (2026-11-02).
-test_that("several simulated ELFs (.ELFind of a studyAreaLarge) each keep their row, neighbours as before", {
+test_that("several simulated ELFs (.ELFind of a studyArea_fireSense) each keep their row, neighbours as before", {
   sel <- function(own, blend) selectSpreadParamRows(threeRows(), ownELF = own, blend = blend,
                                                      placeableELFs = c("4.2.2", "13.1", "14.3"),
                                                      fuelInputELFs = c("4.2.2", "13.1", "14.3"),
