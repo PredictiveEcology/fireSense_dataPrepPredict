@@ -10,20 +10,24 @@
 <url><loc>/news/index.html</loc></url>
 <url><loc>/reference/Init.html</loc></url>
 <url><loc>/reference/ageNonForest.html</loc></url>
+<url><loc>/reference/covariatesBuilt.html</loc></url>
 <url><loc>/reference/dot-inputObjects.html</loc></url>
 <url><loc>/reference/fuelClassRolesForELF.html</loc></url>
 <url><loc>/reference/fuelClassRolesFromTermNames.html</loc></url>
 <url><loc>/reference/fuelClassTablesThisYear.html</loc></url>
 <url><loc>/reference/getCurrentClimate.html</loc></url>
 <url><loc>/reference/index.html</loc></url>
+<url><loc>/reference/inputDigest.html</loc></url>
 <url><loc>/reference/mergeCovariateTables.html</loc></url>
 <url><loc>/reference/predictInputsFromLedger.html</loc></url>
 <url><loc>/reference/prepare_IgnitionAndEscapePredict.html</loc></url>
 <url><loc>/reference/prepare_SpreadPredict.html</loc></url>
 <url><loc>/reference/selectSpreadParamRows.html</loc></url>
+<url><loc>/reference/sharedInputStamp.html</loc></url>
 <url><loc>/reference/simulatedObjects.html</loc></url>
 <url><loc>/reference/spreadParamsRowUnusable.html</loc></url>
 <url><loc>/reference/takeLatestVegetation.html</loc></url>
 <url><loc>/reference/useOwnELFRows.html</loc></url>
+<url><loc>/reference/vegetationStamp.html</loc></url>
 </urlset>
 
