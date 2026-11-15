@@ -1,6 +1,6 @@
 ---
 title: "fireSense_dataPrepPredict Manual"
-subtitle: "v.1.1.0.9009"
+subtitle: "v.1.1.0.9010"
 date: "Last updated: 2026-11-15"
 output:
   bookdown::html_document2:
@@ -173,6 +173,30 @@ Table \@ref(tab:moduleInputs-fireSense-dataPrepPredict) shows the full list of m
    <td style="text-align:left;"> rasterToMatch </td>
    <td style="text-align:left;"> SpatRaster </td>
    <td style="text-align:left;"> Template raster for the study area. </td>
+   <td style="text-align:left;"> NA </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> rasterToMatchELF </td>
+   <td style="text-align:left;"> SpatRaster </td>
+   <td style="text-align:left;"> From `fireSense_ELFs`. Only saved and replayed (`replaySave`, `replayFrom`). </td>
+   <td style="text-align:left;"> NA </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> nonEscapedFireSizesHa </td>
+   <td style="text-align:left;"> numeric </td>
+   <td style="text-align:left;"> From `fireSense_dataPrepFit`. Only saved and replayed (`replaySave`, `replayFrom`). </td>
+   <td style="text-align:left;"> NA </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> ignitionFirePoints </td>
+   <td style="text-align:left;"> SpatVector </td>
+   <td style="text-align:left;"> From `fireSense_dataPrepFit`. Only saved and replayed (`replaySave`, `replayFrom`). </td>
+   <td style="text-align:left;"> NA </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> firePolys </td>
+   <td style="text-align:left;"> list </td>
+   <td style="text-align:left;"> Annual fire polygons, if supplied. Only saved and replayed (`replaySave`, `replayFrom`). </td>
    <td style="text-align:left;"> NA </td>
   </tr>
   <tr>
@@ -364,6 +388,24 @@ Summary of user-visible parameters (Table \@ref(tab:moduleParams-fireSense-dataP
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> Should burned non-forest pixels be `youngAge` until `cutoffForYoungAge`? </td>
+   <td style="text-align:left;"> TRUE </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> replayFrom </td>
+   <td style="text-align:left;"> character </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> Path of a reference hindcast job's `outputPath` (one ELF x year folder) made with `replaySave = TRUE`. When set, `.inputObjects` loads the spread-prediction inputs that do not depend on the spread parameters from it (`replayObjects`) and no covariate events are scheduled. `NA`: build as usual. The same name is a parameter of `fireSense_burn`, so `.globals = list(replayFrom = ...)` sets both. </td>
+   <td style="text-align:left;"> TRUE </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> replaySave </td>
+   <td style="text-align:left;"> logical </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> Write those inputs (`replay_spreadInputs.qs2`, `replay_&lt;name&gt;.tif`, `replay_&lt;name&gt;.gpkg`) to `outputPath(sim)` once, after the first covariate build, for a later job's `replayFrom`. For a job of one year. </td>
    <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
