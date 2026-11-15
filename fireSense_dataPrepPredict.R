@@ -325,13 +325,14 @@ doEvent.fireSense_dataPrepPredict <- function(sim, eventTime, eventType) {
       )
     },
     prepIgAndEscPredictData = {
-      sim <- prepare_IgnitionAndEscapePredict(sim)
+      if (!covariatesBuilt(sim, "ignition", list(sim$lightningMaps[["lightningDays"]])))
+        sim <- prepare_IgnitionAndEscapePredict(sim)
       sim <- scheduleEvent(sim, time(sim) + P(sim)$fireTimeStep,
         "fireSense_dataPrepPredict", "prepIgAndEscPredictData"
       )
     },
     prepSpreadPredictData = {
-      sim <- prepare_SpreadPredict(sim)
+      if (!covariatesBuilt(sim, "spread")) sim <- prepare_SpreadPredict(sim)
       sim <- scheduleEvent(sim, time(sim) + P(sim)$fireTimeStep,
         "fireSense_dataPrepPredict", "prepSpreadPredictData"
       )
@@ -734,6 +735,49 @@ prepare_SpreadPredict <- function(sim) {
 }
 
 
+#' A stamp of the vegetation the fuel classes are made from
+#'
+#' Sums over `cohortData`, `pixelGroupMap` and `flammableRTM`: equal stamps mean the same inputs.
+#'
+#' @param sim A `simList`.
+#' @return A list of numbers.
+vegetationStamp <- function(sim) {
+  cd <- sim$cohortData
+  list(NROW(cd), sum(as.numeric(cd$B), na.rm = TRUE), sum(as.numeric(cd$age), na.rm = TRUE),
+       sum(as.numeric(cd$pixelGroup), na.rm = TRUE),
+       sum(terra::values(sim$pixelGroupMap, mat = FALSE), na.rm = TRUE),
+       sum(terra::values(sim$flammableRTM, mat = FALSE), na.rm = TRUE))
+}
+
+#' Are this year's covariates already built from these inputs?
+#'
+#' The ignition and spread covariates depend only on the year, the climate, the vegetation, the land cover
+#' and the non-forest time since disturbance, so the steps inside one year (the reps of a hindcast,
+#' `fireTimeStep` < 1) would rebuild the same tables. The stamp is of the actual inputs, not of time
+#' alone: land cover and vegetation can change within a run. The stamp is kept in `mod` per `what`; it is
+#' replaced when it differs, and `FALSE` is returned so the caller builds.
+#'
+#' @param sim A `simList`.
+#' @param what `"ignition"` or `"spread"`: which covariates, and so which climate variables.
+#' @param extra a list of further inputs of those covariates, stamped as they are.
+#'
+#' @return `TRUE` if the covariates in `sim` were built from these inputs, else `FALSE`.
+covariatesBuilt <- function(sim, what, extra = list()) {
+  sumOf <- function(x) {
+    if (inherits(x, "SpatRaster")) return(if (terra::hasValues(x)) sum(terra::values(x, mat = FALSE), na.rm = TRUE))
+    if (is.data.frame(x)) return(lapply(x, function(col) sum(as.numeric(col), na.rm = TRUE)))
+    x
+  }
+  climate <- sim$currentClimateRasters[[sim$climateVariablesForFire[[what]]]]
+  stamp <- list(floor(as.numeric(time(sim))), vegetationStamp(sim), sumOf(climate),
+                sumOf(sim$nonForest_timeSinceDisturbance), sumOf(sim$landcoverDT), sumOf(sim$rstLCC_RTM),
+                lapply(extra, sumOf))
+  built <- sim[[c(ignition = "fireSense_igAndEscapePred_Covariates", spread = "fireSense_SpreadCovariates")[[what]]]]
+  if (!is.null(built) && identical(mod$covariateStamps[[what]], stamp)) return(TRUE)
+  mod$covariateStamps[[what]] <- stamp
+  FALSE
+}
+
 #' The fuel-class tables for this year, one per fuel set, shared by the ignition and spread covariates
 #'
 #' `fireSenseUtils::fireSenseCovariatesCreate()` is called for ignition (through
@@ -752,13 +796,7 @@ prepare_SpreadPredict <- function(sim) {
 #' @return list of `data.table`s, one per element of `fuelSets`.
 fuelClassTablesThisYear <- function(sim, fuelSets) {
   year <- time(sim)
-  stamp <- function() {
-    cd <- sim$cohortData
-    list(NROW(cd), sum(as.numeric(cd$B), na.rm = TRUE), sum(as.numeric(cd$age), na.rm = TRUE),
-         sum(as.numeric(cd$pixelGroup), na.rm = TRUE),
-         sum(terra::values(sim$pixelGroupMap, mat = FALSE), na.rm = TRUE),
-         sum(terra::values(sim$flammableRTM, mat = FALSE), na.rm = TRUE))
-  }
+  stamp <- function() vegetationStamp(sim)
   make <- function() lapply(fuelSets, function(fs) fireSenseUtils::cohortsToFuelClasses(
     cohortData = sim$cohortData,
     pixelGroupMap = sim$pixelGroupMap,
