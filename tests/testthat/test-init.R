@@ -5,11 +5,8 @@ test_that("init produces every declared output on the toy landscape", {
   md <- SpaDES.core::moduleMetadata(module = moduleName, path = modulePath)
   ## studyAreaWithSpreadParams is an output only to be restored on a cache hit; this run supplies none.
   ## The others are set only when .inputObjects reads the SpreadFit ledger, which this run does not.
-  ## The replay objects are outputs only so the modules that read them are set up after this one: they are set
-  ## only with `replayFrom`.
   fromLedger <- c("studyAreaWithSpreadParams", "climateVariables", "sppEquivs", "nonForestedLCCGroupsList",
-                  "missingLCCgroupList", "rasterToMatchELF", "rasterToMatchLargeELF", "nonEscapedFireSizesHa",
-                  "ignitionFirePoints", "firePolys")
+                  "missingLCCgroupList")
   for (obj in setdiff(md$outputObjects$objectName, fromLedger)) {
     expect_false(is.null(sim[[obj]]), info = obj)
   }
@@ -109,7 +106,7 @@ test_that("the retired fireSense_EscapePredict stops with a message naming fireS
     "no longer exists.*fireSense_ignitionPredict")
 })
 
-test_that("the save event does nothing without replaySave", {
+test_that("the save event does nothing", {
   sim <- SpaDES.core::spades(toyPrepSim(), events = "init", debug = FALSE)
   before <- sapply(ls(sim), function(nm) reproducible::.robustDigest(sim[[nm]]))
   queued <- as.data.frame(SpaDES.core::events(sim))

@@ -276,13 +276,6 @@ defineModule(sim, list(
       desc = paste(
         "Ignition and escape covariates at the aggregated (`igAggFactor`) resolution;",
         "`pixelID` is the cell index of the aggregated raster.")),
-    ## with `replayFrom`, set by `.inputObjects` (declared so the modules that read them are set up after this one)
-    createsOutput("rasterToMatch", "SpatRaster", desc = "With `replayFrom`: loaded by `.inputObjects`."),
-    createsOutput("rasterToMatchELF", "SpatRaster", desc = "With `replayFrom`: loaded by `.inputObjects`."),
-    createsOutput("rasterToMatchLargeELF", "SpatRaster", desc = "With `replayFrom`: loaded by `.inputObjects`."),
-    createsOutput("nonEscapedFireSizesHa", "numeric", desc = "With `replayFrom`: loaded by `.inputObjects`."),
-    createsOutput("ignitionFirePoints", "SpatVector", desc = "With `replayFrom`: loaded by `.inputObjects`."),
-    createsOutput("firePolys", "list", desc = "With `replayFrom`: loaded by `.inputObjects`."),
     createsOutput("fireSense_SpreadCovariates", "data.table",
       desc = "Spread covariates; `pixelID` is the cell index of `flammableRTM`."),
     createsOutput("nonForest_timeSinceDisturbance", "SpatRaster",
@@ -370,10 +363,18 @@ doEvent.fireSense_dataPrepPredict <- function(sim, eventTime, eventType) {
     },
     save = {
       if (isTRUE(P(sim)$replaySave)) {
-        saveReplay(mget(replayObjects, envir = envir(sim), ifnotfound = list(NULL)), outputPath(sim))
+        ## SpaDES.core's own save event writes the rows added to `outputs(sim)`; the stacked `firePolys` is
+        ## dropped from `sim` after it
+        sim <- replayStack(sim)
+        outputs(sim) <- rbind(outputs(sim), replayOutputs(sim))
+        sim <- scheduleEvent(sim, time(sim), "save", "later", SpaDES.core::.last())
+        sim <- scheduleEvent(sim, time(sim), "fireSense_dataPrepPredict", "replayUnstack", SpaDES.core::.last() + 1)
       } else {
         message("fireSense_dataPrepPredict: the save event does nothing")
       }
+    },
+    replayUnstack = {
+      sim <- replayUnstack(sim, drop = TRUE)
     },
     warning(paste("Undefined event type: \'", current(sim)[1, "eventType", with = FALSE],
       "\' in module \'", current(sim)[1, "moduleName", with = FALSE], "\'",
@@ -1164,8 +1165,9 @@ predictInputsFromLedger <- function(sim) {
 .inputObjects <- function(sim) {
   if (isReplay(sim)) { # a replay job: the saved inputs, nothing built
     message(currentModule(sim), ": replaying the inputs saved in '", P(sim)$replayFrom, "'.")
-    list2env(loadReplay(P(sim)$replayFrom), envir(sim))
-    return(invisible(sim))
+    inputs(sim) <- rbind(inputs(sim), replayInputs(sim))
+    sim <- SpaDES.core::loadFiles(sim)
+    return(invisible(replayUnstack(sim)))
   }
   cacheTags <- c(currentModule(sim), "otherFunctions:.inputObjects")
   dPath <- asPath(inputPath(sim), 1)
@@ -1250,70 +1252,90 @@ predictInputsFromLedger <- function(sim) {
 }
 
 ## The spread-prediction inputs that do not depend on the spread parameters: what a replay job needs in place
-## of the climate, vegetation, fit and ELF modules. This module builds `fireSense_SpreadCovariates` (and
-## `flammableRTM` from `fireSense_dataPrepFit`'s per-year list, `studyAreaWithSpreadParams` from the ledger
-## when `fireSense_dataPrepFit` is absent); `fireSense_ELFs` makes the three `rasterToMatch*`,
-## `fireSense_dataPrepFit` makes `nonEscapedFireSizesHa` and `ignitionFirePoints`, and `firePolys` is supplied
-## by the user (or absent).
-replayObjects <- c("fireSense_SpreadCovariates", "flammableRTM", "rasterToMatch", "rasterToMatchELF",
-                   "rasterToMatchLargeELF", "studyAreaWithSpreadParams", "nonEscapedFireSizesHa",
-                   "ignitionFirePoints", "firePolys")
-
+## of the climate, vegetation, fit and ELF modules, and how each is written. This module builds
+## `fireSense_SpreadCovariates` (and `flammableRTM` from `fireSense_dataPrepFit`'s per-year list,
+## `studyAreaWithSpreadParams` from the ledger when `fireSense_dataPrepFit` is absent); `fireSense_ELFs` makes the
+## three `rasterToMatch*`, `fireSense_dataPrepFit` makes `nonEscapedFireSizesHa` and `ignitionFirePoints`, and
+## `firePolys` is supplied by the user (or absent). They are written and read through the `outputs()` and
+## `inputs()` of SpaDES.core (`saveFiles()`, `loadFiles()`): terra objects with `terra::writeRaster()`/`rast()` and
+## `terra::writeVector()`/`vect()`, tables and `sf` (whose list columns a GeoPackage loses) with qs2. A terra
+## object never goes to qs2.
+replayObjects <- c(fireSense_SpreadCovariates = "qs2", flammableRTM = "raster", rasterToMatch = "raster",
+                   rasterToMatchELF = "raster", rasterToMatchLargeELF = "raster",
+                   studyAreaWithSpreadParams = "qs2", nonEscapedFireSizesHa = "qs2",
+                   ignitionFirePoints = "vector", replay_firePolys = "vector") # firePolys, stacked in one
+replayHow <- list(qs2 = list(save = "qs_save", load = "qs_read", package = "qs2", ext = "qs2"),
+                  raster = list(save = "writeRaster", load = "rast", package = "terra", ext = "tif",
+                                class = "SpatRaster"),
+                  vector = list(save = "writeVector", load = "vect", package = "terra", ext = "gpkg",
+                                class = "SpatVector"))
 isReplay <- function(sim) !is.na(P(sim)$replayFrom)
 
-replayFile <- function(path, name, ext) file.path(path, paste0("replay_", name, ".", ext))
-
-## how an object is written: terra objects with writeRaster()/writeVector() (never saveRDS), the rest qs2
-replayKind <- function(x) {
-  if (inherits(x, "SpatRaster")) "raster"
-  else if (inherits(x, "SpatVector")) "vector"
-  else if (inherits(x, "sf")) "sf"
-  else if (is.list(x) && length(x) && all(vapply(x, inherits, logical(1), "SpatVector"))) "vectors"
-  else "qs2"
+## the file of an object in `path`: SpaDES.core's outputs() names it `replay_<name>_year<time>.<ext>`
+replayFile <- function(path, name, how, pattern = FALSE) {
+  base <- sub("^(replay_)?", "replay_", name)
+  if (!pattern) return(file.path(path, paste0(base, ".", replayHow[[how]]$ext)))
+  found <- list.files(path, pattern = paste0("^", base, "_year[0-9.]+\\.", replayHow[[how]]$ext, "$"), full.names = TRUE)
+  if (length(found) > 1L)
+    stop("fireSense_dataPrepPredict: ", length(found), " saves of ", name, " in '", path, "'; replay from a folder with one")
+  found
 }
 
-#' Write the replay inputs
-#'
-#' @param objs named list of the objects (`NULL`s are not written).
-#' @param path folder to write in: `replay_<name>.tif` (`SpatRaster`), `replay_<name>.gpkg` (`SpatVector`, `sf`;
-#'   `replay_<name>_<i>.gpkg` for a list of them) and `replay_spreadInputs.qs2` (the other objects, and how each
-#'   object was written).
-#' @return `path`, invisibly.
-saveReplay <- function(objs, path) {
-  objs <- Filter(Negate(is.null), objs)
-  kinds <- vapply(objs, replayKind, character(1))
-  dir.create(path, recursive = TRUE, showWarnings = FALSE)
-  for (nm in names(objs)) {
-    x <- objs[[nm]]
-    switch(kinds[[nm]],
-      raster = terra::writeRaster(x, replayFile(path, nm, "tif"), overwrite = TRUE),
-      vector = terra::writeVector(x, replayFile(path, nm, "gpkg"), overwrite = TRUE),
-      sf = terra::writeVector(terra::vect(x), replayFile(path, nm, "gpkg"), overwrite = TRUE),
-      vectors = for (i in seq_along(x))
-        terra::writeVector(x[[i]], replayFile(path, paste0(nm, "_", i), "gpkg"), overwrite = TRUE))
+## the list of annual fire polygons as one `SpatVector`, the list names in a column
+stackFirePolys <- function(x) {
+  if (is.null(names(x)) || anyNA(names(x)) || !all(nzchar(names(x))))
+    stop("fireSense_dataPrepPredict: firePolys must be a named list (year<YYYY>) to be saved for a replay")
+  x <- x[!vapply(x, is.null, logical(1))] # an absent year has nothing to keep
+  do.call(rbind, unname(Map(function(v, nm) { v$replayElement <- nm; v }, x, names(x))))
+}
+
+unstackFirePolys <- function(v) {
+  nms <- unique(v$replayElement)
+  stats::setNames(lapply(nms, function(nm) { x <- v[v$replayElement == nm, ]; x$replayElement <- NULL; x }), nms)
+}
+
+## `firePolys` <-> its single-vector form, in `sim`
+replayStack <- function(sim) {
+  if (!is.null(sim$firePolys)) sim$replay_firePolys <- stackFirePolys(sim$firePolys)
+  sim
+}
+replayUnstack <- function(sim, drop = FALSE) {
+  if (!drop && !is.null(sim$replay_firePolys)) sim$firePolys <- unstackFirePolys(sim$replay_firePolys)
+  if (!is.null(sim$replay_firePolys)) rm("replay_firePolys", envir = envir(sim))
+  sim
+}
+
+## rows for `outputs(sim)`: the replay objects `sim` holds, written to `outputPath(sim)` now. An object of the
+## wrong class for how it is written stops (a terra object must not reach qs2).
+replayOutputs <- function(sim) {
+  have <- replayObjects[vapply(names(replayObjects), function(nm) !is.null(sim[[nm]]), logical(1))]
+  for (nm in names(have)) {
+    x <- sim[[nm]]
+    cls <- replayHow[[have[[nm]]]]$class
+    if (if (is.null(cls)) inherits(x, c("SpatRaster", "SpatVector")) else !inherits(x, cls))
+      stop("fireSense_dataPrepPredict: ", nm, " is a ", class(x)[1], ", which cannot be saved as ", have[[nm]],
+           " for a replay")
   }
-  qs2::qs_save(c(list(kinds = kinds), objs[kinds == "qs2"]), replayFile(path, "spreadInputs", "qs2"))
-  invisible(path)
+  out <- data.frame(objectName = names(have), saveTime = as.numeric(time(sim)),
+             file = vapply(names(have), function(nm) replayFile(outputPath(sim), nm, have[[nm]]), character(1)),
+             fun = vapply(have, function(h) replayHow[[h]]$save, character(1)),
+             package = vapply(have, function(h) replayHow[[h]]$package, character(1)),
+             saved = NA, stringsAsFactors = FALSE, row.names = NULL)
+  out$arguments <- lapply(have, function(h) if (identical(h, "vector")) list(overwrite = TRUE)) # core sets it for writeRaster only
+  out
 }
 
-#' Read the replay inputs written by `saveReplay()`
-#'
-#' @param path folder `saveReplay()` wrote to.
-#' @return named list of the objects.
-loadReplay <- function(path) {
-  bundle <- qs2::qs_read(replayFile(path, "spreadInputs", "qs2"))
-  kinds <- bundle$kinds
-  out <- bundle[setdiff(names(bundle), "kinds")]
-  for (nm in names(kinds)[kinds != "qs2"])
-    out[[nm]] <- switch(kinds[[nm]],
-      raster = terra::rast(replayFile(path, nm, "tif")),
-      vector = terra::vect(replayFile(path, nm, "gpkg")),
-      sf = sf::st_as_sf(terra::vect(replayFile(path, nm, "gpkg"))),
-      vectors = {
-        files <- sort(list.files(path, pattern = paste0("^replay_", nm, "_[0-9]+\\.gpkg$"), full.names = TRUE))
-        lapply(files[order(as.integer(sub(".*_([0-9]+)\\.gpkg$", "\\1", files)))], terra::vect)
-      })
-  out[names(kinds)]
+## rows for `inputs(sim)`: the replay files in `replayFrom`
+replayInputs <- function(sim) {
+  how <- replayObjects
+  files <- lapply(names(how), function(nm) replayFile(P(sim)$replayFrom, nm, how[[nm]], pattern = TRUE))
+  have <- lengths(files) == 1L
+  files <- unlist(files)
+  if (!any(have)) stop("fireSense_dataPrepPredict: no replay_* files in replayFrom '", P(sim)$replayFrom, "'")
+  data.frame(objectName = names(how)[have], file = files,
+             fun = vapply(how[have], function(h) replayHow[[h]]$load, character(1)),
+             package = vapply(how[have], function(h) replayHow[[h]]$package, character(1)),
+             loadTime = as.numeric(time(sim)), stringsAsFactors = FALSE, row.names = NULL)
 }
 
 ## An NA `.studyAreaName` becomes a hash of `studyArea`, as in Biomass_borealDataPrep. Without a
