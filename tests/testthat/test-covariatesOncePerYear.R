@@ -44,3 +44,60 @@ test_that("a new year rebuilds the covariates", {
                                       params = list(whichModulesToPrepare = "fireSense_spreadPredict")))
   expect_identical(n, 3L)
 })
+
+## the first step of the year, then `change(sim)`, then the other three: the number of fuel-class builds
+## they make, and the covariates before and after
+stepsAfterChange <- function(objs, change, what, params = NULL) {
+  p <- c(list(fireTimeStep = 0.25), if (!is.null(what)) list(whichModulesToPrepare = what), params)
+  sim <- SpaDES.core::spades(toyPrepSim(objs, times = list(start = 2001, end = 2001), params = p), debug = FALSE)
+  first <- list(ig = data.table::copy(sim$fireSense_igAndEscapePred_Covariates),
+                sp = data.table::copy(sim$fireSense_SpreadCovariates))
+  sim <- change(sim)
+  SpaDES.core::end(sim) <- 2001.75
+  n <- countFuelClassCalls(sim <- SpaDES.core::spades(sim, debug = FALSE))
+  list(n = n, first = first, after = list(ig = sim$fireSense_igAndEscapePred_Covariates,
+                                          sp = sim$fireSense_SpreadCovariates))
+}
+
+test_that("ignition and spread prepared together build once per year, as in a hindcast", {
+  n <- countFuelClassCalls(reps <- toyPrepRun(toyObjects(), times = repTimes,
+                                              params = list(fireTimeStep = 0.25)))
+  once <- toyPrepRun(toyObjects(), times = list(start = 2001, end = 2001))
+  expect_identical(n, 1L) # one year, both events, was 8 events' worth of builds (2 per step, shared)
+  expect_identical(covDF(reps$fireSense_SpreadCovariates), covDF(once$fireSense_SpreadCovariates))
+  expect_identical(covDF(reps$fireSense_igAndEscapePred_Covariates), covDF(once$fireSense_igAndEscapePred_Covariates))
+})
+
+test_that("a change that keeps the sum (two pixels swapped) rebuilds", {
+  r <- stepsAfterChange(toyObjects(), function(sim) {
+    v <- terra::values(sim$pixelGroupMap, mat = FALSE)
+    v[c(1, 3)] <- v[c(3, 1)]
+    sim$pixelGroupMap <- terra::setValues(sim$pixelGroupMap, v)
+    sim
+  }, "fireSense_spreadPredict")
+  expect_identical(r$n, 1L)
+  expect_false(isTRUE(all.equal(covDF(r$first$sp), covDF(r$after$sp))))
+})
+
+test_that("a land-cover change between steps of one year rebuilds, with several ELFs too", {
+  o <- toyObjects()
+  o$landcoverDT <- NULL
+  o$sppEquivs <- list(
+    data.table::data.table(LandR = c("Pice_mar", "Pinu_ban", "Popu_tre"), FuelClass = c("class1", "class1", "class2")),
+    data.table::data.table(LandR = c("Pice_mar", "Pinu_ban", "Popu_tre"), FuelClass = c("Pice_mar", "Pinu_ban", "decid")))
+  o$nonForestedLCCGroupsList <- list(list(nfLCC_wetland = 19L, nfLCC_grass = 16L), list(nfLCC_wetgrs = c(16L, 19L)))
+  o$missingLCCgroupList <- list("nfLCC_grass", "nfLCC_wetgrs")
+  r <- stepsAfterChange(o, function(sim) { # a forest pixel and a wetland pixel swap land cover
+    v <- terra::values(sim$rstLCC_RTM, mat = FALSE)
+    v[c(1, 9)] <- v[c(9, 1)]
+    sim$rstLCC_RTM <- terra::setValues(sim$rstLCC_RTM, v)
+    sim
+  }, "fireSense_spreadPredict")
+  expect_identical(r$n, 2L) # the rebuild, one per ELF
+  expect_false(isTRUE(all.equal(covDF(r$first$sp), covDF(r$after$sp))))
+})
+
+test_that("a change of the simulated ELF rebuilds", {
+  r <- stepsAfterChange(toyObjects(), function(sim) { sim$.ELFind <- "7"; sim }, "fireSense_spreadPredict")
+  expect_identical(r$n, 1L)
+})
