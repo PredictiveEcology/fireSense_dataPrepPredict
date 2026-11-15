@@ -26,6 +26,7 @@ defineModule(sim, list(
     "PredictiveEcology/LandR@development",
     "PredictiveEcology/reproducible@development",
     "PredictiveEcology/SpaDES.core@development (>= 3.0.4)",
+    "rlang",
     "sf",
     "terra"
   ),
@@ -325,13 +326,14 @@ doEvent.fireSense_dataPrepPredict <- function(sim, eventTime, eventType) {
       )
     },
     prepIgAndEscPredictData = {
-      sim <- prepare_IgnitionAndEscapePredict(sim)
+      if (!covariatesBuilt(sim, "ignition", list(sim$lightningMaps[["lightningDays"]])))
+        sim <- prepare_IgnitionAndEscapePredict(sim)
       sim <- scheduleEvent(sim, time(sim) + P(sim)$fireTimeStep,
         "fireSense_dataPrepPredict", "prepIgAndEscPredictData"
       )
     },
     prepSpreadPredictData = {
-      sim <- prepare_SpreadPredict(sim)
+      if (!covariatesBuilt(sim, "spread")) sim <- prepare_SpreadPredict(sim)
       sim <- scheduleEvent(sim, time(sim) + P(sim)$fireTimeStep,
         "fireSense_dataPrepPredict", "prepSpreadPredictData"
       )
@@ -734,6 +736,73 @@ prepare_SpreadPredict <- function(sim) {
 }
 
 
+#' A digest of an input, to tell whether it changed
+#'
+#' `rlang::hash()` (xxhash128) of the values (a `SpatRaster`: its names and values; a table: its columns), so a change that keeps
+#' the sum (two pixels swapped) is seen too.
+#'
+#' @param x a `SpatRaster`, table, list or `NULL`.
+#' @return a character.
+inputDigest <- function(x) {
+  if (inherits(x, "SpatRaster")) x <- if (terra::hasValues(x)) list(names(x), terra::values(x, mat = FALSE))
+  if (is.data.frame(x)) x <- as.list(x)
+  rlang::hash(x)
+}
+
+#' A stamp of the vegetation the fuel classes are made from
+#'
+#' Digests of `cohortData`, `pixelGroupMap` and `flammableRTM`: equal stamps mean the same inputs.
+#'
+#' @param sim A `simList`.
+#' @return A list of digests.
+vegetationStamp <- function(sim) {
+  lapply(list(sim$cohortData, sim$pixelGroupMap, sim$flammableRTM), inputDigest)
+}
+
+#' Are this year's covariates already built from these inputs?
+#'
+#' The ignition and spread covariates depend only on the year, the climate, the vegetation, the land cover,
+#' the non-forest time since disturbance and the fitted rows (which ELF, which polygons, which fitted
+#' parameter names, from which the fuel-class roles are read), so the steps inside one year (the reps of a
+#' hindcast, `fireTimeStep` < 1) would rebuild the same tables. The stamp is of the actual inputs, not of
+#' time alone: land cover and vegetation can change within a run. It is kept in `mod` per `what`; it is
+#' replaced when it differs, and `FALSE` is returned so the caller builds. The rows are reduced to the own
+#' ELF's first (`useOwnELFRows()`, as the builders do), so the stamp sees what the builders see.
+#'
+#' @param sim A `simList`.
+#' @param what `"ignition"` or `"spread"`: which covariates, and so which climate variables.
+#' @param extra a list of further inputs of those covariates.
+#'
+#' @return `TRUE` if the covariates in `sim` were built from these inputs, else `FALSE`.
+covariatesBuilt <- function(sim, what, extra = list()) {
+  sim <- useOwnELFRows(sim)
+  sa <- sim$studyAreaWithSpreadParams
+  rows <- list(as.character(sim$.ELFind), as.character(sa[[fireSenseUtils::polygonIDTxt]]),
+               if (!is.null(sa$params)) lapply(sa$params, colnames))
+  climate <- sim$currentClimateRasters[[sim$climateVariablesForFire[[what]]]]
+  stamp <- list(floor(as.numeric(time(sim))), sharedInputStamp(sim), lapply(c(list(climate), extra), inputDigest), rows)
+  built <- sim[[c(ignition = "fireSense_igAndEscapePred_Covariates", spread = "fireSense_SpreadCovariates")[[what]]]]
+  if (!is.null(built) && identical(mod$covariateStamps[[what]], stamp)) return(TRUE)
+  mod$covariateStamps[[what]] <- stamp
+  FALSE
+}
+
+#' The stamp of the inputs both covariate events read, made once per step
+#'
+#' The ignition and the spread event of one step read the same vegetation, time since disturbance, `landcoverDT`
+#' and `rstLCC_RTM`; hashing them is as costly as a rebuild on a large landscape, so the second event of a step
+#' takes the first's stamp (kept in `mod`, keyed on `time(sim)`).
+#'
+#' @param sim A `simList`.
+#' @return A list of digests.
+sharedInputStamp <- function(sim) {
+  now <- as.numeric(time(sim))
+  if (!identical(mod$sharedInputStamp$time, now))
+    mod$sharedInputStamp <- list(time = now, stamp = list(
+      vegetationStamp(sim), lapply(list(sim$nonForest_timeSinceDisturbance, sim$landcoverDT, sim$rstLCC_RTM), inputDigest)))
+  mod$sharedInputStamp$stamp
+}
+
 #' The fuel-class tables for this year, one per fuel set, shared by the ignition and spread covariates
 #'
 #' `fireSenseUtils::fireSenseCovariatesCreate()` is called for ignition (through
@@ -752,13 +821,7 @@ prepare_SpreadPredict <- function(sim) {
 #' @return list of `data.table`s, one per element of `fuelSets`.
 fuelClassTablesThisYear <- function(sim, fuelSets) {
   year <- time(sim)
-  stamp <- function() {
-    cd <- sim$cohortData
-    list(NROW(cd), sum(as.numeric(cd$B), na.rm = TRUE), sum(as.numeric(cd$age), na.rm = TRUE),
-         sum(as.numeric(cd$pixelGroup), na.rm = TRUE),
-         sum(terra::values(sim$pixelGroupMap, mat = FALSE), na.rm = TRUE),
-         sum(terra::values(sim$flammableRTM, mat = FALSE), na.rm = TRUE))
-  }
+  stamp <- function() vegetationStamp(sim)
   make <- function() lapply(fuelSets, function(fs) fireSenseUtils::cohortsToFuelClasses(
     cohortData = sim$cohortData,
     pixelGroupMap = sim$pixelGroupMap,
@@ -952,6 +1015,13 @@ useOwnELFRows <- function(sim) {
 
 ELFfuelSets <- function(sim) {
   fcc <- P(sim)$fuelClassCol
+  ## the land cover the fuel sets are made from is kept, and made again when `rstLCC_RTM` or `flammableRTM` changed
+  lcStamp <- lapply(list(sim$rstLCC_RTM, sim$flammableRTM), inputDigest)
+  if (!identical(mod$ELFlcStamp, lcStamp)) {
+    mod$ELFrstLCC <- NULL
+    mod$ELFlandcoverDTs <- NULL
+    mod$ELFlcStamp <- lcStamp
+  }
   if (length(sim$sppEquivs) > 1L || length(sim$nonForestedLCCGroupsList)) {
     n <- length(sim$sppEquivs)
     if (length(sim$nonForestedLCCGroupsList) != n || length(sim$missingLCCgroupList) != n)
