@@ -20,6 +20,7 @@ defineModule(sim, list(
   reqdPkgs = list(
     "PredictiveEcology/climateData@development", # latestHistoricalYear()
     "data.table",
+    "digest",
     "googledrive",
     "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9142)", # 9142: readSpreadFitLedger() and the other predict-only helpers (#206); fuelCovsToCoarse() hands back the static it used (#191)
     "httr2",
@@ -735,43 +736,53 @@ prepare_SpreadPredict <- function(sim) {
 }
 
 
+#' A digest of an input, to tell whether it changed
+#'
+#' xxhash64 of the values (a `SpatRaster`: its names and values; a table: its columns), so a change that keeps
+#' the sum (two pixels swapped) is seen too.
+#'
+#' @param x a `SpatRaster`, table, list or `NULL`.
+#' @return a character.
+inputDigest <- function(x) {
+  if (inherits(x, "SpatRaster")) x <- if (terra::hasValues(x)) list(names(x), terra::values(x, mat = FALSE))
+  if (is.data.frame(x)) x <- as.list(x)
+  digest::digest(x, algo = "xxhash64")
+}
+
 #' A stamp of the vegetation the fuel classes are made from
 #'
-#' Sums over `cohortData`, `pixelGroupMap` and `flammableRTM`: equal stamps mean the same inputs.
+#' Digests of `cohortData`, `pixelGroupMap` and `flammableRTM`: equal stamps mean the same inputs.
 #'
 #' @param sim A `simList`.
-#' @return A list of numbers.
+#' @return A list of digests.
 vegetationStamp <- function(sim) {
-  cd <- sim$cohortData
-  list(NROW(cd), sum(as.numeric(cd$B), na.rm = TRUE), sum(as.numeric(cd$age), na.rm = TRUE),
-       sum(as.numeric(cd$pixelGroup), na.rm = TRUE),
-       sum(terra::values(sim$pixelGroupMap, mat = FALSE), na.rm = TRUE),
-       sum(terra::values(sim$flammableRTM, mat = FALSE), na.rm = TRUE))
+  lapply(list(sim$cohortData, sim$pixelGroupMap, sim$flammableRTM), inputDigest)
 }
 
 #' Are this year's covariates already built from these inputs?
 #'
-#' The ignition and spread covariates depend only on the year, the climate, the vegetation, the land cover
-#' and the non-forest time since disturbance, so the steps inside one year (the reps of a hindcast,
-#' `fireTimeStep` < 1) would rebuild the same tables. The stamp is of the actual inputs, not of time
-#' alone: land cover and vegetation can change within a run. The stamp is kept in `mod` per `what`; it is
-#' replaced when it differs, and `FALSE` is returned so the caller builds.
+#' The ignition and spread covariates depend only on the year, the climate, the vegetation, the land cover,
+#' the non-forest time since disturbance and the fitted rows (which ELF, which polygons, which fitted
+#' parameter names, from which the fuel-class roles are read), so the steps inside one year (the reps of a
+#' hindcast, `fireTimeStep` < 1) would rebuild the same tables. The stamp is of the actual inputs, not of
+#' time alone: land cover and vegetation can change within a run. It is kept in `mod` per `what`; it is
+#' replaced when it differs, and `FALSE` is returned so the caller builds. The rows are reduced to the own
+#' ELF's first (`useOwnELFRows()`, as the builders do), so the stamp sees what the builders see.
 #'
 #' @param sim A `simList`.
 #' @param what `"ignition"` or `"spread"`: which covariates, and so which climate variables.
-#' @param extra a list of further inputs of those covariates, stamped as they are.
+#' @param extra a list of further inputs of those covariates.
 #'
 #' @return `TRUE` if the covariates in `sim` were built from these inputs, else `FALSE`.
 covariatesBuilt <- function(sim, what, extra = list()) {
-  sumOf <- function(x) {
-    if (inherits(x, "SpatRaster")) return(if (terra::hasValues(x)) sum(terra::values(x, mat = FALSE), na.rm = TRUE))
-    if (is.data.frame(x)) return(lapply(x, function(col) sum(as.numeric(col), na.rm = TRUE)))
-    x
-  }
+  sim <- useOwnELFRows(sim)
+  sa <- sim$studyAreaWithSpreadParams
+  rows <- list(as.character(sim$.ELFind), as.character(sa[[fireSenseUtils::polygonIDTxt]]),
+               if (!is.null(sa$params)) lapply(sa$params, colnames))
   climate <- sim$currentClimateRasters[[sim$climateVariablesForFire[[what]]]]
-  stamp <- list(floor(as.numeric(time(sim))), vegetationStamp(sim), sumOf(climate),
-                sumOf(sim$nonForest_timeSinceDisturbance), sumOf(sim$landcoverDT), sumOf(sim$rstLCC_RTM),
-                lapply(extra, sumOf))
+  stamp <- list(floor(as.numeric(time(sim))), vegetationStamp(sim),
+                lapply(c(list(climate, sim$nonForest_timeSinceDisturbance, sim$landcoverDT, sim$rstLCC_RTM), extra),
+                       inputDigest), rows)
   built <- sim[[c(ignition = "fireSense_igAndEscapePred_Covariates", spread = "fireSense_SpreadCovariates")[[what]]]]
   if (!is.null(built) && identical(mod$covariateStamps[[what]], stamp)) return(TRUE)
   mod$covariateStamps[[what]] <- stamp
@@ -990,6 +1001,13 @@ useOwnELFRows <- function(sim) {
 
 ELFfuelSets <- function(sim) {
   fcc <- P(sim)$fuelClassCol
+  ## the land cover the fuel sets are made from is kept, and made again when `rstLCC_RTM` or `flammableRTM` changed
+  lcStamp <- lapply(list(sim$rstLCC_RTM, sim$flammableRTM), inputDigest)
+  if (!identical(mod$ELFlcStamp, lcStamp)) {
+    mod$ELFrstLCC <- NULL
+    mod$ELFlandcoverDTs <- NULL
+    mod$ELFlcStamp <- lcStamp
+  }
   if (length(sim$sppEquivs) > 1L || length(sim$nonForestedLCCGroupsList)) {
     n <- length(sim$sppEquivs)
     if (length(sim$nonForestedLCCGroupsList) != n || length(sim$missingLCCgroupList) != n)
