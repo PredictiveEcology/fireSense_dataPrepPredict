@@ -26,6 +26,7 @@ defineModule(sim, list(
     "PredictiveEcology/LandR@development",
     "PredictiveEcology/reproducible@development",
     "PredictiveEcology/SpaDES.core@development (>= 3.0.4)",
+    "qs2",
     "rlang",
     "sf",
     "terra"
@@ -79,6 +80,16 @@ defineModule(sim, list(
     ),
     defineParameter("nonForestCanBeYoungAge", "logical", fireSenseUtils::fireSenseNonForestCanBeYoungAge, NA, NA,
                     desc = "Should burned non-forest pixels be `youngAge` until `cutoffForYoungAge`?"),
+    defineParameter("replayFrom", "character", NA_character_, NA, NA,
+                    desc = paste("Path of a reference hindcast job's `outputPath` (one ELF x year folder) made with",
+                                 "`replaySave = TRUE`. When set, `.inputObjects` loads the spread-prediction inputs",
+                                 "that do not depend on the spread parameters from it (`replayObjects`) and no",
+                                 "covariate events are scheduled. `NA`: build as usual. The same name is a parameter",
+                                 "of `fireSense_burn`, so `.globals = list(replayFrom = ...)` sets both.")),
+    defineParameter("replaySave", "logical", FALSE, NA, NA,
+                    desc = paste("Write those inputs (`replay_spreadInputs.qs2`, `replay_<name>.tif`,",
+                                 "`replay_<name>.gpkg`) to `outputPath(sim)` once, after the first covariate build,",
+                                 "for a later job's `replayFrom`. For a job of one year.")),
     defineParameter("scanfiVersion", "character", fireSenseUtils::fireSenseSCANFIVersion, NA, NA,
                     desc = paste(
                       "SCANFI land-cover version for non-forest land cover, when this module builds its own",
@@ -177,6 +188,14 @@ defineModule(sim, list(
         "'year<year>'. Only used if `currentClimateRasters` is not supplied.")),
     expectsInput("rasterToMatch", "SpatRaster", sourceURL = NA,
       desc = "Template raster for the study area."),
+    expectsInput("rasterToMatchELF", "SpatRaster", sourceURL = NA,
+      desc = "From `fireSense_ELFs`. Only saved and replayed (`replaySave`, `replayFrom`)."),
+    expectsInput("nonEscapedFireSizesHa", "numeric", sourceURL = NA,
+      desc = "From `fireSense_dataPrepFit`. Only saved and replayed (`replaySave`, `replayFrom`)."),
+    expectsInput("ignitionFirePoints", "SpatVector", sourceURL = NA,
+      desc = "From `fireSense_dataPrepFit`. Only saved and replayed (`replaySave`, `replayFrom`)."),
+    expectsInput("firePolys", "list", sourceURL = NA,
+      desc = "Annual fire polygons, if supplied. Only saved and replayed (`replaySave`, `replayFrom`)."),
     expectsInput("rasterToMatchLargeELF", "SpatRaster", sourceURL = NA,
       desc = paste("From `fireSense_ELFs`. A neighbour ELF is blended (`blendNeighbourELFs`) only if this",
                    "raster labels its pixels, which is how `fireSense_spreadPredict` weights each ELF.")),
@@ -289,6 +308,7 @@ doEvent.fireSense_dataPrepPredict <- function(sim, eventTime, eventType) {
       if ("fireSense_EscapePredict" %in% P(sim)$whichModulesToPrepare)
         stop("fireSense_EscapePredict no longer exists as a module; escape covariates are prepared with ",
              "fireSense_ignitionPredict. Remove it from parameter whichModulesToPrepare.")
+      if (isReplay(sim)) return(invisible(sim)) # `.inputObjects` loaded everything; nothing to build
       sim <- Init(sim)
       sim <- scheduleEvent(sim, time(sim) + P(sim)$fireTimeStep, "fireSense_dataPrepPredict", "ageNonForest")
       sim <- scheduleEvent(sim, P(sim)$.runInitialTime, "fireSense_dataPrepPredict", "getClimateRasters")
@@ -303,6 +323,9 @@ doEvent.fireSense_dataPrepPredict <- function(sim, eventTime, eventType) {
         sim <- scheduleEvent(sim, P(sim)$.runInitialTime, "fireSense_dataPrepPredict", "prepSpreadPredictData"
         )
       }
+      ## after the first build (priority 5)
+      if (isTRUE(P(sim)$replaySave))
+        sim <- scheduleEvent(sim, P(sim)$.runInitialTime, "fireSense_dataPrepPredict", "save", eventPriority = 7)
     },
     ageNonForest = {
       ## time since disturbance is in whole years: it advances by the calendar years passed since the last
@@ -339,7 +362,21 @@ doEvent.fireSense_dataPrepPredict <- function(sim, eventTime, eventType) {
       )
     },
     save = {
-      message("fireSense_dataPrepPredict: the save event does nothing")
+      if (isTRUE(P(sim)$replaySave)) {
+        ## SpaDES.core's own save event writes the rows added to `outputs(sim)`; the stacked `firePolys` is
+        ## dropped from `sim` after it
+        sim <- replayStack(sim)
+        ## a file of an earlier save would be replayed for an object this save does not have
+        unlink(list.files(outputPath(sim), pattern = "^replay_", full.names = TRUE))
+        outputs(sim) <- rbind(outputs(sim), replayOutputs(sim))
+        sim <- scheduleEvent(sim, time(sim), "save", "later", SpaDES.core::.last())
+        sim <- scheduleEvent(sim, time(sim), "fireSense_dataPrepPredict", "replayUnstack", SpaDES.core::.last() + 1)
+      } else {
+        message("fireSense_dataPrepPredict: the save event does nothing")
+      }
+    },
+    replayUnstack = {
+      sim <- replayUnstack(sim, drop = TRUE)
     },
     warning(paste("Undefined event type: \'", current(sim)[1, "eventType", with = FALSE],
       "\' in module \'", current(sim)[1, "moduleName", with = FALSE], "\'",
@@ -1142,6 +1179,12 @@ predictInputsFromLedger <- function(sim) {
 #'
 #' @return The `simList`, invisibly.
 .inputObjects <- function(sim) {
+  if (isReplay(sim)) { # a replay job: the saved inputs, nothing built
+    message(currentModule(sim), ": replaying the inputs saved in '", P(sim)$replayFrom, "'.")
+    inputs(sim) <- rbind(inputs(sim), replayInputs(sim))
+    sim <- SpaDES.core::loadFiles(sim)
+    return(invisible(replayUnstack(sim)))
+  }
   cacheTags <- c(currentModule(sim), "otherFunctions:.inputObjects")
   dPath <- asPath(inputPath(sim), 1)
   ## the same data year as the vegetation modules (Biomass_core, Biomass_borealDataPrep, ...)
@@ -1222,6 +1265,93 @@ predictInputsFromLedger <- function(sim) {
   }
 
   return(invisible(sim))
+}
+
+## The spread-prediction inputs that do not depend on the spread parameters: what a replay job needs in place
+## of the climate, vegetation, fit and ELF modules, and how each is written. This module builds
+## `fireSense_SpreadCovariates` (and `flammableRTM` from `fireSense_dataPrepFit`'s per-year list,
+## `studyAreaWithSpreadParams` from the ledger when `fireSense_dataPrepFit` is absent); `fireSense_ELFs` makes the
+## three `rasterToMatch*`, `fireSense_dataPrepFit` makes `nonEscapedFireSizesHa` and `ignitionFirePoints`, and
+## `firePolys` is supplied by the user (or absent). They are written and read through the `outputs()` and
+## `inputs()` of SpaDES.core (`saveFiles()`, `loadFiles()`): terra objects with `terra::writeRaster()`/`rast()` and
+## `terra::writeVector()`/`vect()`, tables and `sf` (whose list columns a GeoPackage loses) with qs2. A terra
+## object never goes to qs2.
+replayObjects <- c(fireSense_SpreadCovariates = "qs2", flammableRTM = "raster", rasterToMatch = "raster",
+                   rasterToMatchELF = "raster", rasterToMatchLargeELF = "raster",
+                   studyAreaWithSpreadParams = "qs2", nonEscapedFireSizesHa = "qs2",
+                   ignitionFirePoints = "vector", replay_firePolys = "vector") # firePolys, stacked in one
+replayHow <- list(qs2 = list(save = "qs_save", load = "qs_read", package = "qs2", ext = "qs2"),
+                  raster = list(save = "writeRaster", load = "rast", package = "terra", ext = "tif",
+                                class = "SpatRaster"),
+                  vector = list(save = "writeVector", load = "vect", package = "terra", ext = "gpkg",
+                                class = "SpatVector"))
+isReplay <- function(sim) !is.na(P(sim)$replayFrom)
+
+## the file of an object in `path`: SpaDES.core's outputs() names it `replay_<name>_year<time>.<ext>`
+replayFile <- function(path, name, how, pattern = FALSE) {
+  base <- sub("^(replay_)?", "replay_", name)
+  if (!pattern) return(file.path(path, paste0(base, ".", replayHow[[how]]$ext)))
+  found <- list.files(path, pattern = paste0("^", base, "_year[0-9.]+\\.", replayHow[[how]]$ext, "$"), full.names = TRUE)
+  if (length(found) > 1L)
+    stop("fireSense_dataPrepPredict: ", length(found), " saves of ", name, " in '", path, "'; replay from a folder with one")
+  found
+}
+
+## the list of annual fire polygons as one `SpatVector`, the list names in a column
+stackFirePolys <- function(x) {
+  if (is.null(names(x)) || anyNA(names(x)) || !all(nzchar(names(x))))
+    stop("fireSense_dataPrepPredict: firePolys must be a named list (year<YYYY>) to be saved for a replay")
+  x <- x[!vapply(x, is.null, logical(1))] # an absent year has nothing to keep
+  do.call(rbind, unname(Map(function(v, nm) { v$replayElement <- nm; v }, x, names(x))))
+}
+
+unstackFirePolys <- function(v) {
+  nms <- unique(v$replayElement)
+  stats::setNames(lapply(nms, function(nm) { x <- v[v$replayElement == nm, ]; x$replayElement <- NULL; x }), nms)
+}
+
+## `firePolys` <-> its single-vector form, in `sim`
+replayStack <- function(sim) {
+  if (!is.null(sim$firePolys)) sim$replay_firePolys <- stackFirePolys(sim$firePolys)
+  sim
+}
+replayUnstack <- function(sim, drop = FALSE) {
+  if (!drop && !is.null(sim$replay_firePolys)) sim$firePolys <- unstackFirePolys(sim$replay_firePolys)
+  if (!is.null(sim$replay_firePolys)) rm("replay_firePolys", envir = envir(sim))
+  sim
+}
+
+## rows for `outputs(sim)`: the replay objects `sim` holds, written to `outputPath(sim)` now. An object of the
+## wrong class for how it is written stops (a terra object must not reach qs2).
+replayOutputs <- function(sim) {
+  have <- replayObjects[vapply(names(replayObjects), function(nm) !is.null(sim[[nm]]), logical(1))]
+  for (nm in names(have)) {
+    x <- sim[[nm]]
+    cls <- replayHow[[have[[nm]]]]$class
+    if (if (is.null(cls)) inherits(x, c("SpatRaster", "SpatVector")) else !inherits(x, cls))
+      stop("fireSense_dataPrepPredict: ", nm, " is a ", class(x)[1], ", which cannot be saved as ", have[[nm]],
+           " for a replay")
+  }
+  out <- data.frame(objectName = names(have), saveTime = as.numeric(time(sim)),
+             file = vapply(names(have), function(nm) replayFile(outputPath(sim), nm, have[[nm]]), character(1)),
+             fun = vapply(have, function(h) replayHow[[h]]$save, character(1)),
+             package = vapply(have, function(h) replayHow[[h]]$package, character(1)),
+             saved = NA, stringsAsFactors = FALSE, row.names = NULL)
+  out$arguments <- lapply(have, function(h) if (identical(h, "vector")) list(overwrite = TRUE)) # core sets it for writeRaster only
+  out
+}
+
+## rows for `inputs(sim)`: the replay files in `replayFrom`
+replayInputs <- function(sim) {
+  how <- replayObjects
+  files <- lapply(names(how), function(nm) replayFile(P(sim)$replayFrom, nm, how[[nm]], pattern = TRUE))
+  have <- lengths(files) == 1L
+  files <- unlist(files)
+  if (!any(have)) stop("fireSense_dataPrepPredict: no replay_* files in replayFrom '", P(sim)$replayFrom, "'")
+  data.frame(objectName = names(how)[have], file = files,
+             fun = vapply(how[have], function(h) replayHow[[h]]$load, character(1)),
+             package = vapply(how[have], function(h) replayHow[[h]]$package, character(1)),
+             loadTime = as.numeric(time(sim)), stringsAsFactors = FALSE, row.names = NULL)
 }
 
 ## An NA `.studyAreaName` becomes a hash of `studyArea`, as in Biomass_borealDataPrep. Without a

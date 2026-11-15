@@ -24,13 +24,16 @@ test_that("inputs are the expected names and classes", {
       cohortData               = "data.table",
       cohortDatas              = "list",
       currentClimateRasters    = "SpatRaster",
+      firePolys                = "list",
       flammableRTM             = "SpatRaster",
       flammableRTMs            = "list",
+      ignitionFirePoints       = "SpatVector",
       landcoverDT              = "data.table",
       landcoverDTs             = "list",
       lightningMaps            = "SpatRaster",
       missingLCCgroup          = "character",
       missingLCCgroupList      = "list",
+      nonEscapedFireSizesHa    = "numeric",
       nonForest_timeSinceDisturbances = "list",
       nonForestedLCCGroups     = "list",
       nonForestedLCCGroupsList = "list",
@@ -38,6 +41,7 @@ test_that("inputs are the expected names and classes", {
       pixelGroupMaps           = "list",
       projectedClimateRasters  = "list",
       rasterToMatch            = "SpatRaster",
+      rasterToMatchELF         = "SpatRaster",
       rasterToMatchLargeELF    = "SpatRaster",
       rstCurrentBurn           = "SpatRaster",
       rstLCC_RTM               = "SpatRaster",
@@ -84,7 +88,8 @@ test_that("parameters are the expected names", {
     sort(c(".runInitialTime", ".studyAreaName", ".useCache", "blendNeighbourELFs", "cutoffForYoungAge", "dataYear",
            "fireTimeStep", "fitFileSuffix", "flammabilityThreshold", "forestedLCC", "fuelClassCol",
            "igAggFactor", "nonflammableLCC", "nonForestCanBeYoungAge", "scanfiVersion",
-           "spreadFitFilename", "spreadFitGoogleDriveFolder", "sppEquivCol", "whichModulesToPrepare"))
+           "spreadFitFilename", "spreadFitGoogleDriveFolder", "sppEquivCol", "whichModulesToPrepare",
+           "replayFrom", "replaySave"))
   )
 })
 
