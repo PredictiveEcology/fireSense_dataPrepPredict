@@ -136,3 +136,16 @@ test_that("a replay job takes the saved inputs and builds none", {
     expect_identical(asData(rep[[nm]]), asData(ref[[nm]]), info = nm)
   expect_false(any(c("getClimateRasters", "prepSpreadPredictData") %in% SpaDES.core::completed(rep)$eventType))
 })
+
+test_that("an object missing from a later save is not replayed from an earlier one", {
+  ref <- referenceJob(replayObjs())
+  expect_false(is.null(toyPrepRun(list(), params = list(whichModulesToPrepare = "fireSense_spreadPredict",
+                                                         replayFrom = SpaDES.core::outputPath(ref)))$firePolys))
+  ref <- SpaDES.core::scheduleEvent(ref, SpaDES.core::start(ref), moduleName, "save")
+  rm("firePolys", envir = SpaDES.core::envir(ref))
+  ref <- SpaDES.core::spades(ref, events = c("save", "later", "replayUnstack"), debug = FALSE)
+  rep <- toyPrepRun(list(), params = list(whichModulesToPrepare = "fireSense_spreadPredict",
+                                          replayFrom = SpaDES.core::outputPath(ref)))
+  expect_null(rep$firePolys)
+  expect_length(list.files(SpaDES.core::outputPath(ref), pattern = "firePolys"), 0L)
+})

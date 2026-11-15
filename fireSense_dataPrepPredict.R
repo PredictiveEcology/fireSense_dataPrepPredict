@@ -20,7 +20,6 @@ defineModule(sim, list(
   reqdPkgs = list(
     "PredictiveEcology/climateData@development", # latestHistoricalYear()
     "data.table",
-    "digest",
     "googledrive",
     "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9142)", # 9142: readSpreadFitLedger() and the other predict-only helpers (#206); fuelCovsToCoarse() hands back the static it used (#191)
     "httr2",
@@ -28,6 +27,7 @@ defineModule(sim, list(
     "PredictiveEcology/reproducible@development",
     "PredictiveEcology/SpaDES.core@development (>= 3.0.4)",
     "qs2",
+    "rlang",
     "sf",
     "terra"
   ),
@@ -366,6 +366,8 @@ doEvent.fireSense_dataPrepPredict <- function(sim, eventTime, eventType) {
         ## SpaDES.core's own save event writes the rows added to `outputs(sim)`; the stacked `firePolys` is
         ## dropped from `sim` after it
         sim <- replayStack(sim)
+        ## a file of an earlier save would be replayed for an object this save does not have
+        unlink(list.files(outputPath(sim), pattern = "^replay_", full.names = TRUE))
         outputs(sim) <- rbind(outputs(sim), replayOutputs(sim))
         sim <- scheduleEvent(sim, time(sim), "save", "later", SpaDES.core::.last())
         sim <- scheduleEvent(sim, time(sim), "fireSense_dataPrepPredict", "replayUnstack", SpaDES.core::.last() + 1)
@@ -773,7 +775,7 @@ prepare_SpreadPredict <- function(sim) {
 
 #' A digest of an input, to tell whether it changed
 #'
-#' xxhash64 of the values (a `SpatRaster`: its names and values; a table: its columns), so a change that keeps
+#' `rlang::hash()` (xxhash128) of the values (a `SpatRaster`: its names and values; a table: its columns), so a change that keeps
 #' the sum (two pixels swapped) is seen too.
 #'
 #' @param x a `SpatRaster`, table, list or `NULL`.
@@ -781,7 +783,7 @@ prepare_SpreadPredict <- function(sim) {
 inputDigest <- function(x) {
   if (inherits(x, "SpatRaster")) x <- if (terra::hasValues(x)) list(names(x), terra::values(x, mat = FALSE))
   if (is.data.frame(x)) x <- as.list(x)
-  digest::digest(x, algo = "xxhash64")
+  rlang::hash(x)
 }
 
 #' A stamp of the vegetation the fuel classes are made from
@@ -815,13 +817,27 @@ covariatesBuilt <- function(sim, what, extra = list()) {
   rows <- list(as.character(sim$.ELFind), as.character(sa[[fireSenseUtils::polygonIDTxt]]),
                if (!is.null(sa$params)) lapply(sa$params, colnames))
   climate <- sim$currentClimateRasters[[sim$climateVariablesForFire[[what]]]]
-  stamp <- list(floor(as.numeric(time(sim))), vegetationStamp(sim),
-                lapply(c(list(climate, sim$nonForest_timeSinceDisturbance, sim$landcoverDT, sim$rstLCC_RTM), extra),
-                       inputDigest), rows)
+  stamp <- list(floor(as.numeric(time(sim))), sharedInputStamp(sim), lapply(c(list(climate), extra), inputDigest), rows)
   built <- sim[[c(ignition = "fireSense_igAndEscapePred_Covariates", spread = "fireSense_SpreadCovariates")[[what]]]]
   if (!is.null(built) && identical(mod$covariateStamps[[what]], stamp)) return(TRUE)
   mod$covariateStamps[[what]] <- stamp
   FALSE
+}
+
+#' The stamp of the inputs both covariate events read, made once per step
+#'
+#' The ignition and the spread event of one step read the same vegetation, time since disturbance, `landcoverDT`
+#' and `rstLCC_RTM`; hashing them is as costly as a rebuild on a large landscape, so the second event of a step
+#' takes the first's stamp (kept in `mod`, keyed on `time(sim)`).
+#'
+#' @param sim A `simList`.
+#' @return A list of digests.
+sharedInputStamp <- function(sim) {
+  now <- as.numeric(time(sim))
+  if (!identical(mod$sharedInputStamp$time, now))
+    mod$sharedInputStamp <- list(time = now, stamp = list(
+      vegetationStamp(sim), lapply(list(sim$nonForest_timeSinceDisturbance, sim$landcoverDT, sim$rstLCC_RTM), inputDigest)))
+  mod$sharedInputStamp$stamp
 }
 
 #' The fuel-class tables for this year, one per fuel set, shared by the ignition and spread covariates
