@@ -740,6 +740,16 @@ hindcastYoungAgeInputs <- function(sim) {
   inputs
 }
 
+#' The layers of `currentClimateRasters` that the ignition or spread covariates use
+#'
+#' @param sim A `simList`.
+#' @param what `"ignition"` or `"spread"`.
+#' @return A `SpatRaster`, or `NULL` when there is no such variable (a spread model `~ 1` has none).
+climateLayers <- function(sim, what) {
+  vars <- sim$climateVariablesForFire[[what]]
+  if (length(vars)) sim$currentClimateRasters[[vars]]
+}
+
 #' Build this year's spread covariates
 #'
 #' Creates `sim$fireSense_SpreadCovariates` from fuel classes, non-forest landcover and
@@ -749,9 +759,7 @@ hindcastYoungAgeInputs <- function(sim) {
 #'
 #' @return The `simList`, invisibly.
 prepare_SpreadPredict <- function(sim) {
-  spreadClimate <- sim$currentClimateRasters[[sim$climateVariablesForFire$spread]]
-  if (is.null(spreadClimate))
-    stop("spreadClimate is NULL; there is a problem to debug")
+  spreadClimate <- climateLayers(sim, "spread")
 
   sim <- useOwnELFRows(sim)
   ## one fuel set per fitted ELF (one, as before, when there is one ELF). Every ELF's covariates are made for
@@ -827,11 +835,13 @@ prepare_SpreadPredict <- function(sim) {
   }))
 
   # TODO: this chunk is untested 18/12/2024
-  climateCovariates <- spreadClimate |> as.data.frame(cells = TRUE)
-  climateCovariates <- na.omit(climateCovariates) |> as.data.table()
+  if (!is.null(spreadClimate)) { # a '~ 1' spread fit has no climate variable
+    climateCovariates <- spreadClimate |> as.data.frame(cells = TRUE)
+    climateCovariates <- na.omit(climateCovariates) |> as.data.table()
 
-  setnames(climateCovariates, new = c("pixelID", names(spreadClimate)))
-  spreadCovariates <- climateCovariates[spreadCovariates, on = c("pixelID")]
+    setnames(climateCovariates, new = c("pixelID", names(spreadClimate)))
+    spreadCovariates <- climateCovariates[spreadCovariates, on = c("pixelID")]
+  }
 
   nonFuelNames <- c("pixelID", names(spreadClimate), "youngAge")
   setcolorder(spreadCovariates, neworder = nonFuelNames)
@@ -884,7 +894,7 @@ covariatesBuilt <- function(sim, what, extra = list()) {
   sa <- sim$studyAreaWithSpreadParams
   rows <- list(as.character(sim$.ELFind), as.character(sa[[fireSenseUtils::polygonIDTxt]]),
                if (!is.null(sa$params)) lapply(sa$params, colnames))
-  climate <- sim$currentClimateRasters[[sim$climateVariablesForFire[[what]]]]
+  climate <- climateLayers(sim, what)
   stamp <- list(floor(as.numeric(time(sim))), sharedInputStamp(sim), lapply(c(list(climate), extra), inputDigest), rows)
   built <- sim[[c(ignition = "fireSense_igAndEscapePred_Covariates", spread = "fireSense_SpreadCovariates")[[what]]]]
   if (!is.null(built) && identical(mod$covariateStamps[[what]], stamp)) return(TRUE)
