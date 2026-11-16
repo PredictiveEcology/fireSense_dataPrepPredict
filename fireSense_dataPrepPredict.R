@@ -630,7 +630,7 @@ ageNonForest <- function(TSD, rstCurrentBurn, yearsElapsed = 1L) {
 #' @return The `simList`, invisibly.
 prepare_IgnitionAndEscapePredict <- function(sim) {
   ## get climate
-  ignitionClimate <- sim$currentClimateRasters[[sim$climateVariablesForFire$ignition]]
+  ignitionClimate <- climateLayers(sim, "ignition")
   if (is.null(ignitionClimate))
     stop("ignitionClimate is NULL; there is a problem to debug")
   
@@ -744,9 +744,12 @@ hindcastYoungAgeInputs <- function(sim) {
 #'
 #' @param sim A `simList`.
 #' @param what `"ignition"` or `"spread"`.
-#' @return A `SpatRaster`, or `NULL` when there is no such variable (a spread model `~ 1` has none).
+#' @return A `SpatRaster`, or `NULL` when the variables are `character(0)` (a spread model `~ 1` has none).
+#'   Stops if `climateVariablesForFire[[what]]` is `NULL` (absent): that is a malformed `sim`, not a model without one.
 climateLayers <- function(sim, what) {
   vars <- sim$climateVariablesForFire[[what]]
+  if (is.null(vars))
+    stop("climateVariablesForFire$", what, " is NULL; use character(0) for a model with no climate variable")
   if (length(vars)) sim$currentClimateRasters[[vars]]
 }
 

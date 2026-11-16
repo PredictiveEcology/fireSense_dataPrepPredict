@@ -182,3 +182,15 @@ test_that("a '~ 1' spread fit (no spread climate variable) builds the spread cov
   ig <- covDF(sim$fireSense_igAndEscapePred_Covariates)
   expect_true("MDC" %in% names(ig))
 })
+
+test_that("a NULL spread climate variable (a malformed sim) stops", {
+  objs <- toyObjects()
+  objs$climateVariablesForFire <- list(ignition = "MDC", spread = NULL)
+  expect_error(toyPrepRun(objs), "climateVariablesForFire\\$spread is NULL")
+})
+
+test_that("ignition always needs climate: character(0) ignition variables stop", {
+  objs <- toyObjects()
+  objs$climateVariablesForFire <- list(ignition = character(0), spread = "MDC")
+  expect_error(toyPrepRun(objs), "ignitionClimate is NULL")
+})
