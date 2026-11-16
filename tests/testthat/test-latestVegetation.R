@@ -44,7 +44,9 @@ yearLists <- function() {
   lists$flammableRTMs$year2002 <- flam
   lists$flammableRTMs$year2003 <- flam
   ## the decoy's own `rstLCCs` (unnamed, one element) is replaced by the per-year list
-  utils::modifyList(decoy, lists, keep.null = TRUE)
+  out <- utils::modifyList(decoy, lists, keep.null = TRUE)
+  out$firePolysForAge <- list() # a hindcast needs fire data; none burned
+  out
 }
 
 ## a hindcast job: no vegetation module, reps as steps of 0.001 year inside one past data year
@@ -102,11 +104,10 @@ test_that("a hindcast takes the data year strictly before start(sim) from every 
   ## year 2002's TSD aged to 2003 (as the fit does): wetland cell 9 burned 3 y ago and forest cell 1 5 y ago, so
   ## they are young (and so not wetland); cells 5, 6 (cohort age 10) are old by time since disturbance (30)
   expect_identical(which(df$youngAge == 1), c(1L, 9L))
-  ## land cover is not cleared where youngAge is 1: the fit leaves it to spreadPredict, and so does a hindcast
-  expect_identical(which(df$nfLCC_wetland == 1L), c(9L, 10L))
-  ## year 2002's cohorts: pixel group 1 has more class1 biomass than the singleton's
+  expect_identical(which(df$nfLCC_wetland == 1L), 10L)
+  ## year 2002's cohorts: pixel group 1 has more class1 biomass than the singleton's (cell 2; cell 1 is young, so cleared)
   base <- covDF(toyPrepRun()$fireSense_SpreadCovariates)
-  expect_gt(df$class1[1], base$class1[1])
+  expect_gt(df$class1[2], base$class1[2])
   ## the objects other modules read are year 2002's too
   expect_identical(as.vector(terra::values(sim$flammableRTM)), c(rep(1, 14), 0, 0))
   expect_identical(as.vector(terra::values(sim$nonForest_timeSinceDisturbance))[9], 3)
@@ -261,6 +262,28 @@ test_that("a hindcast keeps the fuel of pixels young by cohort age but not by ti
   ## young by cohort age 10, old by time since disturbance, so it is no longer cleared here
   df <- covDF(hindcast2005(yearLists())$fireSense_SpreadCovariates)
   expect_gt(df$class1[df$pixelID == 5], df$class1[df$pixelID == 13])   # 13: forest land cover without cohorts
+})
+
+test_that("a hindcast clears fuel and land cover on young pixels as the fit does, whatever scale a fit uses", {
+  ## the covariates are logged here; fireSense_spreadPredict clears only the indicators when a fit is on the
+  ## log scale (its fuelCols is then empty), so the table must already have fuel cleared (logMinB(0), the value of
+  ## a pixel without that fuel). Cell 3 (Popu_tre, class2) burned in 2004; cell 9 (wetland) is young by time since disturbance
+  fy <- rep(NA_real_, 16); fy[3] <- 2004
+  df <- covDF(hindcast2005(firesObjs(fy))$fireSense_SpreadCovariates)
+  noFuel <- df$class2[df$pixelID == 13]
+  expect_identical(noFuel, fireSenseUtils::logMinB(0))
+  expect_identical(df$class2[df$pixelID == 3], noFuel)
+  expect_gt(df$class2[df$pixelID == 4], noFuel)   # cell 4 is PG2 too, not burned
+  expect_identical(df$nfLCC_wetland[df$pixelID == 9], 0L)
+  expect_identical(df$nfLCC_wetland[df$pixelID == 10], 1L)
+})
+
+test_that("a hindcast with no fire data stops; the fire inputs are read once per year", {
+  objs <- yearLists()
+  objs$firePolysForAge <- NULL
+  expect_error(hindcast2005(objs), "firePolysForAge or historicalFireRaster")
+  sim <- hindcast2005(yearLists())
+  expect_identical(toyModP(sim)$hindcastYoungAge$year, 2005)
 })
 
 test_that("a hindcast with nonForestCanBeYoungAge = FALSE stops, as the fit does; a forecast does not", {

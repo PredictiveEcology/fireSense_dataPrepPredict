@@ -198,10 +198,10 @@ defineModule(sim, list(
       desc = "Annual fire polygons, if supplied. Only saved and replayed (`replaySave`, `replayFrom`)."),
     expectsInput("firePolysForAge", "list", sourceURL = NA,
       desc = paste("From `fireSense_dataPrepFit`: annual fire polygons, named `year<year>`, from before the",
-                   "first fit year. In a hindcast, with `historicalFireRaster` or `firePolys`, the fires after the data",
-                   "year that make a pixel `youngAge` in the hindcast year.")),
+                   "first fit year. A hindcast needs it or `historicalFireRaster`: the fires after the data year make a",
+                   "pixel `youngAge` in the hindcast year.")),
     expectsInput("historicalFireRaster", "SpatRaster", sourceURL = NA,
-      desc = "From `fireSense_dataPrepFit`, optional: fire year of each pixel. Replaces `firePolysForAge` and `firePolys`."),
+      desc = "From `fireSense_dataPrepFit`, optional: fire year of each pixel. Replaces `firePolysForAge`."),
     expectsInput("rasterToMatchLargeELF", "SpatRaster", sourceURL = NA,
       desc = paste("From `fireSense_ELFs`. A neighbour ELF is blended (`blendNeighbourELFs`) only if this",
                    "raster labels its pixels, which is how `fireSense_spreadPredict` weights each ELF.")),
@@ -711,28 +711,33 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
 #' `fireSenseUtils::prepare_FuelCovsCoarseByYear()`). A hindcast of year `Y` (no module simulates `cohortData`)
 #' does the same: the data year of its vegetation (`fireSenseUtils::dataYearElement(before = TRUE)`, that of
 #' `takeLatestVegetation()`), `Y = floor(time(sim))`, and the fires in `historicalFireRaster`, else
-#' `firePolysForAge`, else `firePolys` (`fireSenseUtils::firePixelsByYear()`). It stops on
+#' `firePolysForAge` (`fireSenseUtils::firePixelsByYear()`, as the fit chooses; it stops if there is neither). It stops on
 #' `nonForestCanBeYoungAge = FALSE`, as the fit does. A forecast, or a run with no per-year
 #' `nonForest_timeSinceDisturbances`, returns `NULL`: its `youngAge` comes from the simulated cohorts and the aged
-#' `nonForest_timeSinceDisturbance`.
+#' `nonForest_timeSinceDisturbance`. Made once per year (kept in `mod`).
 #'
 #' @param sim A `simList`.
 #' @return `NULL`, or a list of `tsd` (`SpatRaster`, the data year's time since disturbance), `dataYear`, `year`
 #'   and `firePixels` (`firePixelsByYear()`).
 hindcastYoungAgeInputs <- function(sim) {
-  tsds <- sim$nonForest_timeSinceDisturbances
-  if (!isHindcast(sim) || !any(grepl("[0-9]", names(tsds)))) return(NULL)
-  fireSenseUtils::stopIfNonForestCannotBeYoung(P(sim)$nonForestCanBeYoungAge)
   year <- floor(as.numeric(time(sim)))
-  el <- fireSenseUtils::dataYearElement(tsds, year, before = TRUE)
-  polys <- if (!is.null(sim$firePolysForAge)) sim$firePolysForAge else sim$firePolys
-  if (is.null(polys) && is.null(sim$historicalFireRaster))
-    message("fireSense_dataPrepPredict: no fire data (historicalFireRaster, firePolysForAge, firePolys): ",
-            "youngAge ignores the fires after the data year")
-  list(tsd = tsds[[el]], dataYear = as.integer(gsub("[^0-9]", "", el)), year = year,
-       firePixels = if (is.null(polys) && is.null(sim$historicalFireRaster)) list() else
-         fireSenseUtils::firePixelsByYear(firePolys = polys, fireRaster = sim$historicalFireRaster,
-                                          template = sim$flammableRTM))
+  if (identical(mod$hindcastYoungAge$year, year)) return(mod$hindcastYoungAge$inputs) # once per year
+  tsds <- sim$nonForest_timeSinceDisturbances
+  inputs <- NULL
+  if (isHindcast(sim) && any(grepl("[0-9]", names(tsds)))) {
+    fireSenseUtils::stopIfNonForestCannotBeYoung(P(sim)$nonForestCanBeYoungAge)
+    if (is.null(sim$firePolysForAge) && is.null(sim$historicalFireRaster))
+      stop("fireSense_dataPrepPredict: a hindcast resolves youngAge as the fit does, from the fires after the data ",
+           "year: supply firePolysForAge or historicalFireRaster (made by fireSense_dataPrepFit)", call. = FALSE)
+    el <- fireSenseUtils::dataYearElement(tsds, year, before = TRUE)
+    ## the fit's choice (fireSense_dataPrepFit allFirePixelsByYear()): the raster if there is one, else firePolysForAge
+    inputs <- list(tsd = tsds[[el]], dataYear = as.integer(gsub("[^0-9]", "", el)), year = year,
+                   firePixels = fireSenseUtils::firePixelsByYear(firePolys = sim$firePolysForAge,
+                                                                 fireRaster = sim$historicalFireRaster,
+                                                                 template = sim$flammableRTM))
+  }
+  mod$hindcastYoungAge <- list(year = year, inputs = inputs)
+  inputs
 }
 
 #' Build this year's spread covariates
@@ -786,19 +791,19 @@ prepare_SpreadPredict <- function(sim) {
       nonForest_timeSinceDisturbance = sim$nonForest_timeSinceDisturbance,
       studyAreaName = P(sim)$.studyAreaName,
       useCache = FALSE, # predict is annual, no point in caching
-      youngAge = is.null(hy), # a hindcast resolves it below, as the fit does; its fuels are cleared by spreadPredict
+      youngAge = is.null(hy), # a hindcast resolves it below, as the fit does
       fuelCovariates = if (is.na(fs$fuelClassRoles$domClass)) "species" else "domSecWetland",
       domClass = fs$fuelClassRoles$domClass,
       secClass = fs$fuelClassRoles$secClass,
       treedWetland = fs$fuelClassRoles$treedWetland
     )
     if (!is.null(hy)) {
-      tsd <- data.table::data.table(pixelID = seq_len(terra::ncell(hy$tsd)), tsd = terra::values(hy$tsd, mat = FALSE))
       data.table::set(covs, NULL, "youngAge",
-                      fireSenseUtils::youngAgeAtYear(tsd, dataYear = hy$dataYear, year = hy$year,
-                                                     firePixelsByYear = hy$firePixels,
+                      fireSenseUtils::youngAgeAtYear(fireSenseUtils::tsdTable(hy$tsd), dataYear = hy$dataYear,
+                                                     year = hy$year, firePixelsByYear = hy$firePixels,
                                                      cutoffForYoungAge = P(sim)$cutoffForYoungAge,
                                                      pixelID = covs$pixelID))
+      fireSenseUtils::clearYoungAge(covs) # fuel, non-forest land cover, treed wetland: as the fit, linear or log fuel
     }
     # Sanity check - make sure the nonForest pixels have no forest fuels
     nfCols <- setdiff(names(fs$landcoverDT), "pixelID")
