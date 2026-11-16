@@ -1,7 +1,7 @@
 ---
 title: "fireSense_dataPrepPredict Manual"
-subtitle: "v.1.1.0.9010"
-date: "Last updated: 2026-11-15"
+subtitle: "v.1.1.0.9011"
+date: "Last updated: 2026-11-16"
 output:
   bookdown::html_document2:
     toc: true
@@ -199,6 +199,18 @@ Table \@ref(tab:moduleInputs-fireSense-dataPrepPredict) shows the full list of m
    <td style="text-align:left;"> firePolys </td>
    <td style="text-align:left;"> list </td>
    <td style="text-align:left;"> Annual fire polygons, if supplied. Only saved and replayed (`replaySave`, `replayFrom`). </td>
+   <td style="text-align:left;"> NA </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> firePolysForAge </td>
+   <td style="text-align:left;"> list </td>
+   <td style="text-align:left;"> From `fireSense_dataPrepFit`: annual fire polygons, named `year&lt;year&gt;`, from before the first fit year. A hindcast needs it or `historicalFireRaster`: the fires after the data year make a pixel `youngAge` in the hindcast year. </td>
+   <td style="text-align:left;"> NA </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> historicalFireRaster </td>
+   <td style="text-align:left;"> SpatRaster </td>
+   <td style="text-align:left;"> From `fireSense_dataPrepFit`, optional: fire year of each pixel. Replaces `firePolysForAge`. </td>
    <td style="text-align:left;"> NA </td>
   </tr>
   <tr>

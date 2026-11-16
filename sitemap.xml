@@ -16,8 +16,10 @@
 <url><loc>/reference/fuelClassRolesFromTermNames.html</loc></url>
 <url><loc>/reference/fuelClassTablesThisYear.html</loc></url>
 <url><loc>/reference/getCurrentClimate.html</loc></url>
+<url><loc>/reference/hindcastYoungAgeInputs.html</loc></url>
 <url><loc>/reference/index.html</loc></url>
 <url><loc>/reference/inputDigest.html</loc></url>
+<url><loc>/reference/isHindcast.html</loc></url>
 <url><loc>/reference/mergeCovariateTables.html</loc></url>
 <url><loc>/reference/predictInputsFromLedger.html</loc></url>
 <url><loc>/reference/prepare_IgnitionAndEscapePredict.html</loc></url>

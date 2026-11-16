@@ -32,7 +32,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="index.html">fireSense_dataPrepPredict</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.1.0.9010</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.1.0.9011</span>
       </span>
     </div>
 
@@ -379,6 +379,62 @@ SpatRaster
 </td>
 <td style="text-align:left;">
 Template raster for the study area.
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+rasterToMatchELF
+</td>
+<td style="text-align:left;">
+SpatRaster
+</td>
+<td style="text-align:left;">
+From <code>fireSense_ELFs</code>. Only saved and replayed (<code>replaySave</code>, <code>replayFrom</code>).
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+nonEscapedFireSizesHa
+</td>
+<td style="text-align:left;">
+numeric
+</td>
+<td style="text-align:left;">
+From <code>fireSense_dataPrepFit</code>. Only saved and replayed (<code>replaySave</code>, <code>replayFrom</code>).
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+ignitionFirePoints
+</td>
+<td style="text-align:left;">
+SpatVector
+</td>
+<td style="text-align:left;">
+From <code>fireSense_dataPrepFit</code>. Only saved and replayed (<code>replaySave</code>, <code>replayFrom</code>).
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+firePolys
+</td>
+<td style="text-align:left;">
+list
+</td>
+<td style="text-align:left;">
+Annual fire polygons, if supplied. Only saved and replayed (<code>replaySave</code>, <code>replayFrom</code>).
 </td>
 <td style="text-align:left;">
 NA
@@ -830,6 +886,52 @@ NA
 </td>
 <td style="text-align:left;">
 Should burned non-forest pixels be <code>youngAge</code> until <code>cutoffForYoungAge</code>?
+</td>
+<td style="text-align:left;">
+TRUE
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+replayFrom
+</td>
+<td style="text-align:left;">
+character
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+Path of a reference hindcast job’s <code>outputPath</code> (one ELF x year folder) made with <code>replaySave = TRUE</code>. When set, <code>.inputObjects</code> loads the spread-prediction inputs that do not depend on the spread parameters from it (<code>replayObjects</code>) and no covariate events are scheduled. <code>NA</code>: build as usual. The same name is a parameter of <code>fireSense_burn</code>, so <code>.globals = list(replayFrom = ...)</code> sets both.
+</td>
+<td style="text-align:left;">
+TRUE
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+replaySave
+</td>
+<td style="text-align:left;">
+logical
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+Write those inputs (<code>replay_spreadInputs.qs2</code>, <code>replay_&amp;lt;name&amp;gt;.tif</code>, <code>replay_&amp;lt;name&amp;gt;.gpkg</code>) to <code>outputPath(sim)</code> once, after the first covariate build, for a later job’s <code>replayFrom</code>. For a job of one year.
 </td>
 <td style="text-align:left;">
 TRUE

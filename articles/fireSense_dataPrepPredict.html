@@ -31,7 +31,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">fireSense_dataPrepPredict</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.1.0.9010</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.1.0.9011</span>
       </span>
     </div>
 
@@ -70,9 +70,9 @@
   <div class="col-md-9 contents">
     <div class="page-header toc-ignore">
       <h1 data-toc-skip>fireSense_dataPrepPredict Manual</h1>
-            <h3 data-toc-skip class="subtitle">v.1.1.0.9010</h3>
+            <h3 data-toc-skip class="subtitle">v.1.1.0.9011</h3>
             
-            <h4 data-toc-skip class="date">Last updated: 2026-11-15</h4>
+            <h4 data-toc-skip class="date">Last updated: 2026-11-16</h4>
       
 
       <div class="hidden name"><code>fireSense_dataPrepPredict.Rmd</code></div>
@@ -452,6 +452,34 @@ list
 </td>
 <td style="text-align:left;">
 Annual fire polygons, if supplied. Only saved and replayed (<code>replaySave</code>, <code>replayFrom</code>).
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+firePolysForAge
+</td>
+<td style="text-align:left;">
+list
+</td>
+<td style="text-align:left;">
+From <code>fireSense_dataPrepFit</code>: annual fire polygons, named <code>year&amp;lt;year&amp;gt;</code>, from before the first fit year. A hindcast needs it or <code>historicalFireRaster</code>: the fires after the data year make a pixel <code>youngAge</code> in the hindcast year.
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+historicalFireRaster
+</td>
+<td style="text-align:left;">
+SpatRaster
+</td>
+<td style="text-align:left;">
+From <code>fireSense_dataPrepFit</code>, optional: fire year of each pixel. Replaces <code>firePolysForAge</code>.
 </td>
 <td style="text-align:left;">
 NA
