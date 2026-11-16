@@ -102,7 +102,8 @@ test_that("a hindcast takes the data year strictly before start(sim) from every 
   ## year 2002's TSD aged to 2003 (as the fit does): wetland cell 9 burned 3 y ago and forest cell 1 5 y ago, so
   ## they are young (and so not wetland); cells 5, 6 (cohort age 10) are old by time since disturbance (30)
   expect_identical(which(df$youngAge == 1), c(1L, 9L))
-  expect_identical(which(df$nfLCC_wetland == 1L), 10L)
+  ## land cover is not cleared where youngAge is 1: the fit leaves it to spreadPredict, and so does a hindcast
+  expect_identical(which(df$nfLCC_wetland == 1L), c(9L, 10L))
   ## year 2002's cohorts: pixel group 1 has more class1 biomass than the singleton's
   base <- covDF(toyPrepRun()$fireSense_SpreadCovariates)
   expect_gt(df$class1[1], base$class1[1])
@@ -253,4 +254,34 @@ test_that("fires are read from firePolysForAge when there is no historicalFireRa
 test_that("a forecast keeps the youngAge of the simulated cohorts", {
   df <- covDF(forecast()$fireSense_SpreadCovariates)
   expect_true(all(df$youngAge[df$pixelID %in% c(5L, 6L)] == 1))   # cohort age 10 (+ 0 years: not aged here)
+})
+
+test_that("a hindcast keeps the fuel of pixels young by cohort age but not by time since disturbance", {
+  ## the fit builds fuels without youngAge (fuels are cleared where youngAge is 1, by spreadPredict); cell 5 is
+  ## young by cohort age 10, old by time since disturbance, so it is no longer cleared here
+  df <- covDF(hindcast2005(yearLists())$fireSense_SpreadCovariates)
+  expect_gt(df$class1[df$pixelID == 5], df$class1[df$pixelID == 13])   # 13: forest land cover without cohorts
+})
+
+test_that("a hindcast with nonForestCanBeYoungAge = FALSE stops, as the fit does; a forecast does not", {
+  objs <- yearLists()
+  objs$projectedClimateRasters <- toyClimate(2001:2005)
+  expect_error(hindcast(objs, start = 2005, end = 2005.0025, nonForestCanBeYoungAge = FALSE), "not supported")
+  expect_s4_class(forecast(), "simList")
+})
+
+test_that("a hindcast's ignition youngAge is the share of young pixels, as the fit makes it", {
+  fy <- rep(NA_real_, 16)
+  fy[c(3, 7)] <- 2004
+  sim <- hindcast2005(firesObjs(fy))
+  ig <- as.data.frame(sim$fireSense_igAndEscapePred_Covariates)
+  ig <- ig[order(ig$pixelID), ]
+  tsd <- data.frame(pixelID = 1:16, tsd = c(5, rep(30, 13), 5, 30)); tsd$tsd[9] <- 4
+  young <- fireSenseUtils::youngAgeAtYear(tsd, 2003, 2005, list("2004" = c(3L, 7L)), 15)
+  young[15:16] <- 0   # not flammable in the data year: no cover
+  ## coarse cells of 2 x 2 pixels
+  expected <- c(mean(young[c(1, 2, 5, 6)]), mean(young[c(3, 4, 7, 8)]),
+                mean(young[c(9, 10, 13, 14)]), mean(young[c(11, 12, 15, 16)]))
+  expect_equal(ig$youngAge, expected[ig$pixelID])
+  expect_gt(max(ig$youngAge), 0)
 })
