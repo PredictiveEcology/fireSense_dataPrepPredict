@@ -196,6 +196,12 @@ defineModule(sim, list(
       desc = "From `fireSense_dataPrepFit`. Only saved and replayed (`replaySave`, `replayFrom`)."),
     expectsInput("firePolys", "list", sourceURL = NA,
       desc = "Annual fire polygons, if supplied. Only saved and replayed (`replaySave`, `replayFrom`)."),
+    expectsInput("firePolysForAge", "list", sourceURL = NA,
+      desc = paste("From `fireSense_dataPrepFit`: annual fire polygons, named `year<year>`, from before the",
+                   "first fit year. A hindcast needs it or `historicalFireRaster`: the fires after the data year make a",
+                   "pixel `youngAge` in the hindcast year.")),
+    expectsInput("historicalFireRaster", "SpatRaster", sourceURL = NA,
+      desc = "From `fireSense_dataPrepFit`, optional: fire year of each pixel. Replaces `firePolysForAge`."),
     expectsInput("rasterToMatchLargeELF", "SpatRaster", sourceURL = NA,
       desc = paste("From `fireSense_ELFs`. A neighbour ELF is blended (`blendNeighbourELFs`) only if this",
                    "raster labels its pixels, which is how `fireSense_spreadPredict` weights each ELF.")),
@@ -413,7 +419,7 @@ vegetationLists <- c(cohortData = "cohortDatas", pixelGroupMap = "pixelGroupMaps
 takeLatestVegetation <- function(sim) {
   year <- floor(as.numeric(time(sim)))
   simulated <- simulatedObjects(sim)
-  hindcast <- !"cohortData" %in% simulated
+  hindcast <- isHindcast(sim)
   for (obj in setdiff(names(vegetationLists), simulated)) {
     lst <- vegetationLists[[obj]]
     ## no list, or one whose elements are not named by year (an unnamed `rstLCCs` of one element, as a
@@ -426,6 +432,14 @@ takeLatestVegetation <- function(sim) {
   }
   sim
 }
+
+#' Is this run a hindcast?
+#'
+#' A hindcast has no module that simulates `cohortData`: the vegetation is the data year's.
+#'
+#' @param sim A `simList`.
+#' @return `TRUE` or `FALSE`.
+isHindcast <- function(sim) !"cohortData" %in% simulatedObjects(sim)
 
 #' The objects another module simulates
 #'
@@ -627,18 +641,18 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
   ## each ELF's columns alongside the others', for fireSense_ignitionPredict to pick its own
   fuelSets <- ELFfuelSets(sim)
   fuelClassTables <- fuelClassTablesThisYear(sim, fuelSets)
+  hy <- hindcastYoungAgeInputs(sim)
   ## the part of the coarse covariates that does not change from year to year, one per fuel set; the call
   ## hands back the one it used (rebuilt if land cover or flammableRTM changed)
   if (is.null(mod$fuelCovsStatic)) mod$fuelCovsStatic <- vector("list", length(fuelSets))
   fuelCovsCoarse <- mergeCovariateTables(lapply(seq_along(fuelSets), function(i) {
     fs <- fuelSets[[i]]
-    coarse <- prepare_FuelCovsCoarse(
+    fcArgs <- list(
     fuelClassTable = fuelClassTables[[i]],
     cohortData = sim$cohortData,
     pixelGroupMap = sim$pixelGroupMap,
     flammableRTM = sim$flammableRTM,
     landcoverDT = fs$landcoverDT,
-    nonForest_timeSinceDisturbance = sim$nonForest_timeSinceDisturbance,
     sppEquiv = fs$sppEquiv,
     sppEquivCol = P(sim)$sppEquivCol,
     fuelClassCol = P(sim)$fuelClassCol,
@@ -649,9 +663,17 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
     nonForestCanBeYoungAge = P(sim)$nonForestCanBeYoungAge,
     studyAreaName = P(sim)$.studyAreaName,
     rasTemplate = sim$flammableRTM, fact = Par$igAggFactor,
-    static = mod$fuelCovsStatic[[i]],
     useCache = FALSE
   )
+    coarse <- if (is.null(hy)) {
+      do.call(prepare_FuelCovsCoarse, c(fcArgs, list(
+        nonForest_timeSinceDisturbance = sim$nonForest_timeSinceDisturbance, static = mod$fuelCovsStatic[[i]])))
+    } else {
+      ## a hindcast resolves youngAge for its year as the fit does
+      do.call(fireSenseUtils::prepare_FuelCovsCoarseByYear, c(fcArgs, list(
+        years = paste0("year", hy$year), dataYear = hy$dataYear, nonForest_timeSinceDisturbance = hy$tsd,
+        firePixelsByYear = hy$firePixels)))[[1]]
+    }
     mod$fuelCovsStatic[i] <- list(attr(coarse, "static"))
     coarse
   }))
@@ -682,6 +704,42 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
   return(invisible(sim))
 }
 
+#' What a hindcast needs to resolve `youngAge` as the fit does
+#'
+#' `fireSense_dataPrepFit` gives a fire year its `youngAge` from the time since disturbance of the data year
+#' aged to that year and every fire after it (`fireSenseUtils::youngAgeAtYear()`; for ignition
+#' `fireSenseUtils::prepare_FuelCovsCoarseByYear()`). A hindcast of year `Y` (no module simulates `cohortData`)
+#' does the same: the data year of its vegetation (`fireSenseUtils::dataYearElement(before = TRUE)`, that of
+#' `takeLatestVegetation()`), `Y = floor(time(sim))`, and the fires in `historicalFireRaster`, else
+#' `firePolysForAge` (`fireSenseUtils::firePixelsByYear()`, as the fit chooses; it stops if there is neither). It stops on
+#' `nonForestCanBeYoungAge = FALSE`, as the fit does. A forecast, or a run with no per-year
+#' `nonForest_timeSinceDisturbances`, returns `NULL`: its `youngAge` comes from the simulated cohorts and the aged
+#' `nonForest_timeSinceDisturbance`. Made once per year (kept in `mod`).
+#'
+#' @param sim A `simList`.
+#' @return `NULL`, or a list of `tsd` (`SpatRaster`, the data year's time since disturbance), `dataYear`, `year`
+#'   and `firePixels` (`firePixelsByYear()`).
+hindcastYoungAgeInputs <- function(sim) {
+  year <- floor(as.numeric(time(sim)))
+  if (identical(mod$hindcastYoungAge$year, year)) return(mod$hindcastYoungAge$inputs) # once per year
+  tsds <- sim$nonForest_timeSinceDisturbances
+  inputs <- NULL
+  if (isHindcast(sim) && any(grepl("[0-9]", names(tsds)))) {
+    fireSenseUtils::stopIfNonForestCannotBeYoung(P(sim)$nonForestCanBeYoungAge)
+    if (is.null(sim$firePolysForAge) && is.null(sim$historicalFireRaster))
+      stop("fireSense_dataPrepPredict: a hindcast resolves youngAge as the fit does, from the fires after the data ",
+           "year: supply firePolysForAge or historicalFireRaster (made by fireSense_dataPrepFit)", call. = FALSE)
+    el <- fireSenseUtils::dataYearElement(tsds, year, before = TRUE)
+    ## the fit's choice (fireSense_dataPrepFit allFirePixelsByYear()): the raster if there is one, else firePolysForAge
+    inputs <- list(tsd = tsds[[el]], dataYear = as.integer(gsub("[^0-9]", "", el)), year = year,
+                   firePixels = fireSenseUtils::firePixelsByYear(firePolys = sim$firePolysForAge,
+                                                                 fireRaster = sim$historicalFireRaster,
+                                                                 template = sim$flammableRTM))
+  }
+  mod$hindcastYoungAge <- list(year = year, inputs = inputs)
+  inputs
+}
+
 #' Build this year's spread covariates
 #'
 #' Creates `sim$fireSense_SpreadCovariates` from fuel classes, non-forest landcover and
@@ -702,6 +760,7 @@ prepare_SpreadPredict <- function(sim) {
   ## non-forest LCC codes), so a column two ELFs share means the same thing in both.
   fuelSets <- ELFfuelSets(sim)
   fuelClassTables <- fuelClassTablesThisYear(sim, fuelSets)
+  hy <- hindcastYoungAgeInputs(sim)
   spreadCovariates <- mergeCovariateTables(lapply(seq_along(fuelSets), function(i) {
     fs <- fuelSets[[i]]
     ## this fits cohortData into fuel classes
@@ -732,11 +791,20 @@ prepare_SpreadPredict <- function(sim) {
       nonForest_timeSinceDisturbance = sim$nonForest_timeSinceDisturbance,
       studyAreaName = P(sim)$.studyAreaName,
       useCache = FALSE, # predict is annual, no point in caching
+      youngAge = is.null(hy), # a hindcast resolves it below, as the fit does
       fuelCovariates = if (is.na(fs$fuelClassRoles$domClass)) "species" else "domSecWetland",
       domClass = fs$fuelClassRoles$domClass,
       secClass = fs$fuelClassRoles$secClass,
       treedWetland = fs$fuelClassRoles$treedWetland
     )
+    if (!is.null(hy)) {
+      data.table::set(covs, NULL, "youngAge",
+                      fireSenseUtils::youngAgeAtYear(fireSenseUtils::tsdTable(hy$tsd), dataYear = hy$dataYear,
+                                                     year = hy$year, firePixelsByYear = hy$firePixels,
+                                                     cutoffForYoungAge = P(sim)$cutoffForYoungAge,
+                                                     pixelID = covs$pixelID))
+      fireSenseUtils::clearYoungAge(covs) # fuel, non-forest land cover, treed wetland: as the fit, linear or log fuel
+    }
     # Sanity check - make sure the nonForest pixels have no forest fuels
     nfCols <- setdiff(names(fs$landcoverDT), "pixelID")
     df <- copy(covs)
@@ -868,7 +936,8 @@ fuelClassTablesThisYear <- function(sim, fuelSets) {
     sppEquivCol = P(sim)$sppEquivCol,
     fuelClassCol = P(sim)$fuelClassCol,
     requiredFuelClasses = fs$requiredFuelClasses,
-    cutoffForYoungAge = P(sim)$cutoffForYoungAge,
+    ## a hindcast resolves youngAge itself (hindcastYoungAgeInputs()): no cohort is young here
+    cutoffForYoungAge = if (is.null(hindcastYoungAgeInputs(sim))) P(sim)$cutoffForYoungAge else -1,
     asTable = TRUE
   ))
   both <- all(c("fireSense_ignitionPredict", "fireSense_spreadPredict") %in% P(sim)$whichModulesToPrepare)
