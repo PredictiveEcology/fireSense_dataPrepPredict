@@ -1,7 +1,7 @@
 ---
 title: "fireSense_dataPrepPredict Manual"
-subtitle: "v.1.1.0.9011"
-date: "Last updated: 2026-11-16"
+subtitle: "v.1.1.0.9012"
+date: "Last updated: 2026-11-17"
 output:
   bookdown::html_document2:
     toc: true
