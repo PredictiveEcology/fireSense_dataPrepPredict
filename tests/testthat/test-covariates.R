@@ -169,3 +169,28 @@ test_that("ageNonForest runs as an event and ages the TSD raster each year", {
   expect_identical(as.vector(terra::values(sim$nonForest_timeSinceDisturbance)),
                    c(6, rep(31, 13), 6, 31))
 })
+
+test_that("a '~ 1' spread fit (no spread climate variable) builds the spread covariates without climate", {
+  objs <- toyObjects()
+  objs$climateVariablesForFire <- list(ignition = "MDC", spread = character(0))
+  sim <- toyPrepRun(objs)
+  sp <- covDF(sim$fireSense_SpreadCovariates)
+  expect_identical(sp$pixelID, 1:15)
+  expect_identical(names(sp)[1:2], c("pixelID", "youngAge"))
+  expect_false("MDC" %in% names(sp))
+  ## ignition climate is unaffected
+  ig <- covDF(sim$fireSense_igAndEscapePred_Covariates)
+  expect_true("MDC" %in% names(ig))
+})
+
+test_that("a NULL spread climate variable (a malformed sim) stops", {
+  objs <- toyObjects()
+  objs$climateVariablesForFire <- list(ignition = "MDC", spread = NULL)
+  expect_error(toyPrepRun(objs), "climateVariablesForFire\\$spread is NULL")
+})
+
+test_that("ignition always needs climate: character(0) ignition variables stop", {
+  objs <- toyObjects()
+  objs$climateVariablesForFire <- list(ignition = character(0), spread = "MDC")
+  expect_error(toyPrepRun(objs), "ignitionClimate is NULL")
+})
