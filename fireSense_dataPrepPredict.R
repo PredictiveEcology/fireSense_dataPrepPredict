@@ -178,8 +178,8 @@ defineModule(sim, list(
     expectsInput("lightningMaps", "SpatRaster", sourceURL = NA,
       desc = paste(
         "Lightning layers: lightningDays, lightningDensity, positiveCG, positiveCGdensity.",
-        "Only `lightningDays` is used. Unsupplied: `fireSenseUtils::prepare_LightningData()`, as",
-        "`fireSense_dataPrepFit` makes it.")),
+        "Only `lightningDays` is used. Unsupplied, or declared by `fireSense_dataPrepFit` but not made (it",
+        "skips its ignition prep): `fireSenseUtils::prepare_LightningData()`, as `fireSense_dataPrepFit` makes it.")),
     expectsInput("pixelGroupMap", "SpatRaster", sourceURL = NA,
       desc = "Map of the `pixelGroup`s in `cohortData`."),
     expectsInput("projectedClimateRasters", "list", sourceURL = NA,
@@ -290,10 +290,12 @@ defineModule(sim, list(
     createsOutput("climateVariables", "list",
                   desc = "Set by `.inputObjects` when unsupplied (see `expectsInput`), for canClimateData."),
     createsOutput("ignitionFitRTM", "SpatRaster",
-                  desc = paste("Unless `fireSense_dataPrepFit` (or a user) supplies it: the coarse grid",
+                  desc = paste("Unless `fireSense_dataPrepFit` (which skips its ignition prep when it reuses a ledger fit) or a user",
+                               "has made it by then: the coarse grid",
                                "(`igAggFactor`) of `fireSense_igAndEscapePred_Covariates`, whose `pixelID`s are its",
                                "cells; `fireSense_ignitionPredict` predicts on it. Set with those covariates.")),
-    createsOutput("lightningMaps", "SpatRaster", desc = "Set by `.inputObjects` when unsupplied (see `expectsInput`)."),
+    createsOutput("lightningMaps", "SpatRaster",
+                  desc = "Set by `.inputObjects`, or at `prepIgAndEscPredictData` if still NULL (see `expectsInput`)."),
     createsOutput("sppEquivs", "list",
                   desc = "Set by `.inputObjects` from the SpreadFit ledger in a run without `fireSense_dataPrepFit`."),
     createsOutput("nonForestedLCCGroupsList", "list",
@@ -355,6 +357,9 @@ doEvent.fireSense_dataPrepPredict <- function(sim, eventTime, eventType) {
       )
     },
     prepIgAndEscPredictData = {
+      ## `fireSense_dataPrepFit` makes `lightningMaps` at start(sim), priority 1, before this (priority 5); when it
+      ## declares them but skips its ignition prep (ledger fit reused) they are still NULL here
+      if (is.null(sim$lightningMaps)) sim$lightningMaps <- lightningMapsFor(sim)
       if (!covariatesBuilt(sim, "ignition", list(sim$lightningMaps[["lightningDays"]])))
         sim <- prepare_IgnitionAndEscapePredict(sim)
       sim <- scheduleEvent(sim, time(sim) + P(sim)$fireTimeStep,
@@ -684,8 +689,9 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
     useCache = FALSE)
   
   ## the coarse grid of these covariates (their `pixelID`s), which fireSense_ignitionPredict predicts on;
-  ## fireSense_dataPrepFit makes it for the fit, from the same template, when it is in the run
-  if (!suppliedElsewhere("ignitionFitRTM", sim, where = c("user", "otherModules")))
+  ## fireSense_dataPrepFit makes it for the fit, from the same template, when it is in the run and prepares
+  ## ignition (it declares it either way, so test for the object, not for who supplies it)
+  if (is.null(sim$ignitionFitRTM))
     sim$ignitionFitRTM <- terra::setValues(terra::rast(fuelCovsCoarse, nlyrs = 1), 1)
 
   yrLab <- paste0("year", time(sim))
@@ -1260,6 +1266,9 @@ predictInputsFromLedger <- function(sim) {
 #' @param sim A `simList`.
 #'
 #' @return The `simList`, invisibly.
+lightningMapsFor <- function(sim)
+  fireSenseUtils::prepare_LightningData(sim$rasterToMatch, P(sim)$igAggFactor, dPath = asPath(inputPath(sim), 1))
+
 .inputObjects <- function(sim) {
   if (isReplay(sim)) { # a replay job: the saved inputs, nothing built
     message(currentModule(sim), ": replaying the inputs saved in '", P(sim)$replayFrom, "'.")
@@ -1280,7 +1289,7 @@ predictInputsFromLedger <- function(sim) {
 
   ## only the ignition covariates use lightning
   if ("fireSense_ignitionPredict" %in% P(sim)$whichModulesToPrepare && !suppliedElsewhere("lightningMaps", sim))
-    sim$lightningMaps <- fireSenseUtils::prepare_LightningData(sim$rasterToMatch, P(sim)$igAggFactor, dPath = dPath)
+    sim$lightningMaps <- lightningMapsFor(sim)
 
   if (!suppliedElsewhere("climateVariablesForFire", sim)) {
     sim$climateVariablesForFire <- list(
