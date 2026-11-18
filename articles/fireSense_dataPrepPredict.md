@@ -342,15 +342,6 @@ Summary of user-visible parameters (Table \@ref(tab:moduleParams-fireSense-dataP
    <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>
-   <td style="text-align:left;"> fitFileSuffix </td>
-   <td style="text-align:left;"> character </td>
-   <td style="text-align:left;">  </td>
-   <td style="text-align:left;"> NA </td>
-   <td style="text-align:left;"> NA </td>
-   <td style="text-align:left;"> The ledger to predict from, in a run without `fireSense_dataPrepFit` (`.inputObjects` then reads the stored fits itself): the text after the model tag in the ledger file names. The same parameter of `fireSense_ELFs`, `fireSense_dataPrepFit`, `fireSense_spreadFit` and `fireSense_ignitionFit`; set it for all with `.globals = list(fitFileSuffix = ...)`. </td>
-   <td style="text-align:left;"> TRUE </td>
-  </tr>
-  <tr>
    <td style="text-align:left;"> forestedLCC </td>
    <td style="text-align:left;"> numeric </td>
    <td style="text-align:left;"> 81, 210,.... </td>
@@ -446,7 +437,7 @@ Summary of user-visible parameters (Table \@ref(tab:moduleParams-fireSense-dataP
    <td style="text-align:left;"> latest </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
-   <td style="text-align:left;"> As in `fireSense_dataPrepFit`: the SpreadFit ledger file in `spreadFitGoogleDriveFolder`; `"latest"` takes each ELF's fit from the most recent file that has it. Read only in a run without `fireSense_dataPrepFit`. </td>
+   <td style="text-align:left;"> As in `fireSense_dataPrepFit`: the SpreadFit ledger file in `spreadFitGoogleDriveFolder`; `"latest"` takes each ELF's newest fit this run can use, from any ledger file; a name (e.g. an experiment's) reads that file only. Read only in a run without `fireSense_dataPrepFit`. </td>
    <td style="text-align:left;"> TRUE </td>
   </tr>
   <tr>

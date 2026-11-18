@@ -275,7 +275,7 @@ lightningMaps
 SpatRaster
 </td>
 <td style="text-align:left;">
-Lightning layers: lightningDays, lightningDensity, positiveCG, positiveCGdensity. Only <code>lightningDays</code> is used. Unsupplied: <code><a href="https://rdrr.io/pkg/fireSenseUtils/man/prepare_LightningData.html" class="external-link">fireSenseUtils::prepare_LightningData()</a></code>, as <code>fireSense_dataPrepFit</code> makes it.
+Lightning layers: lightningDays, lightningDensity, positiveCG, positiveCGdensity. Only <code>lightningDays</code> is used. Unsupplied, or declared by <code>fireSense_dataPrepFit</code> but not made (it skips its ignition prep): <code><a href="https://rdrr.io/pkg/fireSenseUtils/man/prepare_LightningData.html" class="external-link">fireSenseUtils::prepare_LightningData()</a></code>, as <code>fireSense_dataPrepFit</code> makes it.
 </td>
 <td style="text-align:left;">
 NA
@@ -1145,7 +1145,7 @@ ignitionFitRTM
 SpatRaster
 </td>
 <td style="text-align:left;">
-Unless <code>fireSense_dataPrepFit</code> (or a user) supplies it: the coarse grid (<code>igAggFactor</code>) of <code>fireSense_igAndEscapePred_Covariates</code>, whose <code>pixelID</code>s are its cells; <code>fireSense_ignitionPredict</code> predicts on it. Set with those covariates.
+Unless <code>fireSense_dataPrepFit</code> (which skips its ignition prep when it reuses a ledger fit) or a user has made it by then: the coarse grid (<code>igAggFactor</code>) of <code>fireSense_igAndEscapePred_Covariates</code>, whose <code>pixelID</code>s are its cells; <code>fireSense_ignitionPredict</code> predicts on it. Set with those covariates.
 </td>
 </tr><tr><td style="text-align:left;">
 lightningMaps
@@ -1154,7 +1154,7 @@ lightningMaps
 SpatRaster
 </td>
 <td style="text-align:left;">
-Set by <code>.inputObjects</code> when unsupplied (see <code>expectsInput</code>).
+Set by <code>.inputObjects</code>, or at <code>prepIgAndEscPredictData</code> if still NULL (see <code>expectsInput</code>).
 </td>
 </tr><tr><td style="text-align:left;">
 sppEquivs
