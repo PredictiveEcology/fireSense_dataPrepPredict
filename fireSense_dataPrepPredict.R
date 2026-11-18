@@ -56,11 +56,6 @@ defineModule(sim, list(
                           "Biomass_core, Biomass_borealDataPrep, Biomass_speciesData and burnSummaries (2020);",
                           "a module with another value is an error. Set it for all with `.globals = list(dataYear = )`.")),
     defineParameter("fireTimeStep", "numeric", 1, NA, NA, desc = "Interval between events of this module, in years."),
-    defineParameter("fitFileSuffix", "character", "", NA, NA,
-                    paste("The ledger to predict from, in a run without `fireSense_dataPrepFit` (`.inputObjects` then",
-                          "reads the stored fits itself): the text after the model tag in the ledger file names.",
-                          "The same parameter of `fireSense_ELFs`, `fireSense_dataPrepFit`, `fireSense_spreadFit` and",
-                          "`fireSense_ignitionFit`; set it for all with `.globals = list(fitFileSuffix = ...)`.")),
     defineParameter("forestedLCC", "numeric", fireSenseUtils::fireSenseForestedLCC, NA, NA,
                     "Forested landcover classes in `rstLCC_RTM`. Only used if `landcoverDT` is not supplied."),
     defineParameter("flammabilityThreshold", "numeric", fireSenseUtils::fireSenseFlammabilityThreshold, 0, 1,
@@ -99,8 +94,8 @@ defineModule(sim, list(
                     desc = "Column of `sppEquiv` with the species names used in `cohortData`."),
     defineParameter("spreadFitFilename", "character", "latest", NA, NA,
                     paste("As in `fireSense_dataPrepFit`: the SpreadFit ledger file in `spreadFitGoogleDriveFolder`;",
-                          "`\"latest\"` takes each ELF's fit from the most recent file that has it. Read only in a",
-                          "run without `fireSense_dataPrepFit`.")),
+                          "`\"latest\"` takes each ELF's newest fit this run can use, from any ledger file; a name (e.g. an",
+                          "experiment's) reads that file only. Read only in a run without `fireSense_dataPrepFit`.")),
     defineParameter("spreadFitGoogleDriveFolder", "character", fireSenseUtils::spreadFitLedgerFolder(), NA, NA,
                     paste("As in `fireSense_dataPrepFit`: the Google Drive folder of the SpreadFit ledger",
                           "(`fireSenseUtils::spreadFitLedgerFolder()`). Read only in a run without `fireSense_dataPrepFit`.")),
@@ -1231,15 +1226,15 @@ unionLCCGroups <- function(fuelSets) {
 #'
 #' @return The `simList`.
 predictInputsFromLedger <- function(sim) {
-  sfx <- SpaDES.core::paramCheckOtherMods(sim, "fitFileSuffix", ifSetButDifferent = "error")
   sa <- sim$studyArea
   if (inherits(sa, "SpatVector")) sa <- sf::st_as_sf(sa)
+  ## the escape definition is not checked here (this module has none); fireSense_burn checks it against the fit's
   rows <- fireSenseUtils::readSpreadFitLedger(P(sim)$spreadFitFilename, P(sim)$spreadFitGoogleDriveFolder,
-                                              domain = sa, destinationPath = inputPath(sim), fitFileSuffix = sfx)
+                                              domain = sa, destinationPath = inputPath(sim))
   if (!NROW(rows))
-    stop("fireSense_dataPrepPredict: the SpreadFit ledger with fitFileSuffix \"", sfx, "\" has no stored fit ",
-         "for this study area, so there is nothing to predict from. Use a fitFileSuffix whose ledger has one, ",
-         "or fit first (fireSense_dataPrepFit and fireSense_spreadFit with doFit = NA).", call. = FALSE)
+    stop("fireSense_dataPrepPredict: the SpreadFit ledger (spreadFitFilename \"", P(sim)$spreadFitFilename,
+         "\") has no stored fit for this study area, so there is nothing to predict from. Name a ledger file ",
+         "that has one, or fit first (fireSense_dataPrepFit and fireSense_spreadFit with doFit = NA).", call. = FALSE)
   sim$studyAreaWithSpreadParams <- rows
   ins <- fireSenseUtils::spreadFitLedgerInputs(rows, sppEquivCol = P(sim)$sppEquivCol,
                                                fuelClassCol = P(sim)$fuelClassCol, studyArea = sim$studyArea)

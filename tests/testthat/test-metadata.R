@@ -88,7 +88,7 @@ test_that("parameters are the expected names", {
   expect_identical(
     sort(md$parameters$paramName),
     sort(c(".runInitialTime", ".studyAreaName", ".useCache", "blendNeighbourELFs", "cutoffForYoungAge", "dataYear",
-           "fireTimeStep", "fitFileSuffix", "flammabilityThreshold", "forestedLCC", "fuelClassCol",
+           "fireTimeStep", "flammabilityThreshold", "forestedLCC", "fuelClassCol",
            "igAggFactor", "nonflammableLCC", "nonForestCanBeYoungAge", "scanfiVersion",
            "spreadFitFilename", "spreadFitGoogleDriveFolder", "sppEquivCol", "whichModulesToPrepare",
            "replayFrom", "replaySave"))

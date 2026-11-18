@@ -31,8 +31,8 @@ ledgerSim <- function(rows, objects = toyObjects(), times = list(start = 2021, e
   sim@current <- list(moduleName = moduleName, eventType = ".inputObjects", eventTime = 2021)  # as in .inputObjects
   rec <- new.env()
   testthat::local_mocked_bindings(
-    readSpreadFitLedger = function(spreadFitFilename, cloudFolderID, domain, destinationPath, fitFileSuffix = "") {
-      rec$suffix <- fitFileSuffix
+    readSpreadFitLedger = function(spreadFitFilename, cloudFolderID, domain, destinationPath, ...) {
+      rec$file <- spreadFitFilename
       rows
     }, .package = "fireSenseUtils", .env = parent.frame())
   list(sim = sim, rec = rec)
@@ -53,7 +53,7 @@ test_that("the stored fits, their per-ELF inputs and climate variables come from
   cv <- sim$climateVariables
   expect_setequal(names(cv), paste0("historical_", c("CMD", "cumMDC", "CMDsm", "CMDsp")))
   expect_identical(cv$historical_CMD$.dots$historical_years, 2021:2023)
-  expect_identical(x$rec$suffix, "")   # the module default; .globals sets it for every module
+  expect_identical(x$rec$file, "latest")   # the module default
 })
 
 test_that("climate variables a user supplies are kept", {
@@ -72,7 +72,7 @@ test_that("years after the last historical climate year ask for no historical cl
 
 test_that("a ledger without a fit for the study area stops, naming the ledger", {
   x <- ledgerSim(NULL)
-  expect_error(predictInputsFromLedger(x$sim), "fitFileSuffix \"\" has no stored fit for this study area")
+  expect_error(predictInputsFromLedger(x$sim), "spreadFitFilename \"latest\"\\) has no stored fit for this study area")
 })
 
 test_that(".inputObjects reads the ledger only when nothing supplies the stored fits", {
