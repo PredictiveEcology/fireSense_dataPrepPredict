@@ -1,5 +1,6 @@
 # fireSense_dataPrepPredict (development version)
 
+* `fitFileSuffix` is removed: in a run without `fireSense_dataPrepFit`, name the ledger to predict from in full (`spreadFitFilename`); `"latest"` takes each ELF's newest usable fit from any ledger file. The stop for a ledger with no fit for the study area names `spreadFitFilename`.
 * `lightningMaps` and `ignitionFitRTM` are now built here whenever they are NULL when the ignition covariates are made, not only when no other module declares them. `fireSense_dataPrepFit` declares both but makes neither when it skips its ignition prep (`skipUnusedFitPrep`, a ledger ignition fit reused), which left `fireSense_ignitionPredict` without `ignitionFitRTM`. Runs where `fireSense_dataPrepFit` makes them, or is absent, are unchanged.
 
 * A hindcast or forecast with a `~ 1` spread fit (no spread climate variable, so `climateVariablesForFire$spread` is empty) stopped when the covariates were built (`terra` cannot select no layer). The spread covariate table now has `pixelID` and `youngAge` and the fuels, with no climate column; the ignition covariates are unchanged. Together with `fireSenseUtils::climateRasterToDataTable()` returning a table for no raster (PredictiveEcology/fireSenseUtils, null-arm hindcasts of `fireSense_dataPrepFit`).
