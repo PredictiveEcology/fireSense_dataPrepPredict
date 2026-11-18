@@ -1,7 +1,7 @@
 ---
 title: "fireSense_dataPrepPredict Manual"
-subtitle: "v.1.1.0.9012"
-date: "Last updated: 2026-11-17"
+subtitle: "v.1.1.0.9013"
+date: "Last updated: 2026-11-18"
 output:
   bookdown::html_document2:
     toc: true
@@ -156,7 +156,7 @@ Table \@ref(tab:moduleInputs-fireSense-dataPrepPredict) shows the full list of m
   <tr>
    <td style="text-align:left;"> lightningMaps </td>
    <td style="text-align:left;"> SpatRaster </td>
-   <td style="text-align:left;"> Lightning layers: lightningDays, lightningDensity, positiveCG, positiveCGdensity. Only `lightningDays` is used. Unsupplied: `fireSenseUtils::prepare_LightningData()`, as `fireSense_dataPrepFit` makes it. </td>
+   <td style="text-align:left;"> Lightning layers: lightningDays, lightningDensity, positiveCG, positiveCGdensity. Only `lightningDays` is used. Unsupplied, or declared by `fireSense_dataPrepFit` but not made (it skips its ignition prep): `fireSenseUtils::prepare_LightningData()`, as `fireSense_dataPrepFit` makes it. </td>
    <td style="text-align:left;"> NA </td>
   </tr>
   <tr>
@@ -587,12 +587,12 @@ Description of the module outputs (Table \@ref(tab:moduleOutputs-fireSense-dataP
   <tr>
    <td style="text-align:left;"> ignitionFitRTM </td>
    <td style="text-align:left;"> SpatRaster </td>
-   <td style="text-align:left;"> Unless `fireSense_dataPrepFit` (or a user) supplies it: the coarse grid (`igAggFactor`) of `fireSense_igAndEscapePred_Covariates`, whose `pixelID`s are its cells; `fireSense_ignitionPredict` predicts on it. Set with those covariates. </td>
+   <td style="text-align:left;"> Unless `fireSense_dataPrepFit` (which skips its ignition prep when it reuses a ledger fit) or a user has made it by then: the coarse grid (`igAggFactor`) of `fireSense_igAndEscapePred_Covariates`, whose `pixelID`s are its cells; `fireSense_ignitionPredict` predicts on it. Set with those covariates. </td>
   </tr>
   <tr>
    <td style="text-align:left;"> lightningMaps </td>
    <td style="text-align:left;"> SpatRaster </td>
-   <td style="text-align:left;"> Set by `.inputObjects` when unsupplied (see `expectsInput`). </td>
+   <td style="text-align:left;"> Set by `.inputObjects`, or at `prepIgAndEscPredictData` if still NULL (see `expectsInput`). </td>
   </tr>
   <tr>
    <td style="text-align:left;"> sppEquivs </td>
