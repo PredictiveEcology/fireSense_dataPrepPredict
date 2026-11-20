@@ -77,7 +77,7 @@ test_that("prepIgAndEscPredictData aggregates to the igAggFactor grid", {
   ## the year column carries time(sim), not the layer index
   expect_identical(unique(df$year), 2001)
   expect_setequal(names(df), c("pixelID", "MDC", "youngAge", "nfLCC_wetland", "nfLCC_grass",
-                               "class1", "class2", "year", "lightningDays"))
+                               "class1", "class2", "year", "lightningDays", "coreFraction"))
   ## `ignitions` belongs to the Fit table and is dropped here
   expect_false("ignitions" %in% names(df))
 
@@ -93,6 +93,24 @@ test_that("prepIgAndEscPredictData aggregates to the igAggFactor grid", {
   ## 9, 10, 13, 14: 9 and 10 are wetland -> 0.5 wetland; coarse cell 4: 15 is young, so not
   ## wetland -> 0
   expect_equal(df$nfLCC_wetland, c(0, 0, 0.5, 0))
+})
+
+test_that("coreFraction is the share of each coarse pixel's flammable cells in the core, as the fit gets it", {
+  ## no rasterToMatchLargeELF: everything is core
+  expect_equal(covDF(toyPrepRun()$fireSense_igAndEscapePred_Covariates)$coreFraction, rep(1, 4))
+  ## core (2) in fine columns 1-2, buffer (1) in 3-4: coarse pixels 1 and 3 are core, 2 and 4 buffer
+  ## (4 also holds the non-flammable cell 16, which does not count)
+  o <- toyObjects()
+  o$rasterToMatchLargeELF <- toyRast(rep(c(2, 2, 1, 1), 4))
+  df <- covDF(toyPrepRun(o)$fireSense_igAndEscapePred_Covariates)
+  expect_equal(df$coreFraction, c(1, 0, 1, 0))
+  ## the yearly mean the year climate term uses is over the core pixels (1 and 3: MDC 103.5, 111.5), not all four,
+  ## and is what the fit's own table gives: the same table with coreFraction added as fireSense_dataPrepFit does
+  fitStyle <- data.table::as.data.table(df[, setdiff(names(df), "coreFraction")])
+  fitStyle <- fireSenseUtils::addCoreFraction(fitStyle, list(`2001` = "year2001"), list(o$flammableRTM),
+                                              o$rasterToMatchLargeELF, fact = 2)
+  expect_equal(fireSenseUtils::yearClimateMeans(df, "MDC")$mean, 107.5)
+  expect_equal(fireSenseUtils::yearClimateMeans(fitStyle, "MDC"), fireSenseUtils::yearClimateMeans(df, "MDC"))
 })
 
 test_that("igAggFactor 1 leaves the ignition covariates at flammableRTM resolution", {
