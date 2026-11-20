@@ -21,7 +21,7 @@ defineModule(sim, list(
     "PredictiveEcology/climateData@development", # latestHistoricalYear()
     "data.table",
     "googledrive",
-    "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9184)", # 9184: addCoreFraction(), coreFractionByYear(); 9142: readSpreadFitLedger() and the other predict-only helpers (#206); fuelCovsToCoarse() hands back the static it used (#191)
+    "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9185)", # 9185: elfCellLabels() (fireSenseUtils#244, version not yet released; CHECK after it merges); 9184: addCoreFraction(), coreFractionByYear(); 9142: readSpreadFitLedger() and the other predict-only helpers (#206); fuelCovsToCoarse() hands back the static it used (#191)
     "httr2",
     "PredictiveEcology/LandR@development",
     "PredictiveEcology/reproducible@development",
