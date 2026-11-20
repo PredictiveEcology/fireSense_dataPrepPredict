@@ -706,9 +706,17 @@ prepare_IgnitionAndEscapePredict <- function(sim) {
   set(sim$fireSense_igAndEscapePred_Covariates, NULL, "ignitions", NULL)
   ## the share of each coarse pixel's flammable cells that are core, as fireSense_dataPrepFit gives it to the fit
   ## (same function, same `igAggFactor`: forced to the fit module's value above): the year climate term of
-  ## fireSense_ignitionPredict averages the core pixels only, as the fit does
-  fireSenseUtils::addCoreFraction(sim$fireSense_igAndEscapePred_Covariates, list(yrLab) |> setNames(time(sim)),
-                                  list(sim$flammableRTM), sim$rasterToMatchLargeELF, P(sim)$igAggFactor)
+  ## fireSense_ignitionPredict averages the core pixels only, as the fit does. It depends on the flammable cells, the
+  ## core raster and `igAggFactor`, not on the year, so it is kept in `mod` and remade when any of them changes (as
+  ## `mod$fuelCovsStatic`); the year label is set each year. A pixel with no flammable cell gets 0, with a warning.
+  coreKey <- fireSenseUtils::coreFractionKey(list(sim$flammableRTM), sim$rasterToMatchLargeELF, P(sim)$igAggFactor)
+  coreYears <- list(yrLab) |> setNames(time(sim))
+  if (!identical(mod$coreFraction$key, coreKey))
+    mod$coreFraction <- list(key = coreKey, fractions = fireSenseUtils::coreFractionByYear(
+      coreYears, list(sim$flammableRTM), sim$rasterToMatchLargeELF, P(sim)$igAggFactor))
+  coreFractions <- copy(mod$coreFraction$fractions)
+  set(coreFractions, NULL, fireSenseUtils::yearTxt, as.numeric(gsub(fireSenseUtils::yearTxt, "", yrLab)))
+  fireSenseUtils::addCoreFraction(sim$fireSense_igAndEscapePred_Covariates, onMissing = "zero", fractions = coreFractions)
   return(invisible(sim))
 }
 

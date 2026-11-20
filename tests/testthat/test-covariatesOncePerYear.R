@@ -101,3 +101,42 @@ test_that("a change of the simulated ELF rebuilds", {
   r <- stepsAfterChange(toyObjects(), function(sim) { sim$.ELFind <- "7"; sim }, "fireSense_spreadPredict")
   expect_identical(r$n, 1L)
 })
+
+## coreFraction does not depend on the year: made once, remade when the flammable cells or the core raster change
+countCoreFractionCalls <- function(code) {
+  n <- 0L
+  orig <- fireSenseUtils::coreFractionByYear
+  testthat::local_mocked_bindings(
+    coreFractionByYear = function(...) { n <<- n + 1L; orig(...) },
+    .package = "fireSenseUtils")
+  force(code)
+  n
+}
+
+test_that("coreFraction is made once over several years, and has each year's label", {
+  o <- toyObjects(); o$rasterToMatchLargeELF <- toyRast(rep(c(2, 2, 1, 1), 4))
+  n <- countCoreFractionCalls(sim <- toyPrepRun(o, times = list(start = 2001, end = 2003),
+                                                params = list(whichModulesToPrepare = "fireSense_ignitionPredict")))
+  expect_identical(n, 1L)
+  df <- covDF(sim$fireSense_igAndEscapePred_Covariates)
+  expect_identical(unique(df$year), 2003)
+  expect_equal(df$coreFraction, c(1, 0, 1, 0))
+})
+
+test_that("a change of flammableRTM or of rasterToMatchLargeELF remakes coreFraction", {
+  o <- toyObjects(); o$rasterToMatchLargeELF <- toyRast(rep(c(2, 2, 1, 1), 4))
+  run <- function(change) {
+    sim <- SpaDES.core::spades(toyPrepSim(o, times = list(start = 2001, end = 2001),
+                                          params = list(whichModulesToPrepare = "fireSense_ignitionPredict")), debug = FALSE)
+    sim <- change(sim)
+    SpaDES.core::end(sim) <- 2002
+    n <- countCoreFractionCalls(sim <- SpaDES.core::spades(sim, debug = FALSE))
+    list(n = n, core = covDF(sim$fireSense_igAndEscapePred_Covariates)$coreFraction)
+  }
+  expect_identical(run(identity)$n, 0L)
+  r <- run(function(sim) { sim$rasterToMatchLargeELF <- toyRast(rep(c(2, 2, 2, 1), 4)); sim })
+  expect_identical(r$n, 1L)
+  expect_equal(r$core, c(1, 0.5, 1, 2 / 3))   # pixel 4: cells 11, 12, 15 flammable, 11 and 15 core
+  r <- run(function(sim) { sim$flammableRTM <- toyRast(c(0, rep(1, 14), 0)); sim })   # cell 1 no longer flammable
+  expect_identical(r$n, 1L)
+})
