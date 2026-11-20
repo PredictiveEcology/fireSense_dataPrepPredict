@@ -1,7 +1,7 @@
 ---
 title: "fireSense_dataPrepPredict Manual"
 subtitle: "v.1.1.0.9013"
-date: "Last updated: 2026-11-18"
+date: "Last updated: 2026-11-20"
 output:
   bookdown::html_document2:
     toc: true
@@ -556,7 +556,7 @@ Description of the module outputs (Table \@ref(tab:moduleOutputs-fireSense-dataP
   <tr>
    <td style="text-align:left;"> fireSense_igAndEscapePred_Covariates </td>
    <td style="text-align:left;"> data.table </td>
-   <td style="text-align:left;"> Ignition and escape covariates at the aggregated (`igAggFactor`) resolution; `pixelID` is the cell index of the aggregated raster. </td>
+   <td style="text-align:left;"> Ignition and escape covariates at the aggregated (`igAggFactor`) resolution; `pixelID` is the cell index of the aggregated raster. `coreFraction` is the share of the pixel's flammable cells in the core of `rasterToMatchLargeELF` (`fireSenseUtils::addCoreFraction()`, as `fireSense_dataPrepFit` gives it to the fit); it is an exposure, not a covariate. </td>
   </tr>
   <tr>
    <td style="text-align:left;"> fireSense_SpreadCovariates </td>
