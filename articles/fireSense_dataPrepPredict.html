@@ -72,7 +72,7 @@
       <h1 data-toc-skip>fireSense_dataPrepPredict Manual</h1>
             <h3 data-toc-skip class="subtitle">v.1.1.0.9013</h3>
             
-            <h4 data-toc-skip class="date">Last updated: 2026-11-18</h4>
+            <h4 data-toc-skip class="date">Last updated: 2026-11-20</h4>
       
 
       <div class="hidden name"><code>fireSense_dataPrepPredict.Rmd</code></div>
@@ -1283,7 +1283,7 @@ fireSense_igAndEscapePred_Covariates
 data.table
 </td>
 <td style="text-align:left;">
-Ignition and escape covariates at the aggregated (<code>igAggFactor</code>) resolution; <code>pixelID</code> is the cell index of the aggregated raster.
+Ignition and escape covariates at the aggregated (<code>igAggFactor</code>) resolution; <code>pixelID</code> is the cell index of the aggregated raster. <code>coreFraction</code> is the share of the pixel’s flammable cells in the core of <code>rasterToMatchLargeELF</code> (<code><a href="https://rdrr.io/pkg/fireSenseUtils/man/coreFraction.html" class="external-link">fireSenseUtils::addCoreFraction()</a></code>, as <code>fireSense_dataPrepFit</code> gives it to the fit); it is an exposure, not a covariate.
 </td>
 </tr>
 <tr>
