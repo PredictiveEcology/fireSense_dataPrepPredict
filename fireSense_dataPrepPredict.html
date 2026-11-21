@@ -17,7 +17,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="index.html">fireSense_dataPrepPredict</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.1.0.9013</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">1.1.0.9014</span>
       </span>
     </div>
 
@@ -1089,7 +1089,7 @@ fireSense_igAndEscapePred_Covariates
 data.table
 </td>
 <td style="text-align:left;">
-Ignition and escape covariates at the aggregated (<code>igAggFactor</code>) resolution; <code>pixelID</code> is the cell index of the aggregated raster.
+Ignition and escape covariates at the aggregated (<code>igAggFactor</code>) resolution; <code>pixelID</code> is the cell index of the aggregated raster. <code>coreFraction</code> is the share of the pixel’s flammable cells in the core of <code>rasterToMatchLargeELF</code> (<code><a href="https://rdrr.io/pkg/fireSenseUtils/man/coreFraction.html" class="external-link">fireSenseUtils::addCoreFraction()</a></code>, as <code>fireSense_dataPrepFit</code> gives it to the fit); it is an exposure, not a covariate.
 </td>
 </tr><tr><td style="text-align:left;">
 fireSense_SpreadCovariates
