@@ -21,7 +21,7 @@ defineModule(sim, list(
     "PredictiveEcology/climateData@development", # latestHistoricalYear()
     "data.table",
     "googledrive",
-    "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9184)", # 9184: addCoreFraction(), coreFractionByYear(); 9142: readSpreadFitLedger() and the other predict-only helpers (#206); fuelCovsToCoarse() hands back the static it used (#191)
+    "PredictiveEcology/fireSenseUtils@development (>= 0.2.3.9186)", # 9186: elfCellLabels() (fireSenseUtils#244); 9184: addCoreFraction(), coreFractionByYear(); 9142: readSpreadFitLedger() and the other predict-only helpers (#206); fuelCovsToCoarse() hands back the static it used (#191)
     "httr2",
     "PredictiveEcology/LandR@development",
     "PredictiveEcology/reproducible@development",
@@ -1120,13 +1120,12 @@ selectSpreadParamRows <- function(sa, ownELF, blend, placeableELFs, fuelInputELF
   sa[c(own, keep), , drop = FALSE]
 }
 
-## The ELFs a raster labels: its categories, else its values (as fireSense_spreadPredict's ELFblendWeights()
-## reads `sim$rasterToMatchLargeELF`)
+## The ELFs a raster labels: the labels of its cells (fireSenseUtils::elfCellLabels(), which fireSense_spreadPredict's
+## ELFblendWeights() reads `sim$rasterToMatchLargeELF` with)
 ELFlabels <- function(r) {
   if (is.null(r)) return(character(0))
-  lv <- terra::levels(r[[1]])[[1]]
-  if (is.data.frame(lv) && NCOL(lv) >= 2) return(as.character(lv[[2]]))
-  as.character(unique(terra::values(r[[1]], mat = FALSE)))
+  lab <- unique(fireSenseUtils::elfCellLabels(r[[1]]))
+  lab[!is.na(lab)]
 }
 
 #' Reduce `sim$studyAreaWithSpreadParams` to the simulated ELF's row and the neighbours to blend
